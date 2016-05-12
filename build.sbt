@@ -25,7 +25,7 @@ lazy val compilerOptions = Seq(
 )
 
 lazy val catsVersion = "0.5.0"
-lazy val akkaVersion = "2.4.1"
+lazy val akkaVersion = "2.3.15"
 
 lazy val commonSettings = Seq(
   scalacOptions ++= commonScalacOptions,
