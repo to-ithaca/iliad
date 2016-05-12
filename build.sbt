@@ -35,6 +35,7 @@ lazy val commonSettings = Seq(
   ),
   libraryDependencies ++= Seq(
     "org.spire-math" %% "imp" % "0.2.0" % "provided",
+    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4",
     "com.chuusai" %% "shapeless" % "2.2.5",
     "org.spire-math" %% "spire" % "0.11.0",
     "org.typelevel" %% "cats" % catsVersion,
