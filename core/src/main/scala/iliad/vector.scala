@@ -28,7 +28,7 @@ final class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
   def z(implicit ev: nat._3 <= N): A = unsized(2)
   def w(implicit ev: nat._4 <= N): A = unsized(3)
 
-  def eqv(that: VectorD[N, A])(implicit EqA: Eq[A]): Boolean = (this ap that.map((EqA.eqv _).curried)).unsized.foldLeft(true)(_ && _)
+  def ===[AA <: A](that: VectorD[N, AA])(implicit EqA: Eq[A]): Boolean = unsized  === that.unsized
 
   override def toString: String = unsized.toString
 }
@@ -49,7 +49,12 @@ private[iliad] abstract class VectorDInstances extends VectorDInstances1 {
     override def subst: VectorD[N, AA] => M[A] = identity
   }
 
-  implicit def vectorDEq[N <: Nat, A](implicit eqA: Eq[A]): Eq[VectorD[N, A]] = new VectorDEq[N, A] { implicit val EqA = eqA }
+  implicit def vectorDEq[N <: Nat, A](implicit ea: Eq[A]): Eq[VectorD[N, A]] = new VectorDEq[N, A] { implicit val EA = ea }
+
+  implicit def vectorDSemigroup[N <: Nat, A](implicit sa: Semigroup[A], toInt: ToInt[N]): Semigroup[VectorD[N, A]] = new VectorDSemigroup[N, A] { 
+    implicit val ev = toInt
+    implicit val SA = sa
+  }
 }
 
 private[iliad] trait VectorDInstances1 {
@@ -63,7 +68,13 @@ private[iliad] sealed trait VectorDIsApplicative[N <: Nat] extends Applicative[V
 }
 
 private[iliad] sealed trait VectorDEq[N <: Nat, A] extends Eq[VectorD[N, A]] {
-  implicit val EqA: Eq[A]
-  def eqv(x: VectorD[N, A], y: VectorD[N, A]): Boolean =  x eqv y
+  implicit val EA: Eq[A]
+  def eqv(x: VectorD[N, A], y: VectorD[N, A]): Boolean =  x === y
+}
+
+private[iliad] sealed trait VectorDSemigroup[N <: Nat, A] extends Semigroup[VectorD[N, A]] {
+  implicit val ev: ToInt[N]
+  implicit val SA: Semigroup[A]
+  def combine(x: VectorD[N, A], y: VectorD[N, A]): VectorD[N, A] = x combine y
 }
 

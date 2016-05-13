@@ -4,15 +4,18 @@ import org.typelevel.discipline.scalatest._
 import org.scalatest._
 import cats._
 import cats.laws.discipline._
-import cats.std.all._
+import algebra.laws._
+import cats.implicits._
+import cats.syntax._
 
 import shapeless._
 import shapeless.ops.nat.ToInt
-import iliad.syntax.vector._
 
 import org.scalacheck.Arbitrary
 
 class VectorDTests extends FunSuite with Discipline {
+
+  implicit val iso = CartesianTests.Isomorphisms.invariant[VectorD[nat._3, ?]]
 
   implicit def vectorDArbitrary[N <: Nat, A](implicit arb: Arbitrary[A], toInt: ToInt[N]): Arbitrary[VectorD[N, A]] = Arbitrary {
     for {
@@ -22,7 +25,13 @@ class VectorDTests extends FunSuite with Discipline {
 
   {
     Functor[VectorD[nat._3, ?]]
-    checkAll("VectorD[nat._3, Int]", FunctorTests[VectorD[nat._3, ?]].functor[Int, Int, Int])
+    Applicative[VectorD[nat._3, ?]]
+    checkAll("VectorD[nat._3, Int]", ApplicativeTests[VectorD[nat._3, ?]].applicative[Int, Int, Int])
+  }
+
+  {
+    Semigroup[VectorD[nat._3, Int]]
+    checkAll("VectorD[nat._3, Int]", GroupLaws[VectorD[nat._3, Int]].semigroup)
   }
 }
 
