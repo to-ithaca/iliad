@@ -2,5 +2,9 @@ language: scala
 
 # scala versions to test against
 scala:
- - 2.10.4
- - 2.11.2
+ - 2.10.6
+ - 2.11.8
+ 
+#code coverage 
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
