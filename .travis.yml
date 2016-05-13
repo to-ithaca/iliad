@@ -3,7 +3,9 @@ language: scala
 # scala versions to test against
 scala:
  - 2.11.8
- 
-#code coverage 
+
+script:
+  - sbt clean coverage test
+
 after_success:
   - bash <(curl -s https://codecov.io/bash)
