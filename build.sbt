@@ -47,9 +47,10 @@ lazy val commonSettings = Seq(
 
 lazy val testSettings = Seq(
   libraryDependencies ++= Seq(
-    "org.scalatest" %% "scalatest" % "2.2.6" % "test",
-    "org.scalacheck" %% "scalacheck" % "1.13.0" % "test",
-    "com.typesafe.akka" %% "akka-testkit" % akkaVersion % "test"
+    "org.scalatest" %% "scalatest" % "3.0.0-M7" % "test",
+    "org.scalacheck" %% "scalacheck" % "1.12.1" % "test",
+    "com.typesafe.akka" %% "akka-testkit" % akkaVersion % "test",
+    "org.typelevel" %% "discipline" % "0.4" % "test"
   )
 )
 
@@ -63,6 +64,7 @@ lazy val macros = (project in file("macros")).settings (
   buildSettings,
   moduleName := "iliad-macros",
   commonSettings,
+  testSettings,
   paradiseSettings
 )
 
@@ -70,7 +72,8 @@ lazy val core = (project in file("core")).settings(
   buildSettings,
   moduleName := "iliad-core",
   commonSettings,
-  paradiseSettings
+  paradiseSettings,
+  testSettings
 ).dependsOn(macros, kernel)
 
 lazy val kernel = (project in file("kernel")).settings(
