@@ -1,3 +1,6 @@
+lazy val coverageSettings = Seq(
+	coverageMinimum := 60
+)
 lazy val buildSettings = Seq(
   organization := "com.ithaca",
   scalaVersion := "2.11.8",
@@ -65,7 +68,8 @@ lazy val macros = (project in file("macros")).settings (
   moduleName := "iliad-macros",
   commonSettings,
   testSettings,
-  paradiseSettings
+  paradiseSettings,
+  coverageSettings
 )
 
 lazy val core = (project in file("core")).settings(
@@ -73,6 +77,7 @@ lazy val core = (project in file("core")).settings(
   moduleName := "iliad-core",
   commonSettings,
   paradiseSettings,
+  coverageSettings,	
   testSettings
 ).dependsOn(macros, kernel)
 
