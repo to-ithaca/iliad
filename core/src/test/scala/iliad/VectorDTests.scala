@@ -54,5 +54,15 @@ class VectorDTests extends FunSuite with Discipline {
     val v = v"1 2 3"
     assert(v.z == v(2))
   }
+
+  test("w accessor gives 3rd member") {
+    val v = v"1 2 3 4"
+    assert(v.w == v(3))
+  }
+
+  test("n returns the dimensions") {
+    assert(v"1 2 3 4 5".n == 5)
+  }
+
 }
 
