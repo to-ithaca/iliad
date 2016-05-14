@@ -69,8 +69,7 @@ lazy val macros = (project in file("macros")).settings (
   commonSettings,
   testSettings,
   paradiseSettings,
-  coverageSettings,
-  coverageExcludedPackages := "EmbeddedContextMacro;VectorContextMacro"	
+  coverageSettings
 )
 
 lazy val core = (project in file("core")).settings(
