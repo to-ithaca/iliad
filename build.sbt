@@ -1,6 +1,8 @@
 lazy val coverageSettings = Seq(
-	coverageMinimum := 60
+  coverageMinimum := 60,
+  coverageFailOnMinimum := false
 )
+
 lazy val buildSettings = Seq(
   organization := "com.ithaca",
   scalaVersion := "2.11.8",
