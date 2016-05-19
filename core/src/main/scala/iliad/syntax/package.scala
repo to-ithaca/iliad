@@ -1,5 +1,7 @@
 package iliad
 
-trait AllSyntax extends syntax.VectorDSyntax
+package object syntax {
+  object all extends AllSyntax
 
-package object syntax extends AllSyntax
+  object vectord extends VectorDSyntax
+}
