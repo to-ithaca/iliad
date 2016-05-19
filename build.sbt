@@ -21,7 +21,7 @@ lazy val compilerOptions = Seq(
     "-feature",
     "-deprecation",
     "-target:jvm-1.7"
-  ),
+  ) ++ commonScalacOptions,
   javacOptions ++= Seq(
     "-source", "1.7", "-target", "1.7"
   )
@@ -31,7 +31,6 @@ lazy val catsVersion = "0.5.0"
 lazy val akkaVersion = "2.3.15"
 
 lazy val commonSettings = Seq(
-  scalacOptions ++= commonScalacOptions,
   resolvers ++= Seq(
     Resolver.sonatypeRepo("releases"),
     Resolver.sonatypeRepo("snapshots")
@@ -47,7 +46,7 @@ lazy val commonSettings = Seq(
     "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
     "org.slf4j" % "slf4j-api" % "1.7.13"
   )
-)
+) ++ compilerOptions
 
 lazy val testSettings = Seq(
   libraryDependencies ++= Seq(
