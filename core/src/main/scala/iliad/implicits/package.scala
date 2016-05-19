@@ -1,3 +1,3 @@
 package iliad
 
-package object implicits extends AnyValInstances with AllSyntax
+package object implicits extends std.AllInstances with syntax.AllSyntax

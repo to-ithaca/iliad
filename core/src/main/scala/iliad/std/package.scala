@@ -1,5 +1,7 @@
 package iliad
 
-trait AnyValInstances extends std.VectorInstances
+package object std {
+  object all extends AllInstances
 
-package object std extends AnyValInstances
+  object vector extends VectorInstances
+}
