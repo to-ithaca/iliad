@@ -17,8 +17,11 @@ final class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
   def apply(i: Nat)(implicit ev: i.N <= N, toInt: ToInt[i.N]): A = unsized(toInt())
 
   def map[B](f: A => B): VectorD[N, B] = new VectorD(unsized map f)
+  
+  //Define map2, since the applicative requires ToInt[N] for pure
+  def map2[B, C](that: VectorD[N, B])(f: (A, B) => C): VectorD[N, C] = that ap (this map f.curried)
   def ap[B](ff: VectorD[N, A => B]): VectorD[N, B] = new VectorD(this.unsized.zip(ff.unsized).map { case (a, f) => f(a) } )
-  def combine(that: VectorD[N, A])(implicit s: Semigroup[A], n: ToInt[N]): VectorD[N, A] = (this |@| that).map(_ |+| _)
+  def combine(that: VectorD[N, A])(implicit s: Semigroup[A]): VectorD[N, A] = map2(that)(_ |+| _)
 
   def n(implicit toInt: ToInt[N]): Int = toInt()
   
@@ -51,10 +54,7 @@ private[iliad] abstract class VectorDInstances extends VectorDInstances1 {
 
   implicit def vectorDEq[N <: Nat, A](implicit ea: Eq[A]): Eq[VectorD[N, A]] = new VectorDEq[N, A] { implicit val EA = ea }
 
-  implicit def vectorDSemigroup[N <: Nat, A](implicit sa: Semigroup[A], toInt: ToInt[N]): Semigroup[VectorD[N, A]] = new VectorDSemigroup[N, A] { 
-    implicit val ev = toInt
-    implicit val SA = sa
-  }
+  implicit def vectorDSemigroup[N <: Nat, A](implicit sa: Semigroup[A]): Semigroup[VectorD[N, A]] = new VectorDSemigroup[N, A] { implicit val SA = sa }
 }
 
 private[iliad] trait VectorDInstances1 {
@@ -73,7 +73,6 @@ private[iliad] sealed trait VectorDEq[N <: Nat, A] extends Eq[VectorD[N, A]] {
 }
 
 private[iliad] sealed trait VectorDSemigroup[N <: Nat, A] extends Semigroup[VectorD[N, A]] {
-  implicit val ev: ToInt[N]
   implicit val SA: Semigroup[A]
   def combine(x: VectorD[N, A], y: VectorD[N, A]): VectorD[N, A] = x combine y
 }
