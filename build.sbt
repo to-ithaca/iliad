@@ -31,7 +31,8 @@ lazy val commonSettings = Seq(
   scalacOptions ++= commonScalacOptions,
   resolvers ++= Seq(
     Resolver.sonatypeRepo("releases"),
-    Resolver.sonatypeRepo("snapshots")
+    Resolver.sonatypeRepo("snapshots"),
+    Resolver.jcenterRepo
   ),
   libraryDependencies ++= Seq(
     "org.spire-math" %% "imp" % "0.2.0" % "provided",
@@ -41,7 +42,8 @@ lazy val commonSettings = Seq(
     "org.typelevel" %% "cats" % catsVersion,
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
     "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
-    "org.slf4j" % "slf4j-api" % "1.7.13"
+    "org.slf4j" % "slf4j-api" % "1.7.13",
+    "co.fs2" %% "fs2-core" % "0.9.0-M1"
   )
 )
 

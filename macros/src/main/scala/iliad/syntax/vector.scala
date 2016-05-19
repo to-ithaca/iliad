@@ -7,4 +7,4 @@ trait VectorContextSyntax {
   }
 }
 
-object vector extends VectorContextSyntax
+
