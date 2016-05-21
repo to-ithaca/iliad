@@ -51,7 +51,7 @@ class VectorDTests extends FunSuite with Discipline {
 
   {
     algebra.InnerProductSpace[VectorD[nat._3, Float], Float]
-    checkAll("VectorD[nat._3, BigDecimal], BigDecimal", VectorSpaceLaws[VectorD[nat._3, BigDecimal], BigDecimal].innerProductSpace)
+    checkAll("VectorD[nat._3, Double], Double", VectorSpaceLaws[VectorD[nat._3, Double], Double].innerProductSpace)
   }
 
   {
