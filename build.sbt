@@ -54,6 +54,7 @@ lazy val commonSettings = Seq(
 
 lazy val testSettings = Seq(
   libraryDependencies ++= Seq(
+    "org.spire-math" %% "spire-laws" % "0.11.0" % "test",
     "org.scalatest" %% "scalatest" % "3.0.0-M7" % "test",
     "org.scalacheck" %% "scalacheck" % "1.12.1" % "test",
     "com.typesafe.akka" %% "akka-testkit" % akkaVersion % "test",

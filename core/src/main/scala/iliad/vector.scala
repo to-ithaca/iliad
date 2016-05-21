@@ -1,5 +1,6 @@
 package iliad
 
+import spire._
 import spire.math._
 import spire.implicits._
 
@@ -36,8 +37,12 @@ final class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
 
   def ===[AA <: A](that: VectorD[N, AA])(implicit EA: Eq[A]): Boolean = unsized  === that.unsized
 
-  def +[AA <: A](that: VectorD[N, A])(implicit NA: Numeric[A]): VectorD[N, A] = map2(that)(NA.plus)
-  def -[AA <: A](that: VectorD[N, A])(implicit NA: Numeric[A]): VectorD[N, A] = map2(that)(_ - _)
+  def +(that: VectorD[N, A])(implicit NA: Numeric[A]): VectorD[N, A] = map2(that)(NA.plus)
+  def -(that: VectorD[N, A])(implicit NA: Numeric[A]): VectorD[N, A] = map2(that)(_ - _)
+  def *:(a: A)(implicit NA: Numeric[A]): VectorD[N, A] = map(a * _)
+  def ⋅(that: VectorD[N, A])(implicit NA: Numeric[A]): A = map2(that)(_ * _).unsized.foldLeft(NA.zero)(_ + _)
+  def unary_-(implicit NA: Numeric[A]): VectorD[N, A] = map(-_)
+
 
 
   override def toString: String = unsized.toString
@@ -61,13 +66,23 @@ private[iliad] abstract class VectorDInstances extends VectorDInstances1 {
     override def subst: VectorD[N, AA] => M[A] = identity
   }
 
-  implicit def vectorDEq[N <: Nat, A](implicit ea: Eq[A]): Eq[VectorD[N, A]] = new VectorDEq[N, A] { implicit val EA = ea }
+  implicit def vectorDEq[N <: Nat, A](implicit ea: Eq[A]): Eq[VectorD[N, A]] = new VectorDEq[N, A] { val EA = ea }
 
-  implicit def vectorDSemigroup[N <: Nat, A](implicit sa: Semigroup[A]): Semigroup[VectorD[N, A]] = new VectorDSemigroup[N, A] { implicit val SA = sa }
+  //TODO: Migrate out!
+  implicit def catsEqToSpireEq[A](implicit ea: Eq[A]): algebra.Eq[A] = new CatsEqToSpireEq[A] { val EA = ea  }
+
+  implicit def vectorDSemigroup[N <: Nat, A](implicit sa: Semigroup[A]): Semigroup[VectorD[N, A]] = new VectorDSemigroup[N, A] { val SA = sa }
 }
 
 private[iliad] trait VectorDInstances1 {
+
   implicit def vectorDIsApplicative[N <: Nat](implicit toInt: ToInt[N]): Applicative[VectorD[N, ?]]  = new VectorDIsApplicative[N] { val n: Int = toInt() }
+
+  implicit def vectorDIsInnerProductSpace[N <: Nat, A](implicit fa: algebra.Field[A], na: Numeric[A], toInt: ToInt[N]): algebra.InnerProductSpace[VectorD[N, A], A] = new VectorDIsInnerProductSpace[N, A] {
+    val NA = na
+    val n = toInt()
+    def scalar: algebra.Field[A] = fa
+  }
 }
 
 private[iliad] sealed trait VectorDIsApplicative[N <: Nat] extends Applicative[VectorD[N, ?]] {
@@ -81,8 +96,24 @@ private[iliad] sealed trait VectorDEq[N <: Nat, A] extends Eq[VectorD[N, A]] {
   def eqv(x: VectorD[N, A], y: VectorD[N, A]): Boolean =  x === y
 }
 
+private[iliad] sealed trait CatsEqToSpireEq[A] extends algebra.Eq[A] {
+  implicit val EA: Eq[A]
+  def eqv(x: A, y: A): Boolean = x === y
+}
+
 private[iliad] sealed trait VectorDSemigroup[N <: Nat, A] extends Semigroup[VectorD[N, A]] {
   implicit val SA: Semigroup[A]
   def combine(x: VectorD[N, A], y: VectorD[N, A]): VectorD[N, A] = x combine y
 }
 
+private[iliad] sealed trait VectorDIsInnerProductSpace[N <: Nat, A] extends algebra.InnerProductSpace[VectorD[N, A], A] {
+  /** Numeric[A] should always be consistent with [[spire.algebra.Field[A]]]*/
+  implicit val NA: Numeric[A]
+  val n: Int
+
+  def dot(x: VectorD[N, A], y: VectorD[N, A]): A = x ⋅ y
+  def timesl(l: A, x: VectorD[N, A]): VectorD[N, A] = l *: x
+  def negate(v: VectorD[N, A]): VectorD[N, A] = -v
+  val zero: VectorD[N, A] = new VectorD(Vector.fill(n)(NA.zero))
+  def plus(x: VectorD[N, A], y: VectorD[N, A]): VectorD[N, A] = x + y
+}

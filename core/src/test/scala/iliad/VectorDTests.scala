@@ -2,6 +2,11 @@ package iliad
 
 import org.typelevel.discipline.scalatest._
 import org.scalatest._
+
+import spire._
+import spire.implicits._
+import spire.laws.VectorSpaceLaws
+
 import cats._
 import cats.laws.discipline._
 import cats.kernel.laws._
@@ -27,12 +32,21 @@ class VectorDTests extends FunSuite with Discipline {
   {
     Functor[VectorD[nat._3, ?]]
     Applicative[VectorD[nat._3, ?]]
-    checkAll("VectorD[nat._3, Int]", ApplicativeTests[VectorD[nat._3, ?]].applicative[Int, Int, Int])
+    checkAll("VectorD[nat._3, Float]", ApplicativeTests[VectorD[nat._3, ?]].applicative[Int, Int, Int])
   }
 
   {
-    Semigroup[VectorD[nat._3, Int]]
-    checkAll("VectorD[nat._3, Int]", GroupLaws[VectorD[nat._3, Int]].semigroup)
+    Semigroup[VectorD[nat._3, Float]]
+    checkAll("VectorD[nat._3, Float]", GroupLaws[VectorD[nat._3, Int]].semigroup)
+  }
+
+  {
+    algebra.InnerProductSpace[VectorD[nat._3, Double], Double]
+    checkAll("VectorD[nat._3, Float], Float", VectorSpaceLaws[VectorD[nat._3, Float], Float].innerProductSpace)
+  }
+
+  {
+    Eq[VectorD[nat._3, Float]]
   }
 
   test("vector context syntax as the same as explicit creation") {
