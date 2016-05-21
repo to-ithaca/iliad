@@ -5,7 +5,6 @@ import spire.math._
 import spire.implicits._
 
 import cats._
-import cats.syntax._
 import cats.implicits._
 
 import shapeless._
@@ -35,7 +34,7 @@ final class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
   def z(implicit ev: nat._3 <= N): A = unsized(2)
   def w(implicit ev: nat._4 <= N): A = unsized(3)
 
-  def ===[AA <: A](that: VectorD[N, AA])(implicit EA: Eq[A]): Boolean = unsized  === that.unsized
+  def ===[AA <: A](that: VectorD[N, AA])(implicit EA: Eq[A]): Boolean = unsized === that.unsized
 
   def +(that: VectorD[N, A])(implicit NA: Numeric[A]): VectorD[N, A] = map2(that)(NA.plus)
   def -(that: VectorD[N, A])(implicit NA: Numeric[A]): VectorD[N, A] = map2(that)(_ - _)
@@ -76,7 +75,9 @@ private[iliad] abstract class VectorDInstances extends VectorDInstances1 {
 
 private[iliad] trait VectorDInstances1 {
 
-  implicit def vectorDIsApplicative[N <: Nat](implicit toInt: ToInt[N]): Applicative[VectorD[N, ?]]  = new VectorDIsApplicative[N] { val n: Int = toInt() }
+  implicit def vectorDIsApplicative[N <: Nat](implicit toInt: ToInt[N]): Applicative[VectorD[N, ?]]  = new VectorDIsApplicative[N] { 
+    val n: Int = toInt() 
+  }
 
   implicit def vectorDIsInnerProductSpace[N <: Nat, A](implicit fa: algebra.Field[A], na: Numeric[A], toInt: ToInt[N]): algebra.InnerProductSpace[VectorD[N, A], A] = new VectorDIsInnerProductSpace[N, A] {
     val NA = na
@@ -109,11 +110,10 @@ private[iliad] sealed trait VectorDSemigroup[N <: Nat, A] extends Semigroup[Vect
 private[iliad] sealed trait VectorDIsInnerProductSpace[N <: Nat, A] extends algebra.InnerProductSpace[VectorD[N, A], A] {
   /** Numeric[A] should always be consistent with [[spire.algebra.Field[A]]]*/
   implicit val NA: Numeric[A]
-  val n: Int
-
+  def n: Int
   def dot(x: VectorD[N, A], y: VectorD[N, A]): A = x ⋅ y
   def timesl(l: A, x: VectorD[N, A]): VectorD[N, A] = l *: x
   def negate(v: VectorD[N, A]): VectorD[N, A] = -v
-  val zero: VectorD[N, A] = new VectorD(Vector.fill(n)(NA.zero))
+  def zero: VectorD[N, A] = new VectorD(Vector.fill(n)(NA.zero))
   def plus(x: VectorD[N, A], y: VectorD[N, A]): VectorD[N, A] = x + y
 }
