@@ -1,5 +1,8 @@
 package iliad
 
+import spire.math._
+import spire.implicits._
+
 import cats._
 import cats.syntax._
 import cats.implicits._
@@ -31,12 +34,18 @@ final class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
   def z(implicit ev: nat._3 <= N): A = unsized(2)
   def w(implicit ev: nat._4 <= N): A = unsized(3)
 
-  def ===[AA <: A](that: VectorD[N, AA])(implicit EqA: Eq[A]): Boolean = unsized  === that.unsized
+  def ===[AA <: A](that: VectorD[N, AA])(implicit EA: Eq[A]): Boolean = unsized  === that.unsized
+
+  def +[AA <: A](that: VectorD[N, A])(implicit NA: Numeric[A]): VectorD[N, A] = map2(that)(NA.plus)
+  def -[AA <: A](that: VectorD[N, A])(implicit NA: Numeric[A]): VectorD[N, A] = map2(that)(_ - _)
+
 
   override def toString: String = unsized.toString
 }
 
 object VectorD extends VectorDInstances {
+
+  def zero[N <: Nat, A](implicit NA: Numeric[A], toInt: ToInt[N]): VectorD[N, A] = fill(NA.zero)
   def sized[A](i: Nat, unsized: Vector[A])(implicit toInt: ToInt[i.N]): VectorD[i.N, A] = if(unsized.length < toInt()) throw new IllegalArgumentException(s"vector $unsized is less than ${toInt()}") else new VectorD(unsized)
   def fill[A](i: Nat, a: A)(implicit toInt: ToInt[i.N]): VectorD[i.N, A] = fill[i.N, A](a)
   def fill[N <: Nat, A](a: A)(implicit toInt: ToInt[N]): VectorD[N, A] = new VectorD(Vector.fill(toInt())(a))

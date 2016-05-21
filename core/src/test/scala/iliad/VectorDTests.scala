@@ -4,9 +4,8 @@ import org.typelevel.discipline.scalatest._
 import org.scalatest._
 import cats._
 import cats.laws.discipline._
-import algebra.laws._
+import cats.kernel.laws._
 import cats.implicits._
-import cats.syntax._
 
 import shapeless._
 import shapeless.ops.nat.ToInt
