@@ -30,12 +30,14 @@ case class Rect[A](x0y0: VectorD[nat._2, A], dx: A, dy: A) {
     val dxdy = cx1y1 - cx0y0
     Rect(cx0y0, dxdy.x, dxdy.y)
   }
+  def ===(that: Rect[A])(implicit EQ: Eq[A]): Boolean = (x0y0 === that.x0y0) && (dx === that.dx) && (dy === that.dy)
 }
 
 object Rect extends RectInstances
 
 private[iliad] abstract class RectInstances {
   implicit def rectSemigroup[A](implicit na: Numeric[A]): Semigroup[Rect[A]] = new RectSemigroup[A] { val NA = na }
+  implicit def rectEq[A](implicit ea: Eq[A]): Eq[Rect[A]] = new RectEq[A] { val EA = ea }
 }
 
 private[iliad] sealed trait RectSemigroup[A] extends Semigroup[Rect[A]] {
@@ -43,6 +45,10 @@ private[iliad] sealed trait RectSemigroup[A] extends Semigroup[Rect[A]] {
   def combine(x: Rect[A], y: Rect[A]): Rect[A] = x combine y
 }
 
+private[iliad] sealed trait RectEq[A] extends Eq[Rect[A]] {
+  implicit val EA: Eq[A]
+  def eqv(x: Rect[A], y: Rect[A]): Boolean = x === y
+}
 
 
 
