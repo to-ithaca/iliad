@@ -72,6 +72,34 @@ lazy val paradiseSettings = Seq(
   libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _)
 )
 
+
+import sbt._
+import Keys._
+
+lazy val androidDependencies = taskKey[Seq[Attributed[File]]]("Extracts android jars and adds them to the classpath")
+lazy val androidDependenciesTask = Def.task {
+  val log = streams.value.log
+
+  val androidHome = sys.env("ANDROID_HOME")
+  val sdkJar = file(androidHome) / "platforms" / "android-23" / "android.jar"
+  
+  log.info(s"Using Android SDK jar ${sdkJar.absolutePath}")
+
+  val supportAar = file(androidHome) / "extras" / "android" / "m2repository" / "com" / "android" / "support" / "support-v4" / "23.1.0" / "support-v4-23.1.0.aar"
+  val targetDir = target.value / "android"
+  IO.unzip(supportAar, targetDir)
+  val supportJar = (targetDir ** "*.jar").get.head
+
+  log.info(s"Using Android support jar ${supportJar.absolutePath}")
+
+  Seq(supportJar, sdkJar).map(Attributed.blank)
+}
+
+lazy val androidSettings = Seq(
+  androidDependencies := androidDependenciesTask.value,
+  (unmanagedClasspath in Compile) := (unmanagedClasspath in Compile).value ++ androidDependencies.value
+)
+
 lazy val macros = (project in file("macros")).settings (
   buildSettings,
   moduleName := "iliad-macros",
@@ -81,6 +109,13 @@ lazy val macros = (project in file("macros")).settings (
   coverageSettings
 )
 
+lazy val kernel = (project in file("kernel")).settings(
+  buildSettings,
+  moduleName := "iliad-kernel",
+  commonSettings,
+  paradiseSettings
+).dependsOn(macros)
+
 lazy val core = (project in file("core")).settings(
   buildSettings,
   moduleName := "iliad-core",
@@ -88,20 +123,12 @@ lazy val core = (project in file("core")).settings(
   paradiseSettings,
   coverageSettings,	
   testSettings
-).dependsOn(macros, kernel)
-
-lazy val kernel = (project in file("kernel")).settings(
-  buildSettings,
-  moduleName := "iliad-kernel",
-  commonSettings,
-  paradiseSettings
-)
+).dependsOn(kernel)
 
 lazy val androidKernel = (project in file("kernel-android")).settings(
   buildSettings,
   moduleName := "iliad-kernel-android",
-  commonSettings,
-  paradiseSettings
+  androidSettings
 ).dependsOn(kernel)
 
 lazy val win32Kernel = (project in file("kernel-win32")).settings(
@@ -121,5 +148,5 @@ lazy val iosKernel = (project in file("kernel-ios")).settings(
 lazy val root = (project in file(".")).settings(
   buildSettings,
   moduleName := "iliad"
-).aggregate(macros, core, kernel)
+).aggregate(macros, core, kernel, androidKernel)
 
