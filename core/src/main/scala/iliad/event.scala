@@ -14,7 +14,7 @@ trait EventStream { handler: EventHandler =>
     for {
       q <- Stream.eval(async.unboundedQueue[Task, A])
       _ <- Stream.suspend {
-        register {(a: A) => R.unsafeRunEffects(q.enqueue1(a)) }
+        register {(a: A) => R.unsafeRunAsyncEffects(q.enqueue1(a))(_ => ()) }
         Stream.emit(())
       }
       a <- q.dequeue
