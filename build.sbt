@@ -41,7 +41,7 @@ lazy val commonSettings = Seq(
   libraryDependencies ++= Seq(
     "org.spire-math" %% "imp" % "0.2.0" % "provided",
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4",
-    "co.fs2" %% "fs2-core" % "0.9.0-M1",
+    "co.fs2" %% "fs2-core" % "0.9.0-M2",
     "com.chuusai" %% "shapeless" % "2.2.5",
     "org.spire-math" %% "spire" % "0.11.0",
     "org.typelevel" %% "cats-core" % catsVersion,
@@ -51,8 +51,7 @@ lazy val commonSettings = Seq(
     "org.typelevel" %% "cats-laws" % catsVersion % "test",
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
     "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
-    "org.slf4j" % "slf4j-api" % "1.7.13",
-    "co.fs2" %% "fs2-core" % "0.9.0-M1"
+    "org.slf4j" % "slf4j-api" % "1.7.13"
   )
 ) ++ compilerOptions
 
@@ -131,11 +130,14 @@ lazy val androidKernel = (project in file("kernel-android")).settings(
   androidSettings
 ).dependsOn(kernel)
 
+lazy val jnaVersion = "4.2.2"
+
 lazy val win32Kernel = (project in file("kernel-win32")).settings(
   buildSettings,
   moduleName := "iliad-kernel-win32",
   commonSettings,
-  paradiseSettings
+  paradiseSettings,
+  libraryDependencies += "net.java.dev.jna" % "jna-platform" % jnaVersion
 ).dependsOn(kernel)
 
 lazy val iosKernel = (project in file("kernel-ios")).settings(
@@ -145,8 +147,9 @@ lazy val iosKernel = (project in file("kernel-ios")).settings(
   paradiseSettings
 ).dependsOn(kernel)
 
+//leave out the kernels until we can compile them properly
 lazy val root = (project in file(".")).settings(
   buildSettings,
   moduleName := "iliad"
-).aggregate(macros, core, kernel, androidKernel)
+).aggregate(macros, core, kernel)
 
