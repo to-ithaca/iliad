@@ -1,17 +1,12 @@
-sudo: required
-dist: trusty
-
 language: scala
 
 # scala versions to test against
 scala:
  - 2.11.8
- 
-android:
- components:
-  - platform-tools
-  - build-tools-23.0.1
-  - android-23
+
+# set android home 
+global:
+ - ANDROID_HOME=$PWD/android-sdk-linux
 
 script:
   - sbt clean coverage test coverageReport 
