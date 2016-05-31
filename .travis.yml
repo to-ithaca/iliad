@@ -3,12 +3,6 @@ language: scala
 # scala versions to test against
 scala:
  - 2.11.8
- 
-android:
- components:
-  - platform-tools
-  - build-tools-23.0.1
-  - android-23
 
 script:
   - sbt clean coverage test coverageReport 
