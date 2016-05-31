@@ -165,4 +165,3 @@ lazy val root = (project in file(".")).settings(
   buildSettings,
   moduleName := "iliad"
 ).aggregate(macros, core, kernel)
-

@@ -12,11 +12,11 @@ import cats._
 import cats.data._
 import cats.implicits._
 
-trait IliadBootstrap { app: IliadApp =>
+trait IliadBootstrap extends X11EventHandler { app: IliadApp =>
 
-  val viewDimensions: Vec2i
-
-  val handler: X11EventHandler = new X11EventHandler(viewDimensions)
+  def width: Int
+  def height: Int
+  def viewDimensions: Vec2i = v"$width $height"
 
   private val x = X11.INSTANCE
 
@@ -36,6 +36,7 @@ trait IliadBootstrap { app: IliadApp =>
     val borderWidth = 1
     val border = 1
     val background = 0
+    println(s"Creating window with width ${viewDimensions(0)} height ${viewDimensions(1)}")
     try {
       x.XCreateSimpleWindow(
         d, root,
@@ -43,11 +44,13 @@ trait IliadBootstrap { app: IliadApp =>
         borderWidth, border, background
       ).right
     } catch {
-      case e: Error => e.left
+      case e: Error =>
+        new Error(s"Failed to create window: \n ${e.getMessage}").left
     }    
 }
 
   private def addDeletionProtocol(d: X11.Display, w: X11.Window): Error Xor Unit = {
+    println("Adding deletion protocol")
     val protocol = x.XInternAtom(d, "WM_DELETE_WINDOW", false)
     x.XSetWMProtocols(d, w, Array(protocol), 1) match {
       case 0 => new Error("Unable to set deletion protocol").left
@@ -58,10 +61,12 @@ trait IliadBootstrap { app: IliadApp =>
   private val inputMask = new NativeLong(X11.ExposureMask | X11.ButtonPressMask)
 
   private def addInputDetection(d: X11.Display, w: X11.Window): Unit = {
+    println("Adding input detection")
     x.XSelectInput(d, w, inputMask)
   }
 
   private def showWindow(d: X11.Display, w: X11.Window): Unit = {
+    println("Showing window")
     x.XMapWindow(d, w)
   }
 
@@ -79,7 +84,7 @@ trait IliadBootstrap { app: IliadApp =>
     x.XCloseDisplay(d)
   }
 
-  private def handleEvents(d: X11.Display): Boolean = {
+  private def handleAllEvents(d: X11.Display): Boolean = {
     val e = new X11.XEvent()
     x.XNextEvent(d, e)
     e.`type` match {
@@ -87,7 +92,7 @@ trait IliadBootstrap { app: IliadApp =>
         println("Closing window")
         false
       case other => 
-        handler.handleEvent(e)
+        handleEvent(e)
         true
     }
   }
@@ -98,7 +103,7 @@ trait IliadBootstrap { app: IliadApp =>
         app.run()
         var shouldDraw = true
         while(shouldDraw) {
-          shouldDraw = handleEvents(d)
+          shouldDraw = handleAllEvents(d)
         }
         destroyWindow(d, w)
       case Xor.Left(err) => throw err

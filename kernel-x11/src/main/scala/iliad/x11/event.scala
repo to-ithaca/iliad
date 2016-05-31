@@ -6,7 +6,9 @@ import iliad.kernel.utils.vectord._
 
 import com.sun.jna.platform.unix.X11
 
-class X11EventHandler(viewDimensions: Vec2i) extends EventHandler {
+trait X11EventHandler extends EventHandler {
+
+  def viewDimensions: Vec2i
 
   var tapCallback: TouchEvent.Tap => Unit = (_) => ()
 
