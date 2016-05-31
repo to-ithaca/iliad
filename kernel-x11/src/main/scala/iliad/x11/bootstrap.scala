@@ -1,6 +1,9 @@
 package iliad
 package x11
 
+import iliad.kernel._
+import iliad.kernel.utils.vectord._
+
 import com.sun.jna._
 import com.sun.jna.platform.unix._
 
@@ -9,11 +12,11 @@ import cats._
 import cats.data._
 import cats.implicits._
 
-trait MainWindow {
+trait IliadBootstrap { app: IliadApp =>
 
-  /* **/
-  def width: Int
-  def height: Int 
+  val viewDimensions: Vec2i
+
+  val handler: X11EventHandler = new X11EventHandler(viewDimensions)
 
   private val x = X11.INSTANCE
 
@@ -36,7 +39,7 @@ trait MainWindow {
     try {
       x.XCreateSimpleWindow(
         d, root,
-        xOffset, yOffset, width, height,
+        xOffset, yOffset, viewDimensions(0), viewDimensions(1),
         borderWidth, border, background
       ).right
     } catch {
@@ -52,7 +55,7 @@ trait MainWindow {
     }
   }
 
-  private val inputMask = new NativeLong(X11.ExposureMask | X11.ButtonPressMask | X11.ButtonReleaseMask | X11.Button1MotionMask)
+  private val inputMask = new NativeLong(X11.ExposureMask | X11.ButtonPressMask)
 
   private def addInputDetection(d: X11.Display, w: X11.Window): Unit = {
     x.XSelectInput(d, w, inputMask)
@@ -76,7 +79,7 @@ trait MainWindow {
     x.XCloseDisplay(d)
   }
 
-  def handleEvents(d: X11.Display): Boolean = {
+  private def handleEvents(d: X11.Display): Boolean = {
     val e = new X11.XEvent()
     x.XNextEvent(d, e)
     e.`type` match {
@@ -84,33 +87,21 @@ trait MainWindow {
         println("Closing window")
         false
       case other => 
-        println(s"Unhandled event of type $other")
+        handler.handleEvent(e)
         true
     }
   }
 
   def main(args: Array[String]): Unit = {
     createWindow match {
-      case Xor.Right((d, w)) => 
+      case Xor.Right((d, w)) =>
+        app.run()
         var shouldDraw = true
         while(shouldDraw) {
           shouldDraw = handleEvents(d)
         }
         destroyWindow(d, w)
       case Xor.Left(err) => throw err
-    }
-  }
-}
-
-
-trait EventReceiver {
-
-  def receiveEvent(e: X11.XEvent) = {
-    e.`type` match {
-      case X11.ButtonPress =>
-        e.readField("xbutton")
-      case X11.ButtonRelease =>
-        e.readField("xbutton")
     }
   }
 }
