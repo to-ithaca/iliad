@@ -1,12 +1,20 @@
+sudo: required
+dist: trusty
+
 language: scala
+
+android:
+  components:
+    # Uncomment the lines below if you want to
+    # use the latest revision of Android SDK Tools
+    - platform-tools
+    - tools
 
 # scala versions to test against
 scala:
  - 2.11.8
 
-# set android home 
-global:
- - ANDROID_HOME=$PWD/android-sdk-linux
+
 
 script:
   - sbt clean coverage test coverageReport 
