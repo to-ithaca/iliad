@@ -100,6 +100,13 @@ lazy val androidSettings = Seq(
   (unmanagedClasspath in Compile) := (unmanagedClasspath in Compile).value ++ androidDependencies.value
 )
 
+lazy val x11Settings = Seq(
+  libraryDependencies ++= Seq(
+    "net.java.dev.jna" % "jna" % "4.3.0-SNAPSHOT",
+    "net.java.dev.jna" % "jna-platform" % "4.3.0-SNAPSHOT"
+  )
+)
+
 lazy val macros = (project in file("macros")).settings (
   buildSettings,
   moduleName := "iliad-macros",
@@ -144,6 +151,15 @@ lazy val iosKernel = (project in file("kernel-ios")).settings(
   commonSettings,
   paradiseSettings
 ).dependsOn(kernel)
+
+lazy val x11Kernel = (project in file("kernel-x11")).settings(
+  buildSettings,
+  moduleName := "iliad-kernel-x11",
+  commonSettings,
+  paradiseSettings,
+  x11Settings
+).dependsOn(kernel)
+
 
 lazy val root = (project in file(".")).settings(
   buildSettings,
