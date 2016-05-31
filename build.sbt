@@ -95,6 +95,8 @@ lazy val androidDependenciesTask = Def.task {
   Seq(supportJar, sdkJar).map(Attributed.blank)
 }
 
+lazy val jnaVersion = "4.2.2"
+
 lazy val androidSettings = Seq(
   androidDependencies := androidDependenciesTask.value,
   (unmanagedClasspath in Compile) := (unmanagedClasspath in Compile).value ++ androidDependencies.value
@@ -102,8 +104,8 @@ lazy val androidSettings = Seq(
 
 lazy val x11Settings = Seq(
   libraryDependencies ++= Seq(
-    "net.java.dev.jna" % "jna" % "4.3.0-SNAPSHOT",
-    "net.java.dev.jna" % "jna-platform" % "4.3.0-SNAPSHOT"
+    "net.java.dev.jna" % "jna" % jnaVersion,
+    "net.java.dev.jna" % "jna-platform" % jnaVersion
   )
 )
 
