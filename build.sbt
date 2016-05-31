@@ -139,8 +139,6 @@ lazy val androidKernel = (project in file("kernel-android")).settings(
   androidSettings
 ).dependsOn(kernel)
 
-lazy val jnaVersion = "4.2.2"
-
 lazy val win32Kernel = (project in file("kernel-win32")).settings(
   buildSettings,
   moduleName := "iliad-kernel-win32",
