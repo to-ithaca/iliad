@@ -4,7 +4,7 @@ package x11
 import iliad.kernel._
 import iliad.kernel.utils.vectord._
 
-import com.sun.jna.platform.unix.X11
+import iliad.kernel.platform.unix.X11
 
 trait X11EventHandler extends EventHandler {
 

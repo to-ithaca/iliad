@@ -3,9 +3,9 @@ package x11
 
 import iliad.kernel._
 import iliad.kernel.utils.vectord._
+import iliad.kernel.platform.unix._
 
 import com.sun.jna._
-import com.sun.jna.platform.unix._
 
 
 import cats._
