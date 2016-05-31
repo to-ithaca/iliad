@@ -11,7 +11,7 @@ import android.graphics.Point
 import android.support.v4.view.GestureDetectorCompat
 import android.content.Context
 
-trait IliadBootstrap extends Activity with AndroidEventHandler { app: IliadApp =>
+trait AndroidBootstrap extends Activity with AndroidEventHandler { app: IliadApp =>
 
   def view: Int
 

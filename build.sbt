@@ -103,7 +103,6 @@ lazy val androidSettings = Seq(
 
 lazy val x11Settings = Seq(
   libraryDependencies ++= Seq(
-    "net.java.dev.jna" % "jna" % jnaVersion,
     "net.java.dev.jna" % "jna-platform" % jnaVersion
   )
 )

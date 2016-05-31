@@ -12,7 +12,11 @@ import cats._
 import cats.data._
 import cats.implicits._
 
-trait IliadBootstrap extends X11EventHandler { app: IliadApp =>
+import org.slf4j._
+
+trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
+
+  private val log = LoggerFactory.getLogger(classOf[X11Bootstrap])
 
   def width: Int
   def height: Int
@@ -36,7 +40,7 @@ trait IliadBootstrap extends X11EventHandler { app: IliadApp =>
     val borderWidth = 1
     val border = 1
     val background = 0
-    println(s"Creating window with width ${viewDimensions(0)} height ${viewDimensions(1)}")
+    log.debug("Creating window with width {} height {}", viewDimensions(0), viewDimensions(1))
     try {
       x.XCreateSimpleWindow(
         d, root,
@@ -50,7 +54,7 @@ trait IliadBootstrap extends X11EventHandler { app: IliadApp =>
 }
 
   private def addDeletionProtocol(d: X11.Display, w: X11.Window): Error Xor Unit = {
-    println("Adding deletion protocol")
+    log.debug("Adding deletion protocol")
     val protocol = x.XInternAtom(d, "WM_DELETE_WINDOW", false)
     x.XSetWMProtocols(d, w, Array(protocol), 1) match {
       case 0 => new Error("Unable to set deletion protocol").left
@@ -61,12 +65,12 @@ trait IliadBootstrap extends X11EventHandler { app: IliadApp =>
   private val inputMask = new NativeLong(X11.ExposureMask | X11.ButtonPressMask)
 
   private def addInputDetection(d: X11.Display, w: X11.Window): Unit = {
-    println("Adding input detection")
+    log.debug("Adding input detection")
     x.XSelectInput(d, w, inputMask)
   }
 
   private def showWindow(d: X11.Display, w: X11.Window): Unit = {
-    println("Showing window")
+    log.debug("Showing window")
     x.XMapWindow(d, w)
   }
 
@@ -89,7 +93,7 @@ trait IliadBootstrap extends X11EventHandler { app: IliadApp =>
     x.XNextEvent(d, e)
     e.`type` match {
       case X11.ClientMessage =>
-        println("Closing window")
+        log.info("Closing window")
         false
       case other => 
         handleEvent(e)
@@ -100,13 +104,17 @@ trait IliadBootstrap extends X11EventHandler { app: IliadApp =>
   def main(args: Array[String]): Unit = {
     createWindow match {
       case Xor.Right((d, w)) =>
+        log.info("Created window")
         app.run()
         var shouldDraw = true
         while(shouldDraw) {
           shouldDraw = handleAllEvents(d)
         }
         destroyWindow(d, w)
-      case Xor.Left(err) => throw err
+      case Xor.Left(err) => 
+        log.error("Failed to create window - exiting application")
+        throw err
+        System.exit(1)
     }
   }
 }
