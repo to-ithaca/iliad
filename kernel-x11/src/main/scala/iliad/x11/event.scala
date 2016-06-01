@@ -4,6 +4,7 @@ package x11
 import iliad.kernel._
 import iliad.kernel.utils.vectord._
 
+import com.sun.jna.platform.unix.X11._
 import iliad.kernel.platform.unix.X11
 
 trait X11EventHandler extends EventHandler {
@@ -14,9 +15,15 @@ trait X11EventHandler extends EventHandler {
 
   def registerTapCallback(cb: TouchEvent.Tap => Unit) = tapCallback = cb
 
+<<<<<<< Updated upstream
   def handleEvent(e: X11.XEvent) = e.`type` match {
     case X11.ButtonPress =>
       println("Recognised tap")
+=======
+  def handleEvent(e: XEvent) = e.`type` match {
+    case ButtonPress =>
+      log.debug("Recognised tap")
+>>>>>>> Stashed changes
       e.readField("xbutton")
       val xFraction = (e.xbutton.x - e.xbutton.x_root).toFloat / viewDimensions(0).toFloat
       val yFraction = (e.xbutton.y - e.xbutton.y_root).toFloat / viewDimensions(1).toFloat
