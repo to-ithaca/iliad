@@ -151,5 +151,5 @@ lazy val iosKernel = (project in file("kernel-ios")).settings(
 lazy val root = (project in file(".")).settings(
   buildSettings,
   moduleName := "iliad"
-).aggregate(macros, core, kernel, androidKernel)
+).aggregate(macros, core, kernel, androidKernel, win32Kernel)
 
