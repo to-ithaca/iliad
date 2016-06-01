@@ -94,9 +94,17 @@ lazy val androidDependenciesTask = Def.task {
   Seq(supportJar, sdkJar).map(Attributed.blank)
 }
 
+lazy val jnaVersion = "4.2.2"
+
 lazy val androidSettings = Seq(
   androidDependencies := androidDependenciesTask.value,
   (unmanagedClasspath in Compile) := (unmanagedClasspath in Compile).value ++ androidDependencies.value
+)
+
+lazy val x11Settings = Seq(
+  libraryDependencies ++= Seq(
+    "net.java.dev.jna" % "jna-platform" % jnaVersion
+  )
 )
 
 lazy val macros = (project in file("macros")).settings (
@@ -130,8 +138,6 @@ lazy val androidKernel = (project in file("kernel-android")).settings(
   androidSettings
 ).dependsOn(kernel)
 
-lazy val jnaVersion = "4.2.2"
-
 lazy val win32Kernel = (project in file("kernel-win32")).settings(
   buildSettings,
   moduleName := "iliad-kernel-win32",
@@ -147,9 +153,15 @@ lazy val iosKernel = (project in file("kernel-ios")).settings(
   paradiseSettings
 ).dependsOn(kernel)
 
-//leave out the kernels until we can compile them properly
+lazy val x11Kernel = (project in file("kernel-x11")).settings(
+  buildSettings,
+  moduleName := "iliad-kernel-x11",
+  commonSettings,
+  paradiseSettings,
+  x11Settings
+).dependsOn(kernel)
+
 lazy val root = (project in file(".")).settings(
   buildSettings,
   moduleName := "iliad"
 ).aggregate(macros, core, kernel)
-

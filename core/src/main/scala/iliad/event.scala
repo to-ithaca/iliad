@@ -6,7 +6,7 @@ import iliad.kernel._
 import fs2._
 import fs2.util._
 
-trait EventStream { handler: EventHandler =>
+trait EventStream extends EventHandler {
 
   private implicit val S: Strategy = Strategy.fromFixedDaemonPool(8, "worker")
 
@@ -21,5 +21,5 @@ trait EventStream { handler: EventHandler =>
     } yield a
   }
 
-  def eventStream: Stream[Task, Event] = baseStream(handler.registerTapCallback).map(Event.Touch)
+  def eventStream: Stream[Task, Event] = baseStream(registerTapCallback).map(Event.Touch)
 }

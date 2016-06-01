@@ -11,7 +11,7 @@ import android.graphics.Point
 import android.support.v4.view.GestureDetectorCompat
 import android.content.Context
 
-trait IliadActivity extends Activity with AndroidEventHandler with IliadApp {
+trait AndroidBootstrap extends Activity with AndroidEventHandler { app: IliadApp =>
 
   def view: Int
 
@@ -25,7 +25,6 @@ trait IliadActivity extends Activity with AndroidEventHandler with IliadApp {
 
     super.onCreate(savedInstanceState)
     setContentView(view)
-    //setContentView(R.layout.activity_main)
 
     val wm: WindowManager = getSystemService(Context.WINDOW_SERVICE).asInstanceOf[WindowManager];
     val display = wm.getDefaultDisplay();
@@ -36,7 +35,7 @@ trait IliadActivity extends Activity with AndroidEventHandler with IliadApp {
     detector = new GestureDetectorCompat(this, this)
     detector.setOnDoubleTapListener(this)
 
-    run()
+    app.run()
   }
 
   override def onStart() = {
