@@ -26,8 +26,9 @@ class Logging[F[_]: Monad, NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](egl: EGL[
   def initialise(display: Disp): IO[(Int, Int)] = log("initialise")(egl.initialise(display))
 
   def chooseConfig(display: Disp, attributes: ConfigAttributes): IO[Cfg] = logOutput(egl.chooseConfig(display, attributes))(cfg => s"eglChooseConfig: chosen config $cfg")
-  def createWindowSurface(display: Disp, config: Cfg, win: NWin): IO[Sfc] = log("createWindowSurface")(egl.createWindowSurface(display, config, win))
-  
+  def createWindowSurface(display: Disp, config: Cfg, win: NWin, attributes: WindowAttributes): IO[Sfc] = log("createWindowSurface")(egl.createWindowSurface(display, config, win, attributes))
+  def createPBufferSurface(display: Disp, config: Cfg, attributes: PBufferAttributes): IO[Sfc] = log("createPBufferSurface")(egl.createPBufferSurface(display, config, attributes))
+
   private[kernel] def bindApi(api: API): IO[Unit] = log("bindApi")(egl.bindApi(api))  
   private[kernel] def createContext(display: Disp, config: Cfg, shareContext: Ctx, attributes: ContextAttributes): IO[Ctx] = log("createContext")(egl.createContext(display, config, shareContext, attributes))
 }

@@ -12,6 +12,12 @@ object Constants {
   sealed trait ContextAttrib extends IntConstant
   sealed trait ContextAttribValue extends IntConstant
 
+  sealed trait WindowAttrib extends IntConstant
+  sealed trait WindowAttribValue extends IntConstant
+
+  sealed trait PBufferAttrib extends IntConstant
+  sealed trait PBufferAttribValue extends IntConstant
+
   sealed trait ErrorCode extends IntConstant
 
   sealed trait API extends IntConstant
@@ -41,7 +47,7 @@ object Constants {
   case object EGL_EXTENSIONS                    extends IntConstant(0x3055)
   case object EGL_FALSE                         extends IntConstant(0) with ConfigAttribValue
   case object EGL_GREEN_SIZE                    extends IntConstant(0x3023) with ConfigAttrib
-  case object EGL_HEIGHT                        extends IntConstant(0x3056)
+  case object EGL_HEIGHT                        extends IntConstant(0x3056) with PBufferAttrib
   case object EGL_LARGEST_PBUFFER               extends IntConstant(0x3058)
   case object EGL_LEVEL                         extends IntConstant(0x3029) with ConfigAttrib
   case object EGL_MAX_PBUFFER_HEIGHT            extends IntConstant(0x302A)
@@ -56,7 +62,7 @@ object Constants {
   case object EGL_NO_CONTEXT                    extends IntConstant(0)
   case object EGL_NO_DISPLAY                    extends IntConstant(0)
   case object EGL_NO_SURFACE                    extends IntConstant(0)
-  case object EGL_PBUFFER_BIT                   extends IntConstant(0x0001)
+  case object EGL_PBUFFER_BIT                   extends IntConstant(0x0001) with ConfigAttribValue
   case object EGL_PIXMAP_BIT                    extends IntConstant(0x0002)
   case object EGL_READ                          extends IntConstant(0x305A)
   case object EGL_RED_SIZE                      extends IntConstant(0x3024) with ConfigAttrib
@@ -74,8 +80,8 @@ object Constants {
   case object EGL_TRUE                          extends IntConstant(1) with ConfigAttribValue
   case object EGL_VENDOR                        extends IntConstant(0x3053)
   case object EGL_VERSION                       extends IntConstant(0x3054)
-  case object EGL_WIDTH                         extends IntConstant(0x3057)
-  case object EGL_WINDOW_BIT                    extends IntConstant(0x0004)
+  case object EGL_WIDTH                         extends IntConstant(0x3057) with PBufferAttrib
+  case object EGL_WINDOW_BIT                    extends IntConstant(0x0004) with ConfigAttribValue
 
   /** EGL 11 */
   case object EGL_BACK_BUFFER                   extends IntConstant(0x3084)
@@ -87,11 +93,11 @@ object Constants {
   case object EGL_MIPMAP_TEXTURE                extends IntConstant(0x3082)
   case object EGL_MIPMAP_LEVEL                  extends IntConstant(0x3083)
   case object EGL_NO_TEXTURE                    extends IntConstant(0x305C)
-  case object EGL_TEXTURE_2D                    extends IntConstant(0x305F)
-  case object EGL_TEXTURE_FORMAT                extends IntConstant(0x3080)
+  case object EGL_TEXTURE_2D                    extends IntConstant(0x305F) with PBufferAttribValue
+  case object EGL_TEXTURE_FORMAT                extends IntConstant(0x3080) with PBufferAttrib
   case object EGL_TEXTURE_RGB                   extends IntConstant(0x305D)
-  case object EGL_TEXTURE_RGBA                  extends IntConstant(0x305E)
-  case object EGL_TEXTURE_TARGET                extends IntConstant(0x3081)
+  case object EGL_TEXTURE_RGBA                  extends IntConstant(0x305E) with PBufferAttribValue
+  case object EGL_TEXTURE_TARGET                extends IntConstant(0x3081) with PBufferAttrib
 
   /** EGL 12 */
   case object EGL_ALPHA_FORMAT                  extends IntConstant(0x3088)
@@ -159,7 +165,7 @@ object Constants {
   case object EGL_CONTEXT_OPENGL_DEBUG         extends IntConstant(0x31B0)
   case object EGL_CONTEXT_OPENGL_FORWARD_COMPATIBLE extends IntConstant(0x31B1)
   case object EGL_CONTEXT_OPENGL_ROBUST_ACCESS extends IntConstant(0x31B2)
-  case object EGL_OPENGL_ES3_BIT               extends IntConstant(0x00000040)
+  case object EGL_OPENGL_ES3_BIT               extends IntConstant(0x00000040) with ConfigAttribValue
   case object EGL_CL_EVENT_HANDLE              extends IntConstant(0x309C)
   case object EGL_SYNC_CL_EVENT                extends IntConstant(0x30FE)
   case object EGL_SYNC_CL_EVENT_COMPLETE       extends IntConstant(0x30FF)

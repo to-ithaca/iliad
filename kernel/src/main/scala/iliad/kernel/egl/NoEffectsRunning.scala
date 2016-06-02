@@ -33,8 +33,8 @@ class NoEffectsRunning[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx] extends EGL[I
     configs(0)
   }
 
-  def createWindowSurface(display: Disp, config: Cfg, win: NWin): IO[Sfc] = Reader(_.eglCreateWindowSurface(display, config, win, Array(EGL_NONE.value)))
-
+  def createWindowSurface(display: Disp, config: Cfg, win: NWin, attributes: WindowAttributes): IO[Sfc] = Reader(_.eglCreateWindowSurface(display, config, win, attributes.toArray))
+  def createPBufferSurface(display: Disp, config: Cfg, attributes: PBufferAttributes): IO[Sfc] = Reader(_.eglCreatePbufferSurface(display, config, attributes.toArray))
   def bindApi(api: API): IO[Unit] = Reader( _.eglBindAPI(api.value))
 
   def createContext(display: Disp, config: Cfg, shareContext: Ctx, attributes: ContextAttributes): IO[Ctx] = Reader( _.eglCreateContext(display, config, shareContext, attributes.toArray))

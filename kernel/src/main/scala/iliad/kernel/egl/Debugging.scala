@@ -35,7 +35,9 @@ class Debugging[F[_], NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](val egl: EGL[F
 
   def initialise(display: Disp): IO[(Int, Int)] = debug("initialise")(egl.initialise(display))
   def chooseConfig(display: Disp, attributes: ConfigAttributes): IO[Cfg] = debug("chooseConfig")(egl.chooseConfig(display, attributes))
-  def createWindowSurface(display: Disp, config: Cfg, win: NWin): IO[Sfc] = debug("createWindowSurface")(egl.createWindowSurface(display, config, win))
+  def createWindowSurface(display: Disp, config: Cfg, win: NWin, attributes: WindowAttributes): IO[Sfc] = debug("createWindowSurface")(egl.createWindowSurface(display, config, win, attributes))
+  def createPBufferSurface(display: Disp, config: Cfg, attributes: PBufferAttributes): IO[Sfc] = debug("createPBufferSurface")(egl.createPBufferSurface(display, config, attributes))
+
   
   private[kernel] def bindApi(api: API): IO[Unit] = debug("bindApi")(egl.bindApi(api))
  
