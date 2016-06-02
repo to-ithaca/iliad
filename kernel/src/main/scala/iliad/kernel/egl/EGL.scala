@@ -48,6 +48,12 @@ object EGL {
   type PBufferAttributes = Attributes[PBufferAttrib, PBufferAttribValue]
 
   case class Session[Disp, Cfg, Sfc, Ctx](display: Disp, config: Cfg, surface: Sfc, context: Ctx)
+
+
+  def noEffectsRunning[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]: EGL[Id, NDisp, NWin, Disp, Cfg, Sfc, Ctx] = new NoEffectsRunning[NDisp, NWin, Disp, Cfg, Sfc, Ctx]()
+  def debugging[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]: EGL[Debugger[Id, ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] = new Debugging(noEffectsRunning[NDisp, NWin, Disp, Cfg, Sfc, Ctx])
+  def logging[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]: EGL[Logger[Id, ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] = new Logging(noEffectsRunning[NDisp, NWin, Disp, Cfg, Sfc, Ctx])
+  def debuggerLogger[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]: EGL[Logger[Debugger[Id, ?], ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] = new Logging(new Debugging(new NoEffectsRunning[NDisp, NWin, Disp, Cfg, Sfc, Ctx]()))
 }
 
 /** EGL API to be implemented by EGL runners.
