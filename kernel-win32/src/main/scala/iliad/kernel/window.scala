@@ -38,7 +38,7 @@ object Win32 {
  
 }
 
-abstract class Win32Bootstrap(name: String, width: Int, height: Int) extends Win32EventHandler with IliadApp {
+abstract class Win32Bootstrap(name: String, val width: Int, val height: Int) extends Win32EventHandler with IliadApp {
 
   def main(args: Array[String]): Unit = {
     val win32 = new Win32(name, width, height, this)
