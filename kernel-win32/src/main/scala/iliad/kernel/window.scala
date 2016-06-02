@@ -1,9 +1,6 @@
 package iliad
 package kernel
 
-import fs2._
-import fs2.util.Task
-
 import cats._
 import cats.data._
 import cats.implicits._
