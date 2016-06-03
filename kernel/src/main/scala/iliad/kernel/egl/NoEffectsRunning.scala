@@ -15,26 +15,31 @@ class NoEffectsRunning[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx] extends EGL[I
   import Constants._
 
   def getError: IO[Int] = Reader(egl => egl.eglGetError)
+  def getConfigAttrib(display: Disp, config: Cfg, attribute: FixedConfigAttrib): IO[Int] = Reader { egl => 
+    val buf = Buffer.capacity[Int](1)
+    egl.eglGetConfigAttrib(display, config, attribute.value, buf)
+    buf.get
+  }
+  def queryString(dpy: Disp, name: QueryKey): IO[String] = Reader(egl => egl.eglQueryString(dpy, name.value))
 
   def getDisplay(displayID: NDisp): IO[Disp] = Reader(_.eglGetDisplay(displayID))
 
-  //TODO: add native intBuffer support
   def initialise(display: Disp): IO[(Int, Int)] = Reader { egl =>
-    val major: IntBuffer = ???
-    val minor: IntBuffer = ???
+    val major: IntBuffer = Buffer.capacity[Int](1)
+    val minor: IntBuffer = Buffer.capacity[Int](1)
     egl.eglInitialize(display, major, minor)
     (major.get, minor.get)
   }
 
   def chooseConfig(display: Disp, attributes: ConfigAttributes): IO[Cfg] = Reader { egl => 
     val configs = new Array[Cfg](1)
-    val numConfig: IntBuffer = ???
+    val numConfig: IntBuffer = Buffer.capacity[Int](1)
     egl.eglChooseConfig(display, attributes.toArray, configs, 1, numConfig)
     configs(0)
   }
 
   def createWindowSurface(display: Disp, config: Cfg, win: NWin, attributes: WindowAttributes): IO[Sfc] = Reader(_.eglCreateWindowSurface(display, config, win, attributes.toArray))
-  def createPBufferSurface(display: Disp, config: Cfg, attributes: PBufferAttributes): IO[Sfc] = Reader(_.eglCreatePbufferSurface(display, config, attributes.toArray))
+  def createPbufferSurface(display: Disp, config: Cfg, attributes: PBufferAttributes): IO[Sfc] = Reader(_.eglCreatePbufferSurface(display, config, attributes.toArray))
   def bindApi(api: API): IO[Unit] = Reader( _.eglBindAPI(api.value))
 
   def createContext(display: Disp, config: Cfg, shareContext: Ctx, attributes: ContextAttributes): IO[Ctx] = Reader( _.eglCreateContext(display, config, shareContext, attributes.toArray))

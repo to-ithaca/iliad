@@ -23,10 +23,8 @@ object EGL {
   /** Major and minor EGL versions for the display */
   case class DisplayVersion(major: Int, minor: Int)
 
-  private def attribList(as: Map[Constants.IntConstant, Xor[Int, Constants.IntConstant]]): Array[Int] = {
-    (as.flatMap { case (key, xor) =>  Seq(key.value, xor.map(_.value).merge) }.toSeq :+ Constants.EGL_NONE.value).toArray
-  }
 
+  /** Attribute constructors */
   def configValue(i: Int): Int Xor Constants.ConfigAttribValue = i.left
   def configValue(i: Constants.ConfigAttribValue): Int Xor Constants.ConfigAttribValue = i.right
   def contextValue(i: Int): Int Xor Constants.ContextAttribValue = i.left
@@ -47,24 +45,25 @@ object EGL {
   type WindowAttributes = Attributes[WindowAttrib, WindowAttribValue]
   type PBufferAttributes = Attributes[PBufferAttrib, PBufferAttribValue]
 
-  case class Session[Disp, Cfg, Sfc, Ctx](display: Disp, config: Cfg, surface: Sfc, context: Ctx)
+  /** Session returned by context creation */
+  case class Session[Disp, Cfg, Ctx](display: Disp, config: Cfg, context: Ctx)
 
-
+  /** EGL runners */
   def noEffectsRunning[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]: EGL[Id, NDisp, NWin, Disp, Cfg, Sfc, Ctx] = new NoEffectsRunning[NDisp, NWin, Disp, Cfg, Sfc, Ctx]()
   def debugging[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]: EGL[Debugger[Id, ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] = new Debugging(noEffectsRunning[NDisp, NWin, Disp, Cfg, Sfc, Ctx])
   def logging[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]: EGL[Logger[Id, ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] = new Logging(noEffectsRunning[NDisp, NWin, Disp, Cfg, Sfc, Ctx])
-  def debuggerLogger[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]: EGL[Logger[Debugger[Id, ?], ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] = new Logging(new Debugging(new NoEffectsRunning[NDisp, NWin, Disp, Cfg, Sfc, Ctx]()))
+  def debuggingLogging[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]: EGL[Debugger[Logger[Id, ?], ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] = new Debugging(new Logging(new NoEffectsRunning[NDisp, NWin, Disp, Cfg, Sfc, Ctx]()))
 }
 
 /** EGL API to be implemented by EGL runners.
   * 
-  * 
-  * [[NDisp]] corresponds to [[Lib.EGLNativeDisplayType]]
-  * [[NWin]] correponds to [[Lib.EGLNativeWindowType]]
-  * [[Disp]] corresponds to [[Lib.EGLDisplay]]
-  * [[Cfg]] corresponds to [[Lib.EGLConfig]]
-  * [[Sfc]] corresponds to [[Lib.EGLSurface]]
-  * [[Ctx]] corresponds to [[Lib.EGLContext]]
+  * Type parameters are mapped as follows:
+  *   NDisp corresponds to [[iliad.kernel.platform.egl.Lib.EGLNativeDisplayType]]
+  *   NWin  corresponds to [[iliad.kernel.platform.egl.Lib.EGLNativeWindowType]]
+  *   Disp  corresponds to [[iliad.kernel.platform.egl.Lib.EGLDisplay]]
+  *   Cfg   corresponds to [[iliad.kernel.platform.egl.Lib.EGLConfig]]
+  *   Sfc   corresponds to [[iliad.kernel.platform.egl.Lib.EGLSurface]]
+  *   Ctx   corresponds to [[iliad.kernel.platform.egl.Lib.EGLContext]]
   */
 abstract class EGL[F[_]: Monad, NDisp, NWin, Disp, Cfg : ClassTag, Sfc, Ctx] {
   import EGL._
@@ -74,6 +73,13 @@ abstract class EGL[F[_]: Monad, NDisp, NWin, Disp, Cfg : ClassTag, Sfc, Ctx] {
   type IO[A] = ReaderT[F, EGLLib, A]
 
   def getError: IO[Int]
+  private[egl] def getConfigAttrib(display: Disp, config: Cfg, attribute: FixedConfigAttrib): IO[Int]
+  def getEnumConfigAttrib(display: Disp, config: Cfg, attribute: EnumConfigAttrib): IO[Int Xor ConfigAttribValue] = getConfigAttrib(display, config, attribute).map( v => 
+    Xor.fromOption(SealedEnum.values[ConfigAttribValue].find(_.value == v), v)
+  )
+  def getIntConfigAttrib(display: Disp, config: Cfg, attribute: IntConfigAttrib): IO[Int] = getConfigAttrib(display, config, attribute)
+
+  def queryString(dpy: Disp, name: QueryKey): IO[String]
 
   def getDisplay(displayID: NDisp): IO[Disp]
   private[egl] def initialise(display: Disp): IO[(Int, Int)]
@@ -81,7 +87,7 @@ abstract class EGL[F[_]: Monad, NDisp, NWin, Disp, Cfg : ClassTag, Sfc, Ctx] {
 
   def chooseConfig(display: Disp, attributes: ConfigAttributes): IO[Cfg]
   def createWindowSurface(display: Disp, config: Cfg, win: NWin, attributes: WindowAttributes): IO[Sfc]
-  def createPBufferSurface(display: Disp, config: Cfg, attributes: PBufferAttributes): IO[Sfc]
+  def createPbufferSurface(display: Disp, config: Cfg, attributes: PBufferAttributes): IO[Sfc]
   
   private[egl] def bindApi(api: API): IO[Unit]
   def bindOpenGLESApi: IO[Unit] = bindApi(EGL_OPENGL_ES_API)
@@ -90,25 +96,24 @@ abstract class EGL[F[_]: Monad, NDisp, NWin, Disp, Cfg : ClassTag, Sfc, Ctx] {
   def primaryContext(display: Disp, config: Cfg, noContext: Ctx, attributes: ContextAttributes): IO[Ctx] = createContext(display, config, noContext, attributes)
   def secondaryContext(display: Disp, config: Cfg, primaryContext: Ctx, attributes: ContextAttributes): IO[Ctx] = createContext(display, config, primaryContext, attributes)
 
-  def setupPrimaryContext(displayID: NDisp, windowID: NWin, noContext: Ctx): IO[Session[Disp, Cfg, Sfc, Ctx]] = for {
+  def setupPrimaryContext(displayID: NDisp, windowID: NWin, noContext: Ctx): IO[Session[Disp, Cfg, Ctx]] = for {
     display <- getDisplay(displayID)
     _ <- initialisedVersion(display)
     config <- chooseConfig(display, Defaults.primaryConfigAttributes)
     surface <- createWindowSurface(display, config, windowID, Defaults.windowAttributes)
     _ <-bindOpenGLESApi
     context <-primaryContext(display, config, noContext, Defaults.contextAttributes)
-  } yield Session(display, config, surface, context)
+  } yield Session(display, config, context)
 
-  def setupSecondaryContext(session: Session[Disp, Cfg, Sfc, Ctx]): IO[Ctx] = for {
+  def setupSecondaryContext(session: Session[Disp, Cfg, Ctx]): IO[Ctx] = for {
     _ <- initialisedVersion(session.display)
     config <- chooseConfig(session.display, Defaults.secondaryConfigAttributes)
-    surface <- createPBufferSurface(session.display, config, Defaults.pBBufferAttributes)
+    surface <- createPbufferSurface(session.display, config, Defaults.pBBufferAttributes)
     _ <- bindOpenGLESApi
     context <- secondaryContext(session.display, config, session.context, Defaults.contextAttributes)
   } yield context
 }
 
-//TODO: chack that these are still valid
 object Defaults {
   import EGL._
   import Constants._

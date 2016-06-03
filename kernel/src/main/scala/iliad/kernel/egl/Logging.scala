@@ -17,18 +17,37 @@ class Logging[F[_]: Monad, NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](egl: EGL[
   type FIO[A] = ReaderT[F, EGLLib, A]
 
   private def lift[A](io: FIO[A]): IO[A] = io.mapF{ fa => fa.liftT[EGL.Logger] }
-  private def log[A](s: String)(io: FIO[A]): IO[A] = lift(io).mapF {_.mapWritten(_ => List(s))}
+  private def log[A](io: FIO[A])(s: String): IO[A] = lift(io).mapF {_.mapWritten(_ => List(s))}
   private def logOutput[A](io: FIO[A])(logf: A => String) = lift(io).mapF(_.mapBoth( (_, a) => (List(logf(a)), a)))
 
-  def getError(): IO[Int] = log("getError")(egl.getError)
+  def getError(): IO[Int] = lift(egl.getError)
+  def getConfigAttrib(display: Disp, config: Cfg, attribute: FixedConfigAttrib): IO[Int] = lift(egl.getConfigAttrib(display, config, attribute))
+  
+  override def getEnumConfigAttrib(display: Disp, config: Cfg, attribute: EnumConfigAttrib): IO[Int Xor ConfigAttribValue] = logOutput(egl.getEnumConfigAttrib(display, config, attribute))(v => v match {
+    case Xor.Right(v) => s"eglGetConfigAttrib: [$attribute - $v]"
+    case Xor.Left(i) =>  s"eglGetConfigAttrib: [$attribute - undefined enum $i]"
+  })
+  override def getIntConfigAttrib(display: Disp, config: Cfg, attribute: IntConfigAttrib): IO[Int] = logOutput(egl.getIntConfigAttrib(display, config, attribute))(i => s"eglGetConfigAttrib: [$attribute - $i]")
 
-  def getDisplay(displayId: NDisp): IO[Disp] = log("getDisplay")(egl.getDisplay(displayId))
-  def initialise(display: Disp): IO[(Int, Int)] = log("initialise")(egl.initialise(display))
+  def queryString(dpy: Disp, name: QueryKey): IO[String] = logOutput(egl.queryString(dpy, name))(result => s"eglQueryString: [$name - $result]")
 
-  def chooseConfig(display: Disp, attributes: ConfigAttributes): IO[Cfg] = logOutput(egl.chooseConfig(display, attributes))(cfg => s"eglChooseConfig: chosen config $cfg")
-  def createWindowSurface(display: Disp, config: Cfg, win: NWin, attributes: WindowAttributes): IO[Sfc] = log("createWindowSurface")(egl.createWindowSurface(display, config, win, attributes))
-  def createPBufferSurface(display: Disp, config: Cfg, attributes: PBufferAttributes): IO[Sfc] = log("createPBufferSurface")(egl.createPBufferSurface(display, config, attributes))
+  def getDisplay(displayId: NDisp): IO[Disp] = log(egl.getDisplay(displayId))("eglGetDisplay")
 
-  private[kernel] def bindApi(api: API): IO[Unit] = log("bindApi")(egl.bindApi(api))  
-  private[kernel] def createContext(display: Disp, config: Cfg, shareContext: Ctx, attributes: ContextAttributes): IO[Ctx] = log("createContext")(egl.createContext(display, config, shareContext, attributes))
+  def initialise(display: Disp): IO[(Int, Int)] = logOutput(egl.initialise(display))(vs => s"eglInitialize:  major version ${vs._1} minor version ${vs._2}").flatMap { vs => 
+    val queries = SealedEnum.values[QueryKey].toList.map(q => queryString(display, q))
+    implicitly[Traverse[List]].sequence(queries).mapF(_.map(_ => vs))
+  }
+
+  def chooseConfig(display: Disp, attributes: ConfigAttributes): IO[Cfg] = log(egl.chooseConfig(display, attributes))("eglChooseConfig").flatMap { cfg => 
+    val enumValues = SealedEnum.values[EnumConfigAttrib].toList.map(a => getEnumConfigAttrib(display, cfg, a).map(_ => ()))
+    val intValues = SealedEnum.values[IntConfigAttrib].toList.map(a => getIntConfigAttrib(display, cfg, a).map(_ => ()))
+    val valueList = implicitly[Traverse[List]].sequence(enumValues ::: intValues)
+    valueList.mapF(_.map( _ => cfg))
+  }
+
+  def createWindowSurface(display: Disp, config: Cfg, win: NWin, attributes: WindowAttributes): IO[Sfc] = log(egl.createWindowSurface(display, config, win, attributes))("eglCreateWindowSurface")
+  def createPbufferSurface(display: Disp, config: Cfg, attributes: PBufferAttributes): IO[Sfc] = log(egl.createPbufferSurface(display, config, attributes))("eglCreatePbufferSurface")
+
+  private[kernel] def bindApi(api: API): IO[Unit] = log(egl.bindApi(api))("eglBindApi")  
+  private[kernel] def createContext(display: Disp, config: Cfg, shareContext: Ctx, attributes: ContextAttributes): IO[Ctx] = log(egl.createContext(display, config, shareContext, attributes))("eglCreateContext")
 }
