@@ -21,5 +21,5 @@ trait EventStream extends EventHandler {
     } yield a
   }
 
-  def eventStream: Stream[Task, Event] = baseStream(registerTapCallback).map(Event.Touch)
+  def eventStream: Stream[Task, InputEvent] = baseStream(onTap)
 }

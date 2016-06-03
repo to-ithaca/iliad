@@ -165,4 +165,4 @@ lazy val x11Kernel = (project in file("kernel-x11")).settings(
 lazy val root = (project in file(".")).settings(
   buildSettings,
   moduleName := "iliad"
-).aggregate(macros, core, kernel)
+).aggregate(macros, core, kernel, win32Kernel, x11Kernel)

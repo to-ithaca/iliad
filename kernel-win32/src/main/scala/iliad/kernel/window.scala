@@ -17,7 +17,7 @@ import com.sun.jna._
 
 import Win32._
 
-private[kernel] final class MessageCallback extends Callback {
+private[kernel] final class MessageCallback(delegate: Win32EventHandler) extends Callback {
 
   private def dequeueMsg: LRESULT = new LRESULT(0)
 
@@ -25,7 +25,8 @@ private[kernel] final class MessageCallback extends Callback {
     case WM_DESTROY =>
       user32.PostQuitMessage(0)
       dequeueMsg
-    case _ => user32.DefWindowProc(hwnd, uMsg, wParam, lParam)
+    case event => 
+      if(delegate.handleEvent(hwnd, event, wParam, lParam)) dequeueMsg  else user32.DefWindowProc(hwnd, uMsg, wParam, lParam)
   }
 }
 
@@ -37,33 +38,24 @@ object Win32 {
   //contains the session information
   case class Error(code: Int, message: String)
   case class Session(cls: WNDCLASSEX, hwnd: HWND, hdc: HDC)
-
-  //TODO: Move to appropriate place
-  val WS_EX_LEFT = 0x00000000
-  val WS_EX_TOPMOST = 8
-  val WS_SYSMENU = 0x00080000L
-  val CW_USEDEFAULT = 0x80000000
-  val WM_ACTIVATE = 0x0006
-  val WM_MOVE = 0x0003
-  val CS_VREDRAW = 0x0001
-  val CS_HREDRAW = 0x0002
-  val COLOR_WINDOW = 5
+ 
 }
 
-object TestRun {
-  implicit val s: Strategy = Strategy.fromFixedDaemonPool(1)
+abstract class Win32Bootstrap(name: String, width: Int, height: Int) extends Win32EventHandler with IliadApp {
 
   def main(args: Array[String]): Unit = {
-    val win32 = new Win32("zainab", 200, 200)
+    val win32 = new Win32(name, width, height, this)
     win32.session match {
-      case Xor.Right(session) => 
+      case Xor.Right(session) =>
+        //TODO: Not fond of the run method bootstrap here!
+        run()
         win32.main.run(session)
       case Xor.Left(err) => System.exit(1)
     }
   }
 }
 
-class Win32(name: String, width: Int, height: Int) {
+class Win32(name: String, width: Int, height: Int, delegate: Win32EventHandler) {
 
   def checkError[A](action: String)(a: A): Error Xor A = {
     val err = kernel32.GetLastError()
@@ -80,7 +72,7 @@ class Win32(name: String, width: Int, height: Int) {
     wc.lpszClassName = cn
     wc.style = CS_HREDRAW | CS_VREDRAW
     wc.hbrBackground = null
-    wc.lpfnWndProc = new MessageCallback
+    wc.lpfnWndProc = new MessageCallback(delegate)
     user32.RegisterClassEx(wc)
     checkError("registering window class")(wc)
   }

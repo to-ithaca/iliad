@@ -1,12 +1,12 @@
-package iliad.x11
+package iliad
+package kernel
 
-import iliad.kernel._
 import iliad.kernel.utils.vectord._
-import com.sun.jna.platform.unix.X11._
 import iliad.kernel.platform.unix.X11
 
 import iliad.kernel.egl._
 
+import com.sun.jna.platform.unix.X11._
 import com.sun.jna._
 
 

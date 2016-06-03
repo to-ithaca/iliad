@@ -1,5 +1,5 @@
 package iliad
-package x11
+package kernel
 
 import iliad.kernel.platform.egl._
 import iliad.kernel.platform.unix._
