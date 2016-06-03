@@ -5,6 +5,8 @@ import iliad.kernel.utils.vectord._
 
 import android.view.{GestureDetector, MotionEvent}
 
+import EventHandler._
+import InputEvent._
 
 trait AndroidEventHandler extends GestureDetector.OnGestureListener
     with GestureDetector.OnDoubleTapListener
@@ -12,9 +14,9 @@ trait AndroidEventHandler extends GestureDetector.OnGestureListener
 
   def screenSize: Vec2f
 
-  private var tapCallback: TouchEvent.Tap => Unit = {_ => ()}
+  private var tapCallback: Callback[Tap] = EventHandler.zero
 
-  def registerTapCallback(cb: TouchEvent.Tap => Unit): Unit = {
+  def registerTapCallback(cb: Callback[Tap]): Unit = {
     tapCallback = cb
   }
 
@@ -60,7 +62,7 @@ trait AndroidEventHandler extends GestureDetector.OnGestureListener
     println("onSingleTapConfirmed: " + event.toString());
     val x = event.getX.toFloat / screenSize(0).toFloat
     val y = event.getY.toFloat / screenSize(1).toFloat
-    tapCallback(TouchEvent.Tap(v"$x $y"))
+    tapCallback(Tap(event.getEventTime, v"$x $y"))
     return true;
   }
 }
