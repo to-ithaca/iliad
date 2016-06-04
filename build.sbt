@@ -68,6 +68,7 @@ lazy val testSettings = Seq(
 lazy val paradiseSettings = Seq(
   addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full),
   addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.7.1"),
+  addCompilerPlugin("com.milessabin" % "si2712fix-plugin" % "1.2.0" cross CrossVersion.full),
   libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _)
 )
 

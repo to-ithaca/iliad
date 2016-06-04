@@ -4,6 +4,8 @@ package kernel
 import iliad.kernel.utils.vectord._
 import iliad.kernel.platform.unix.X11
 
+import iliad.kernel.egl._
+
 import com.sun.jna.platform.unix.X11._
 import com.sun.jna._
 
@@ -101,10 +103,25 @@ trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
     }
   }
 
-  def main(args: Array[String]): Unit = {
+  def setupEGL(d: Display, w: Window): Unit = {
+    val eglRunner= EGL.debuggingLogging[EGL14.EGLNativeDisplayType, EGL14.EGLNativeWindowType, EGL14.EGLDisplay, EGL14.EGLConfig, EGL14.EGLSurface, EGL14.EGLContext]
+
+    val writer = eglRunner.setupPrimaryContext(d, w, EGL14.EGL_NO_CONTEXT).run(EGL14).value
+    writer.written.foreach(s => log.info("EGL log {}", s))
+    writer.value match {
+      case Xor.Left(err) =>
+        log.error("Failed to create EGL session - exiting application {}", err)
+        throw new Error(err)
+      case Xor.Right(session) =>
+        log.info("Successfully created EGL session {}", session)
+    }
+  }
+
+  def main(args: Array[String]): Unit = {   
     createWindow match {
       case Xor.Right((d, w)) =>
         log.info("Created window")
+        setupEGL(d, w)
         app.run()
         var shouldDraw = true
         while(shouldDraw) {
@@ -115,5 +132,6 @@ trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
         log.error("Failed to create window - exiting application")
         throw err
     }
+
   }
 }
