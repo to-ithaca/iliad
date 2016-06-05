@@ -46,7 +46,7 @@ object EGL {
   type PBufferAttributes = Attributes[PBufferAttrib, PBufferAttribValue]
 
   /** Session returned by context creation */
-  case class Session[Disp, Cfg, Ctx](display: Disp, config: Cfg, context: Ctx)
+  case class Session[Disp, Cfg, Sfc, Ctx](display: Disp, config: Cfg, surface: Sfc, context: Ctx)
 
   /** EGL runners */
   def noEffectsRunning[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]: EGL[Id, NDisp, NWin, Disp, Cfg, Sfc, Ctx] = new NoEffectsRunning[NDisp, NWin, Disp, Cfg, Sfc, Ctx]()
@@ -72,7 +72,7 @@ abstract class EGL[F[_]: Monad, NDisp, NWin, Disp, Cfg : ClassTag, Sfc, Ctx] {
   type EGLLib = Lib.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx]
   type IO[A] = ReaderT[F, EGLLib, A]
 
-  def getError: IO[Int]
+  def getError: IO[Option[Int Xor ErrorCode]]
   private[egl] def getConfigAttrib(display: Disp, config: Cfg, attribute: FixedConfigAttrib): IO[Int]
   def getEnumConfigAttrib(display: Disp, config: Cfg, attribute: EnumConfigAttrib): IO[Int Xor ConfigAttribValue] = getConfigAttrib(display, config, attribute).map( v => 
     Xor.fromOption(SealedEnum.values[ConfigAttribValue].find(_.value == v), v)
@@ -96,16 +96,22 @@ abstract class EGL[F[_]: Monad, NDisp, NWin, Disp, Cfg : ClassTag, Sfc, Ctx] {
   def primaryContext(display: Disp, config: Cfg, noContext: Ctx, attributes: ContextAttributes): IO[Ctx] = createContext(display, config, noContext, attributes)
   def secondaryContext(display: Disp, config: Cfg, primaryContext: Ctx, attributes: ContextAttributes): IO[Ctx] = createContext(display, config, primaryContext, attributes)
 
-  def setupPrimaryContext(displayID: NDisp, windowID: NWin, noContext: Ctx): IO[Session[Disp, Cfg, Ctx]] = for {
+
+  def swapBuffers(display: Disp, surface: Sfc): IO[Unit]
+  def makeCurrent(display: Disp, draw: Sfc, read: Sfc, context: Ctx): IO[Unit]
+
+  //Make context current
+  def setupPrimaryContext(displayID: NDisp, windowID: NWin, noContext: Ctx): IO[Session[Disp, Cfg, Sfc, Ctx]] = for {
     display <- getDisplay(displayID)
     _ <- initialisedVersion(display)
     config <- chooseConfig(display, Defaults.primaryConfigAttributes)
     surface <- createWindowSurface(display, config, windowID, Defaults.windowAttributes)
     _ <-bindOpenGLESApi
     context <-primaryContext(display, config, noContext, Defaults.contextAttributes)
-  } yield Session(display, config, context)
+    _ <- makeCurrent(display, surface, surface, context)
+  } yield Session(display, config, surface, context)
 
-  def setupSecondaryContext(session: Session[Disp, Cfg, Ctx]): IO[Ctx] = for {
+  def setupSecondaryContext(session: Session[Disp, Cfg, Sfc, Ctx]): IO[Ctx] = for {
     _ <- initialisedVersion(session.display)
     config <- chooseConfig(session.display, Defaults.secondaryConfigAttributes)
     surface <- createPbufferSurface(session.display, config, Defaults.pBBufferAttributes)

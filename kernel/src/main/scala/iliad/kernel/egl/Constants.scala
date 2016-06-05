@@ -26,26 +26,21 @@ object Constants {
 
   sealed trait QueryKey extends IntConstant
 
-  sealed trait DisplayErrorCode extends IntConstant
-  sealed trait ChooseConfigErrorCode extends IntConstant
-  sealed trait WindowSurfaceErrorCode extends IntConstant
-  sealed trait PBufferSurfaceErrorCode extends IntConstant
-  sealed trait APIErrorCode extends IntConstant
-  sealed trait CreateContextErrorCode extends IntConstant
+  sealed trait ErrorCode extends IntConstant
 
   /** EGL 10 */
   case object EGL_ALPHA_SIZE                    extends IntConstant(0x3021) with ConfigAttrib with IntConfigAttrib
   case object EGL_BAD_ACCESS                    extends IntConstant(0x3002)
-  case object EGL_BAD_ALLOC                     extends IntConstant(0x3003) with CreateContextErrorCode with WindowSurfaceErrorCode with PBufferSurfaceErrorCode
-  case object EGL_BAD_ATTRIBUTE                 extends IntConstant(0x3004) with CreateContextErrorCode with ChooseConfigErrorCode with WindowSurfaceErrorCode with PBufferSurfaceErrorCode
-  case object EGL_BAD_CONFIG                    extends IntConstant(0x3005) with CreateContextErrorCode with WindowSurfaceErrorCode with PBufferSurfaceErrorCode
-  case object EGL_BAD_CONTEXT                   extends IntConstant(0x3006) with CreateContextErrorCode
+  case object EGL_BAD_ALLOC                     extends IntConstant(0x3003) with ErrorCode
+  case object EGL_BAD_ATTRIBUTE                 extends IntConstant(0x3004) with ErrorCode
+  case object EGL_BAD_CONFIG                    extends IntConstant(0x3005) with ErrorCode
+  case object EGL_BAD_CONTEXT                   extends IntConstant(0x3006) with ErrorCode
   case object EGL_BAD_CURRENT_SURFACE           extends IntConstant(0x3007)
-  case object EGL_BAD_DISPLAY                   extends IntConstant(0x3008) with DisplayErrorCode with CreateContextErrorCode with ChooseConfigErrorCode with WindowSurfaceErrorCode with PBufferSurfaceErrorCode
-  case object EGL_BAD_MATCH                     extends IntConstant(0x3009) with CreateContextErrorCode with WindowSurfaceErrorCode with PBufferSurfaceErrorCode
+  case object EGL_BAD_DISPLAY                   extends IntConstant(0x3008) with ErrorCode
+  case object EGL_BAD_MATCH                     extends IntConstant(0x3009) with ErrorCode
   case object EGL_BAD_NATIVE_PIXMAP             extends IntConstant(0x300A)
-  case object EGL_BAD_NATIVE_WINDOW             extends IntConstant(0x300B) with WindowSurfaceErrorCode
-  case object EGL_BAD_PARAMETER                 extends IntConstant(0x300C) with ChooseConfigErrorCode with APIErrorCode
+  case object EGL_BAD_NATIVE_WINDOW             extends IntConstant(0x300B) with ErrorCode
+  case object EGL_BAD_PARAMETER                 extends IntConstant(0x300C) with ErrorCode
   case object EGL_BAD_SURFACE                   extends IntConstant(0x300D)
   case object EGL_BLUE_SIZE                     extends IntConstant(0x3022) with ConfigAttrib with IntConfigAttrib
   case object EGL_BUFFER_SIZE                   extends IntConstant(0x3020) with ConfigAttrib with IntConfigAttrib
@@ -69,7 +64,7 @@ object Constants {
   case object EGL_NATIVE_VISUAL_TYPE            extends IntConstant(0x302F)
   case object EGL_NONE                          extends IntConstant(0x3038) with ConfigAttribValue
   case object EGL_NON_CONFORMANT_CONFIG         extends IntConstant(0x3051) with ConfigAttribValue
-  case object EGL_NOT_INITIALIZED               extends IntConstant(0x3001) with DisplayErrorCode with CreateContextErrorCode with ChooseConfigErrorCode with WindowSurfaceErrorCode with PBufferSurfaceErrorCode
+  case object EGL_NOT_INITIALIZED               extends IntConstant(0x3001) with ErrorCode
   case object EGL_NO_CONTEXT                    extends IntConstant(0)
   case object EGL_NO_DISPLAY                    extends IntConstant(0)
   case object EGL_NO_SURFACE                    extends IntConstant(0)

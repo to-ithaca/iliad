@@ -20,7 +20,7 @@ class Logging[F[_]: Monad, NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](egl: EGL[
   private def log[A](io: FIO[A])(s: String): IO[A] = lift(io).mapF {_.mapWritten(_ => List(s))}
   private def logOutput[A](io: FIO[A])(logf: A => String) = lift(io).mapF(_.mapBoth( (_, a) => (List(logf(a)), a)))
 
-  def getError(): IO[Int] = lift(egl.getError)
+  def getError(): IO[Option[Int Xor ErrorCode]] = lift(egl.getError)
   def getConfigAttrib(display: Disp, config: Cfg, attribute: FixedConfigAttrib): IO[Int] = lift(egl.getConfigAttrib(display, config, attribute))
   
   override def getEnumConfigAttrib(display: Disp, config: Cfg, attribute: EnumConfigAttrib): IO[Int Xor ConfigAttribValue] = logOutput(egl.getEnumConfigAttrib(display, config, attribute))(v => v match {
@@ -50,4 +50,7 @@ class Logging[F[_]: Monad, NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](egl: EGL[
 
   private[kernel] def bindApi(api: API): IO[Unit] = log(egl.bindApi(api))("eglBindApi")  
   private[kernel] def createContext(display: Disp, config: Cfg, shareContext: Ctx, attributes: ContextAttributes): IO[Ctx] = log(egl.createContext(display, config, shareContext, attributes))("eglCreateContext")
+
+  def swapBuffers(display: Disp, surface: Sfc): IO[Unit] = log(egl.swapBuffers(display, surface))("eglSwapBuffers")
+  def makeCurrent(display: Disp, draw: Sfc, read: Sfc, context: Ctx): IO[Unit] = log(egl.makeCurrent(display, draw, read, context))("eglMakeCurrent")
 }
