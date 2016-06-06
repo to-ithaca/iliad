@@ -17,7 +17,6 @@ import cats.std.option._
   */
 class Debugging[F[_], NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](val egl: EGL[F, NDisp, NWin, Disp, Cfg, Sfc, Ctx])(implicit val M: Monad[F]) extends EGL[EGL.Debugger[F, ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
   import EGL._
-  import Constants._
 
   type FIO[A] = ReaderT[F, EGLLib, A]
 

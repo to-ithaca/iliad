@@ -12,8 +12,6 @@ import cats.implicits._
 
 object EGL {
 
-  import Constants._
-
   /** Effect type of Debugging runner */
   type Debugger[F[_], A] = XorT[F, String, A]
 
@@ -25,15 +23,15 @@ object EGL {
 
 
   /** Attribute constructors */
-  def configValue(i: Int): Int Xor Constants.ConfigAttribValue = i.left
-  def configValue(i: Constants.ConfigAttribValue): Int Xor Constants.ConfigAttribValue = i.right
-  def contextValue(i: Int): Int Xor Constants.ContextAttribValue = i.left
+  def configValue(i: Int): Int Xor ConfigAttribValue = i.left
+  def configValue(i: ConfigAttribValue): Int Xor ConfigAttribValue = i.right
+  def contextValue(i: Int): Int Xor ContextAttribValue = i.left
   def pbufferValue(i: Int): Int Xor PBufferAttribValue = i.left
   def pbufferValue(i: PBufferAttribValue): Int Xor PBufferAttribValue = i.right
 
   case class Attributes[K <: IntConstant, V <: IntConstant](attributes: Map[K, Int Xor V]) {
-    private def attribList(as: Map[Constants.IntConstant, Xor[Int, Constants.IntConstant]]): Array[Int] = {
-      (as.flatMap { case (key, xor) =>  Seq(key.value, xor.map(_.value).merge) }.toSeq :+ Constants.EGL_NONE.value).toArray
+    private def attribList(as: Map[IntConstant, Xor[Int, IntConstant]]): Array[Int] = {
+      (as.flatMap { case (key, xor) =>  Seq(key.value, xor.map(_.value).merge) }.toSeq :+ EGL_NONE.value).toArray
     }
 
     /** Produces an array of the form key, value, key, value ... EGL_NONE */
@@ -67,7 +65,6 @@ object EGL {
   */
 abstract class EGL[F[_]: Monad, NDisp, NWin, Disp, Cfg : ClassTag, Sfc, Ctx] {
   import EGL._
-  import Constants._
 
   type EGLLib = Lib.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx]
   type IO[A] = ReaderT[F, EGLLib, A]
@@ -100,14 +97,13 @@ abstract class EGL[F[_]: Monad, NDisp, NWin, Disp, Cfg : ClassTag, Sfc, Ctx] {
   def swapBuffers(display: Disp, surface: Sfc): IO[Unit]
   def makeCurrent(display: Disp, draw: Sfc, read: Sfc, context: Ctx): IO[Unit]
 
-  //Make context current
   def setupPrimaryContext(displayID: NDisp, windowID: NWin, noContext: Ctx): IO[Session[Disp, Cfg, Sfc, Ctx]] = for {
     display <- getDisplay(displayID)
     _ <- initialisedVersion(display)
     config <- chooseConfig(display, Defaults.primaryConfigAttributes)
     surface <- createWindowSurface(display, config, windowID, Defaults.windowAttributes)
-    _ <-bindOpenGLESApi
-    context <-primaryContext(display, config, noContext, Defaults.contextAttributes)
+    _ <- bindOpenGLESApi
+    context <- primaryContext(display, config, noContext, Defaults.contextAttributes)
     _ <- makeCurrent(display, surface, surface, context)
   } yield Session(display, config, surface, context)
 
@@ -122,7 +118,6 @@ abstract class EGL[F[_]: Monad, NDisp, NWin, Disp, Cfg : ClassTag, Sfc, Ctx] {
 
 object Defaults {
   import EGL._
-  import Constants._
 
   def primaryConfigAttributes: ConfigAttributes = Attributes[ConfigAttrib, ConfigAttribValue](Map(
     EGL_LEVEL -> configValue(0),

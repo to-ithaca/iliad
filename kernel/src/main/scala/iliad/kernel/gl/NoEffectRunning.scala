@@ -13,7 +13,6 @@ import cats.data._
 
 
 
-import Constant._
 import GL._
 
 private[gl] object NoEffectRunning extends GL[Id] {
@@ -23,19 +22,19 @@ private[gl] object NoEffectRunning extends GL[Id] {
   def blitFramebuffer(src: Rectangle, dest: Rectangle, bitMask: ChannelBitMask, filter: BlitFilter): IO[Id, Unit] = {
     val sbr = src.bottomRight
     val dbr = dest.bottomRight
-    Reader(_.glBlitFramebuffer(src.topLeft.x, src.topLeft.y, sbr.x, sbr.y, dest.topLeft.x, dest.topLeft.y, dbr.x, dbr.y, bitMask.toInt, filter.toInt))
+    Reader(_.glBlitFramebuffer(src.topLeft.x, src.topLeft.y, sbr.x, sbr.y, dest.topLeft.x, dest.topLeft.y, dbr.x, dbr.y, bitMask.value, filter.value))
   }
   def viewport(rect: Rectangle): IO[Id, Unit] = Reader(_.glViewport(rect.topLeft.x, rect.topLeft.y, rect.width, rect.height))
-  def enable(cap: Capability): IO[Id, Unit] = Reader(_.glEnable(cap.toInt))
-  def disable(cap: Capability): IO[Id, Unit] = Reader(_.glDisable(cap.toInt))
+  def enable(cap: Capability): IO[Id, Unit] = Reader(_.glEnable(cap.value))
+  def disable(cap: Capability): IO[Id, Unit] = Reader(_.glDisable(cap.value))
   def flush: IO[Id, Unit] = Reader(_.glFlush())
-  def clear(bitMask: ChannelBitMask): IO[Id, Unit] = Reader(_.glClear(bitMask.toInt))
+  def clear(bitMask: ChannelBitMask): IO[Id, Unit] = Reader(_.glClear(bitMask.value))
   def clearColor(red: Float, green: Float, blue: Float, alpha: Float): IO[Id, Unit] = Reader(_.glClearColor(red, green, blue, alpha))
   def getError: IO[Id, Option[Int Xor ErrorCode]] = Reader(_.glGetError() match {
-    case v if v == GL_NO_ERROR.toInt => None
-    case v => Some(SealedEnum.values[ErrorCode].find(_.toInt == v).toRightXor(v))
+    case v if v == GL_NO_ERROR.value => None
+    case v => Some(SealedEnum.values[ErrorCode].find(_.value == v).toRightXor(v))
   })
-  def createShader(`type`: ShaderType): IO[Id, Int] = Reader(_.glCreateShader(`type`.toInt))
+  def createShader(`type`: ShaderType): IO[Id, Int] = Reader(_.glCreateShader(`type`.value))
   def shaderSource(shader: Int, count: Int, sources: Seq[String]): IO[Id, Unit] = {
     val ls = sources.map(_.size).toArray
     Reader(_.glShaderSource(shader, count, sources.toArray, ls))
@@ -46,7 +45,7 @@ private[gl] object NoEffectRunning extends GL[Id] {
 
   def getShaderiv(shader: Int, pname: ShaderParameter): IO[Id, Int] = Reader { gl =>
     val ptr = Buffer.capacity[Int](1)
-    gl.glGetShaderiv(shader, pname.toInt, ptr)
+    gl.glGetShaderiv(shader, pname.value, ptr)
     ptr.get()
   }
   def getShaderInfoLog(shader: Int, maxLength: Int): IO[Id, String] = Reader { gl =>
@@ -73,32 +72,32 @@ private[gl] object NoEffectRunning extends GL[Id] {
   }
 
   def genBuffers(num: Int): IO[Id, Array[Int]] = genObject(_.glGenBuffers, num)
-  def bindBuffer(target: BufferTarget, buffer: Int): IO[Id, Unit] = Reader(_.glBindBuffer(target.toInt, buffer))
-  def bufferData(target: BufferTarget, size: Int, data: NBuffer, usage: BufferUsage): IO[Id, Unit] = Reader(_.glBufferData(target.toInt, size, data, usage.toInt))
-  def bufferSubData(target: BufferTarget, offset: Int, size: Int, data: NBuffer): IO[Id, Unit] = Reader(_.glBufferSubData(target.toInt, offset, size, data))
+  def bindBuffer(target: BufferTarget, buffer: Int): IO[Id, Unit] = Reader(_.glBindBuffer(target.value, buffer))
+  def bufferData(target: BufferTarget, size: Int, data: NBuffer, usage: BufferUsage): IO[Id, Unit] = Reader(_.glBufferData(target.value, size, data, usage.value))
+  def bufferSubData(target: BufferTarget, offset: Int, size: Int, data: NBuffer): IO[Id, Unit] = Reader(_.glBufferSubData(target.value, offset, size, data))
   def enableVertexAttribArray(location: Int): IO[Id, Unit] = Reader(_.glEnableVertexAttribArray(location))
-  def vertexAttribPointer(location: Int, size: Int, `type`: VertexAttribType, normalized: Boolean, stride: Int, offset: Int): IO[Id, Unit] = Reader(_.glVertexAttribPointer(location, size, `type`.toInt, normalized, stride, offset))
+  def vertexAttribPointer(location: Int, size: Int, `type`: VertexAttribType, normalized: Boolean, stride: Int, offset: Int): IO[Id, Unit] = Reader(_.glVertexAttribPointer(location, size, `type`.value, normalized, stride, offset))
   def genFramebuffers(num: Int): IO[Id, Array[Int]] = genObject(_.glGenFramebuffers, num)
-  def bindFramebuffer(target: FramebufferTarget, framebuffer: Int): IO[Id, Unit] = Reader(_.glBindFramebuffer(target.toInt, framebuffer))
-  def framebufferRenderbuffer(target: FramebufferTarget, attachment: FramebufferAttachment, renderbuffer: Int): IO[Id, Unit] = Reader(_.glFramebufferRenderbuffer(target.toInt, attachment.toInt, GL_RENDERBUFFER.toInt, renderbuffer))
-  def checkFramebufferStatus(target: FramebufferTarget): IO[Id, FramebufferStatus] = Reader[Lib, Unit](_.glCheckFramebufferStatus(target.toInt)).map(c => SealedEnum.values[FramebufferStatus].find(_.toInt == c).get)
-  def framebufferTexture2D(target: FramebufferTarget, attachment: FramebufferAttachment, texTarget: FramebufferTexTarget, texture: Int, level: Int): IO[Id, Unit] = Reader(_.glFramebufferTexture2D(target.toInt, attachment.toInt, texTarget.toInt, texture, level))
+  def bindFramebuffer(target: FramebufferTarget, framebuffer: Int): IO[Id, Unit] = Reader(_.glBindFramebuffer(target.value, framebuffer))
+  def framebufferRenderbuffer(target: FramebufferTarget, attachment: FramebufferAttachment, renderbuffer: Int): IO[Id, Unit] = Reader(_.glFramebufferRenderbuffer(target.value, attachment.value, GL_RENDERBUFFER.value, renderbuffer))
+  def checkFramebufferStatus(target: FramebufferTarget): IO[Id, FramebufferStatus] = Reader[Lib, Unit](_.glCheckFramebufferStatus(target.value)).map(c => SealedEnum.values[FramebufferStatus].find(_.value == c).get)
+  def framebufferTexture2D(target: FramebufferTarget, attachment: FramebufferAttachment, texTarget: FramebufferTexTarget, texture: Int, level: Int): IO[Id, Unit] = Reader(_.glFramebufferTexture2D(target.value, attachment.value, texTarget.value, texture, level))
   def genRenderbuffers(num: Int): IO[Id, Array[Int]] = genObject(_.glGenRenderbuffers, num)
-  def bindRenderbuffer(renderbuffer: Int): IO[Id, Unit] = Reader(_.glBindBuffer(GL_RENDERBUFFER.toInt, renderbuffer))
-  def renderbufferStorage(format: RenderbufferInternalFormat, width: Int, height: Int): IO[Id, Unit] = Reader(_.glRenderbufferStorage(GL_RENDERBUFFER.toInt, format.toInt, width, height))
-  def bindTexture(target: TextureTarget, texture: Int): IO[Id, Unit] = Reader(_.glBindTexture(target.toInt, texture))
+  def bindRenderbuffer(renderbuffer: Int): IO[Id, Unit] = Reader(_.glBindBuffer(GL_RENDERBUFFER.value, renderbuffer))
+  def renderbufferStorage(format: RenderbufferInternalFormat, width: Int, height: Int): IO[Id, Unit] = Reader(_.glRenderbufferStorage(GL_RENDERBUFFER.value, format.value, width, height))
+  def bindTexture(target: TextureTarget, texture: Int): IO[Id, Unit] = Reader(_.glBindTexture(target.value, texture))
   def genTextures(num: Int): IO[Id, Array[Int]] = genObject(_.glGenTextures, num)
-  def texParameteri(target: TextureTarget, name: TextureParameter, value: Int): IO[Id, Unit] = Reader(_.glTexParameteri(target.toInt, name.toInt, value))
-  def texParameteri(target: TextureTarget, name: TextureParameter, value: IntValue): IO[Id, Unit] = Reader(_.glTexParameteri(target.toInt, name.toInt, value.toInt))
+  def texParameteri(target: TextureTarget, name: TextureParameter, value: Int): IO[Id, Unit] = Reader(_.glTexParameteri(target.value, name.value, value))
+  def texParameteri(target: TextureTarget, name: TextureParameter, value: IntConstant): IO[Id, Unit] = Reader(_.glTexParameteri(target.value, name.value, value.value))
 
-  def texImage2D(target: TextureTarget, level: Int, internalFormat: TextureInteralFormat, width: Int, height: Int, format: TextureFormat, `type`: TexturePixelType, data: NBuffer): IO[Id, Unit] = Reader(_.glTexImage2D(target.toInt, level, internalFormat.toInt, width, height, 0, internalFormat.toInt, `type`.toInt, data))
+  def texImage2D(target: TextureTarget, level: Int, internalFormat: TextureInteralFormat, width: Int, height: Int, format: TextureFormat, `type`: TexturePixelType, data: NBuffer): IO[Id, Unit] = Reader(_.glTexImage2D(target.value, level, internalFormat.value, width, height, 0, internalFormat.value, `type`.value, data))
 
-  def pixelStorei(name: PixelStoreParameter, value: Int): IO[Id, Unit] = Reader(_.glPixelStorei(name.toInt, value))
+  def pixelStorei(name: PixelStoreParameter, value: Int): IO[Id, Unit] = Reader(_.glPixelStorei(name.value, value))
   def activeTexture(texture: Int): IO[Id, Unit] = Reader(_.glActiveTexture(texture))
 
-  def drawArrays(mode: PrimitiveType, first: Int, count: Int): IO[Id, Unit] = Reader(_.glDrawArrays(mode.toInt, first, count))
-  def drawElements(mode: PrimitiveType, count: Int, `type`: IndexType, offset: Int): IO[Id, Unit] = Reader(_.glDrawElements(mode.toInt, count, `type`.toInt, offset))
-  def drawElements(mode: PrimitiveType, count: Int, `type`: IndexType, indices: NBuffer): IO[Id, Unit] = Reader(_.glDrawElements(mode.toInt, count, `type`.toInt, indices))
+  def drawArrays(mode: PrimitiveType, first: Int, count: Int): IO[Id, Unit] = Reader(_.glDrawArrays(mode.value, first, count))
+  def drawElements(mode: PrimitiveType, count: Int, `type`: IndexType, offset: Int): IO[Id, Unit] = Reader(_.glDrawElements(mode.value, count, `type`.value, offset))
+  def drawElements(mode: PrimitiveType, count: Int, `type`: IndexType, indices: NBuffer): IO[Id, Unit] = Reader(_.glDrawElements(mode.value, count, `type`.value, indices))
 
   def uniform1i(location: Int, arg0: Int): IO[Id, Unit] = Reader(_.glUniform1i(location, arg0))
   def uniform1f(location: Int, arg0: Float): IO[Id, Unit] = Reader(_.glUniform1f(location, arg0))
@@ -126,19 +125,19 @@ private[gl] object NoEffectRunning extends GL[Id] {
 
   def genSamplers(num: Int): IO[Id, Array[Int]] = genObject(_.glGenSamplers, num)
   
-  def samplerParameteri(sampler: Int, name: SamplerParameter, value: Int): IO[Id, Unit] = Reader(_.glSamplerParameteri(sampler, name.toInt, value))
-  def samplerParameteri(sampler: Int, name: SamplerParameter, value: IntValue): IO[Id, Unit] = Reader(_.glSamplerParameteri(sampler, name.toInt, value.toInt))
+  def samplerParameteri(sampler: Int, name: SamplerParameter, value: Int): IO[Id, Unit] = Reader(_.glSamplerParameteri(sampler, name.value, value))
+  def samplerParameteri(sampler: Int, name: SamplerParameter, value: IntConstant): IO[Id, Unit] = Reader(_.glSamplerParameteri(sampler, name.value, value.value))
 
   def bindAttribLocation(program: Int,index: Int,name: String): IO[cats.Id, Unit] = Reader(_.glBindAttribLocation(program, index, name))
   def bindVertexArray(vertexArray: Int): IO[cats.Id, Unit] = Reader(_.glBindVertexArray(vertexArray))
   def blendColor(red: Float,green: Float,blue: Float,alpha: Float): IO[cats.Id,Unit] = Reader(_.glBlendColor(red, green, blue, alpha))
-  private[gl] def clearBufferfi(target: Channel, drawBuffer: Int, depth: Float, stencil: Int): IO[cats.Id, Unit] = Reader(_.glClearBufferfi(target.toInt, drawBuffer, depth, stencil))
-  private[gl] def clearBufferfv(target: Channel, drawBuffer: Int, value: Array[Float]): IO[cats.Id, Unit] = Reader(_.glClearBufferfv(target.toInt, drawBuffer, value))
-  private[gl] def clearBufferiv(target: Channel, drawBuffer: Int,value: Array[Int]): IO[cats.Id, Unit] = Reader(_.glClearBufferiv(target.toInt, drawBuffer, value))
-  private[gl] def clearBufferuiv(target: Channel, drawBuffer: Int,value: Array[Int]): IO[cats.Id, Unit] = Reader(_.glClearBufferuiv(target.toInt, drawBuffer, value))
-  def copyBufferSubData(read: BufferTarget, write: BufferTarget, readOffset: Int, writeOffset: Int, size: Int): IO[cats.Id,Unit] = Reader(_.glCopyBufferSubData(read.toInt, write.toInt, readOffset, writeOffset, size))
-  def drawBuffers(num: Int, buffers: Seq[ColorOutputTarget]): IO[cats.Id,Unit] = Reader(_.glDrawBuffers(num, Buffer(buffers.map(_.toInt):_*)))
-  def drawElementsInstanced(mode: PrimitiveType, count: Int, `type`: IndexType, ptr: NBuffer, primCount: Int): IO[cats.Id,Unit] = Reader(_.glDrawElementsInstanced(mode.toInt, count, `type`.toInt, ptr, primCount))
-  def drawElementsInstanced(mode: PrimitiveType, count: Int, `type`: IndexType, offset: Int, primCount: Int): IO[cats.Id,Unit] = Reader(_.glDrawElementsInstanced(mode.toInt, count, `type`.toInt, offset, primCount))
-  def readBuffer(src: DrawBuffer): IO[cats.Id,Unit] = Reader(_.glReadBuffer(src.toInt))
+  private[gl] def clearBufferfi(target: Channel, drawBuffer: Int, depth: Float, stencil: Int): IO[cats.Id, Unit] = Reader(_.glClearBufferfi(target.value, drawBuffer, depth, stencil))
+  private[gl] def clearBufferfv(target: Channel, drawBuffer: Int, value: Array[Float]): IO[cats.Id, Unit] = Reader(_.glClearBufferfv(target.value, drawBuffer, value))
+  private[gl] def clearBufferiv(target: Channel, drawBuffer: Int,value: Array[Int]): IO[cats.Id, Unit] = Reader(_.glClearBufferiv(target.value, drawBuffer, value))
+  private[gl] def clearBufferuiv(target: Channel, drawBuffer: Int,value: Array[Int]): IO[cats.Id, Unit] = Reader(_.glClearBufferuiv(target.value, drawBuffer, value))
+  def copyBufferSubData(read: BufferTarget, write: BufferTarget, readOffset: Int, writeOffset: Int, size: Int): IO[cats.Id,Unit] = Reader(_.glCopyBufferSubData(read.value, write.value, readOffset, writeOffset, size))
+  def drawBuffers(num: Int, buffers: Seq[ColorOutputTarget]): IO[cats.Id,Unit] = Reader(_.glDrawBuffers(num, Buffer(buffers.map(_.value):_*)))
+  def drawElementsInstanced(mode: PrimitiveType, count: Int, `type`: IndexType, ptr: NBuffer, primCount: Int): IO[cats.Id,Unit] = Reader(_.glDrawElementsInstanced(mode.value, count, `type`.value, ptr, primCount))
+  def drawElementsInstanced(mode: PrimitiveType, count: Int, `type`: IndexType, offset: Int, primCount: Int): IO[cats.Id,Unit] = Reader(_.glDrawElementsInstanced(mode.value, count, `type`.value, offset, primCount))
+  def readBuffer(src: DrawBuffer): IO[cats.Id,Unit] = Reader(_.glReadBuffer(src.value))
 }

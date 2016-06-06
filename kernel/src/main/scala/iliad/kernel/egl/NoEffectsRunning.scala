@@ -12,7 +12,6 @@ import cats.data._
 /** Runs EGL commands with the Id effect type */
 class NoEffectsRunning[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx] extends EGL[Id, NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
   import EGL._
-  import Constants._
 
   def getError: IO[Option[Int Xor ErrorCode]] = Reader(_.eglGetError match {
     case EGL_SUCCESS.value => None

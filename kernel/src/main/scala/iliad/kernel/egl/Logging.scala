@@ -12,7 +12,6 @@ import cats.implicits._
 /** Runs EGL commands with the [[EGL.Logger]] (WriterT) effect type */
 class Logging[F[_]: Monad, NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](egl: EGL[F, NDisp, NWin, Disp, Cfg, Sfc, Ctx]) extends EGL[EGL.Logger[F, ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] {  
   import EGL._
-  import Constants._
 
   type FIO[A] = ReaderT[F, EGLLib, A]
 

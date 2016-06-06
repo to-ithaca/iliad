@@ -8,7 +8,6 @@ import iliad.kernel.platform.gl._
 
 import java.nio._
 
-import Constant._
 import cats._
 import cats.data._
 import cats.implicits._
@@ -46,9 +45,9 @@ abstract class GL[F[_]: Monad] {
   
   private def getShaderiv[A](shader: Int, pname: ShaderParameter, expected: Set[A])(eq: A => Int): IO[F, A] = getShaderiv(shader, pname).map(code => expected.find(eq(_) == code).get)
 
-  def getShaderiv(shader: Int, pname: GL_SHADER_TYPE.type): IO[F, ShaderType] = getShaderiv(shader, pname, SealedEnum.values[ShaderType])(_.toInt)
-  def getShaderiv(shader: Int, pname: GL_DELETE_STATUS.type): IO[F, Boolean] = getShaderiv(shader, pname, SealedEnum.values[TrueFalse])(_.toInt).map(_ == GL_TRUE)
-  def getShaderiv(shader: Int, pname: GL_COMPILE_STATUS.type): IO[F, Boolean] = getShaderiv(shader, pname, SealedEnum.values[TrueFalse])(_.toInt).map(_ == GL_TRUE)
+  def getShaderiv(shader: Int, pname: GL_SHADER_TYPE.type): IO[F, ShaderType] = getShaderiv(shader, pname, SealedEnum.values[ShaderType])(_.value)
+  def getShaderiv(shader: Int, pname: GL_DELETE_STATUS.type): IO[F, Boolean] = getShaderiv(shader, pname, SealedEnum.values[TrueFalse])(_.value).map(_ == GL_TRUE)
+  def getShaderiv(shader: Int, pname: GL_COMPILE_STATUS.type): IO[F, Boolean] = getShaderiv(shader, pname, SealedEnum.values[TrueFalse])(_.value).map(_ == GL_TRUE)
   def getShaderiv(shader: Int, pname: GL_INFO_LOG_LENGTH.type): IO[F, Int] = getShaderiv(shader, pname: ShaderParameter)
   def getShaderiv(shader: Int, pname: GL_SHADER_SOURCE_LENGTH.type): IO[F, Int] = getShaderiv(shader, pname: ShaderParameter)
 
@@ -97,7 +96,7 @@ abstract class GL[F[_]: Monad] {
   def genTexture3: IO[F, (Int, Int, Int)] = genTextures(3) map _tup3
 
   private[gl] def texParameteri(target: TextureTarget, name: TextureParameter, value: Int): IO[F, Unit]
-  private[gl] def texParameteri(target: TextureTarget, name: TextureParameter, value: IntValue): IO[F, Unit]
+  private[gl] def texParameteri(target: TextureTarget, name: TextureParameter, value: IntConstant): IO[F, Unit]
   def texParameter(target: TextureTarget, name: GL_TEXTURE_BASE_LEVEL.type, value: Int): IO[F, Unit] = texParameteri(target, name, value)
   def texParameter(target: TextureTarget, name: GL_TEXTURE_COMPARE_FUNC.type, value: TextureCompareFunc): IO[F, Unit] = texParameteri(target, name, value)
   def texParameter(target: TextureTarget, name: GL_TEXTURE_COMPARE_MODE.type, value: TextureCompareMode): IO[F, Unit] = texParameteri(target, name, value)
@@ -145,8 +144,6 @@ abstract class GL[F[_]: Monad] {
 
   def uniform[A](location: Int, value: A)(implicit update: CanUniformUpdate[F, A]): IO[F, Unit] = update(this)(location, value)
 
-//  private implicit val Semigroup = S
-
   private def getLocationTraverse[A, B, G[_] : Traverse](keys: G[A])(f: A => IO[F, B]): IO[F, G[(A, B)]] =  keys.traverse[IO[F, ?], (A, B)](s => f(s).map(s -> _))
 
   def getAttribLocation(program: Int, name: String): IO[F, Int]
@@ -159,7 +156,7 @@ abstract class GL[F[_]: Monad] {
   def genSampler2: IO[F, (Int, Int)] = genSamplers(2) map _tup2
   def genSampler3: IO[F, (Int, Int, Int)] = genSamplers(3) map _tup3
 
-  private[gl] def samplerParameteri(sampler: Int, name: SamplerParameter, value: IntValue): IO[F, Unit]
+  private[gl] def samplerParameteri(sampler: Int, name: SamplerParameter, value: IntConstant): IO[F, Unit]
   private[gl] def samplerParameteri(sampler: Int, name: SamplerParameter, value: Int): IO[F, Unit]
   
 
@@ -189,7 +186,7 @@ abstract class GL[F[_]: Monad] {
   def clearBuffer(target: GL_STENCIL.type, value: Int): IO[F, Unit] = clearBufferiv(target, 0, Array(value))
   def clearBuffer(target: GL_DEPTH_STENCIL.type, depth: Float, stencil: Int): IO[F, Unit] = clearBufferfi(target, 0, depth, stencil)
   
-  // TODO: Need to tag unsigned Ints since they are so common!
+  // TODO: Need to tag unsigned Ints since they are so common!  Perhaps use spire.math.Natural
   def clearBufferu(target: GL_COLOR.type, drawBuffer: DrawBuffer, red: Int, green: Int, blue: Int, alpha: Int): IO[F, Unit] = clearBufferuiv(target, drawBuffer.n, Array(red, green, blue, alpha))
 
   def readBuffer(src: DrawBuffer): IO[F, Unit]
@@ -197,10 +194,6 @@ abstract class GL[F[_]: Monad] {
   def drawElementsInstanced(mode: PrimitiveType, count: Int, `type`: IndexType, ptr: Buffer, primCount: Int): IO[F, Unit]
   def bindAttribLocation(program: Int, index: Int, name: String): IO[F, Unit]
   def blendColor(red: Float, green: Float, blue: Float, alpha: Float): IO[F, Unit]
-//  uniform(1, v"3f 3f") |+| enable(GL_DEPTH_TEST)
-//  def uniform(location: Int, value: Vec2i): IO[F, Unit] =
-
-
 }
 
 @scala.annotation.implicitNotFound("Cannot find update of type $A")
@@ -279,17 +272,13 @@ object GL {
   val noEffect: GL[Id] = NoEffectRunning
   
   def log(logCfg: LoggerConfig): GL[Logger[Id, ?]] = new Logging(logCfg, noEffect)
-  def debugAndLog(debugCfg: DebuggerConfig, logCfg: LoggerConfig): GL[Debugger[Logger[Id, ?], ?]] = 
-    new Debugging[Logger[Id, ?]](log(logCfg))(Applicative[Logger[Id, ?]], Monad[Logger[Id, ?]] ,xorTMonoid[Logger[Id, ?], String, Unit], XorT.xorTMonadError[Logger[Id, ?], String])
+  def debugAndLog(debugCfg: DebuggerConfig, logCfg: LoggerConfig): GL[Debugger[Logger[Id, ?], ?]] = new Debugging[Logger[Id, ?]](log(logCfg))
  
-/*
-    Logger config for specifying which methods to log and verbosity
-   */
-  case class LoggerConfig(filtered: Set[String])
+  /** Logger config for specifying which methods to log and verbosity */
+  case class LoggerConfig(s: Set[String])
 
-  /*
-   Debugging config for specifying which methods to debug
-   */
+
+  /** Debugging config for specifying which methods to debug */
   case class DebuggerConfig(filtered: Set[String])
 
   type IO[F[_], A] = ReaderT[F, Lib, A]
