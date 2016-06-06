@@ -17,7 +17,7 @@ import cats.implicits._
 import shapeless._
 import shapeless.ops.nat.ToInt
 
-import iliad.implicits._
+import iliad.kernel.vectord._
 
 import org.scalacheck.Arbitrary
 

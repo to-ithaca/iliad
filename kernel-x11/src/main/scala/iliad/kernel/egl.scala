@@ -1,7 +1,7 @@
 package iliad
 package kernel
 
-import iliad.kernel.platform.egl._
+import iliad.kernel.platform.{EGL14Library => Lib}
 import iliad.kernel.platform.unix._
 import com.sun.jna.platform.unix.X11
 

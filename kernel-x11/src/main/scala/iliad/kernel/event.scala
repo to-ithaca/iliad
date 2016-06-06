@@ -1,7 +1,7 @@
 package iliad
 package kernel
 
-import iliad.kernel.utils.vectord._
+import iliad.kernel.vectord._
 
 import com.sun.jna.platform.unix.X11._
 import iliad.kernel.platform.unix.X11

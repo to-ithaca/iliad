@@ -1,10 +1,11 @@
 package iliad
 package kernel
 
-import iliad.kernel.utils.vectord._
+import iliad.kernel.vectord._
 import iliad.kernel.platform.unix.X11
 
-import iliad.kernel.egl._
+import iliad.kernel._
+import iliad.kernel.GLConstants._
 
 import com.sun.jna.platform.unix.X11._
 import com.sun.jna._
@@ -103,7 +104,8 @@ trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
     }
   }
 
-  def setupEGL(d: Display, w: Window): Unit = {
+  //TODO: tidy this code up
+  def setupEGL(d: Display, w: Window): EGL.Session[EGL14.EGLDisplay, EGL14.EGLConfig, EGL14.EGLSurface, EGL14.EGLContext] = {
     val eglRunner= EGL.debuggingLogging[EGL14.EGLNativeDisplayType, EGL14.EGLNativeWindowType, EGL14.EGLDisplay, EGL14.EGLConfig, EGL14.EGLSurface, EGL14.EGLContext]
 
     val writer = eglRunner.setupPrimaryContext(d, w, EGL14.EGL_NO_CONTEXT).run(EGL14).value
@@ -114,14 +116,53 @@ trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
         throw new Error(err)
       case Xor.Right(session) =>
         log.info("Successfully created EGL session {}", session)
+        session
     }
+  }
+
+  def setupGL: Unit = {
+    import iliad.kernel._
+    val gl = GL.debugAndLog(GL.DebuggerConfig(Set.empty), GL.LoggerConfig(Set.empty))
+    val cmds = for {
+      _ <- gl.clear(GL_COLOR_BUFFER_BIT)
+      _ <- gl.clearColor(0f, 1f, 0f, 1f)
+      _ <- gl.clear(GL_COLOR_BUFFER_BIT)
+    } yield ()
+
+    val writer = cmds.run(GLES30).value
+    writer.written.foreach(s => log.info("GL log {}", s))
+
+    writer.value match {
+      case Xor.Left(err) =>
+        log.error("Failed to create GL - exiting application {}", err)
+        throw new IllegalStateException(err)
+      case Xor.Right(_) =>
+        log.info("Successfully called GL commands")
+    }
+  }
+
+  def swapBuffers(display: EGL14.EGLDisplay, surface: EGL14.EGLSurface): Unit = {
+    val eglRunner= EGL.debuggingLogging[EGL14.EGLNativeDisplayType, EGL14.EGLNativeWindowType, EGL14.EGLDisplay, EGL14.EGLConfig, EGL14.EGLSurface, EGL14.EGLContext]
+
+    val writer = eglRunner.swapBuffers(display, surface).run(EGL14).value
+    writer.written.foreach(s => log.info("EGL log {}", s))
+    writer.value match {
+      case Xor.Left(err) =>
+        log.error("Failed to swap EGL buffers - exiting application {}", err)
+        throw new Error(err)
+      case Xor.Right(_) =>
+        log.info("Successfully swapped EGL buffers")
+    }
+
   }
 
   def main(args: Array[String]): Unit = {   
     createWindow match {
       case Xor.Right((d, w)) =>
         log.info("Created window")
-        setupEGL(d, w)
+        val session = setupEGL(d, w)
+        setupGL
+        swapBuffers(session.display, session.surface)
         app.run()
         var shouldDraw = true
         while(shouldDraw) {

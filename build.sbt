@@ -30,7 +30,6 @@ lazy val compilerOptions = Seq(
 )
 
 lazy val catsVersion = "0.6.0"
-lazy val akkaVersion = "2.3.15"
 
 lazy val commonSettings = Seq(
   resolvers ++= Seq(
@@ -49,8 +48,6 @@ lazy val commonSettings = Seq(
     "org.typelevel" %% "cats-kernel" % catsVersion,
     "org.typelevel" %% "cats-free" % catsVersion,
     "org.typelevel" %% "cats-laws" % catsVersion % "test",
-    "com.typesafe.akka" %% "akka-actor" % akkaVersion,
-    "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
     "org.slf4j" % "slf4j-api" % "1.7.13"
   )
 ) ++ compilerOptions
@@ -60,7 +57,6 @@ lazy val testSettings = Seq(
     "org.spire-math" %% "spire-laws" % "0.11.0" % "test",
     "org.scalatest" %% "scalatest" % "3.0.0-M7" % "test",
     "org.scalacheck" %% "scalacheck" % "1.12.1" % "test",
-    "com.typesafe.akka" %% "akka-testkit" % akkaVersion % "test",
     "org.typelevel" %% "discipline" % "0.4" % "test"
   )
 )
@@ -121,6 +117,7 @@ lazy val kernel = (project in file("kernel")).settings(
   buildSettings,
   moduleName := "iliad-kernel",
   commonSettings,
+  testSettings,
   paradiseSettings
 ).dependsOn(macros)
 
