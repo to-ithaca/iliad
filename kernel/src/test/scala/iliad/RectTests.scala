@@ -11,7 +11,7 @@ import cats.kernel.laws._
 
 import shapeless._
 
-import iliad.kernel.utils.vectord._
+import iliad.kernel.vectord._
 
 import org.scalacheck.Arbitrary
 import org.scalacheck._

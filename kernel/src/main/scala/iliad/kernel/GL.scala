@@ -1,10 +1,9 @@
 package iliad
 package kernel
-package gl
 
-import iliad.kernel.utils.vectord._
-import iliad.kernel.utils.matrixd._
-import iliad.kernel.platform.gl._
+import iliad.kernel.vectord._
+import iliad.kernel.matrixd._
+import iliad.kernel.platform._
 
 import java.nio._
 
@@ -13,6 +12,7 @@ import cats.data._
 import cats.implicits._
  
 import GL._
+import GLConstants._
 
 /**
   Typesafe GL. The type parameter `F` has type constraints to compose operations.
@@ -36,7 +36,7 @@ abstract class GL[F[_]: Monad] {
   def deleteShader(shader: Int): IO[F, Unit]
   def compileShader(shader: Int): IO[F, Unit]
   def attachShader(program: Int, shader: Int): IO[F, Unit]
-  private[gl] def getShaderiv(shader: Int, pname: ShaderParameter): IO[F, Int]
+  private[kernel] def getShaderiv(shader: Int, pname: ShaderParameter): IO[F, Int]
   
   private def getShaderiv[A](shader: Int, pname: ShaderParameter, expected: Set[A])(eq: A => Int): IO[F, A] = getShaderiv(shader, pname).map(code => expected.find(eq(_) == code).get)
 
@@ -46,7 +46,7 @@ abstract class GL[F[_]: Monad] {
   def getShaderiv(shader: Int, pname: GL_INFO_LOG_LENGTH.type): IO[F, Int] = getShaderiv(shader, pname: ShaderParameter)
   def getShaderiv(shader: Int, pname: GL_SHADER_SOURCE_LENGTH.type): IO[F, Int] = getShaderiv(shader, pname: ShaderParameter)
 
-  private[gl] def getShaderInfoLog(shader: Int, maxLength: Int): IO[F, String]
+  private[kernel] def getShaderInfoLog(shader: Int, maxLength: Int): IO[F, String]
   def getShaderInfoLog(shader: Int): IO[F, String] = getShaderiv(shader, GL_SHADER_SOURCE_LENGTH) >>= (getShaderInfoLog(shader, _))
 
   def createProgram: IO[F, Int]
@@ -59,7 +59,7 @@ abstract class GL[F[_]: Monad] {
   private def _tup3[A](arr: Array[A]): (A, A, A) = (arr(0), arr(1), arr(2))
 
   //TODO: Work out how best to expose N buffers safely
-  private[gl] def genBuffers(num: Int): IO[F, Array[Int]]
+  private[kernel] def genBuffers(num: Int): IO[F, Array[Int]]
   def genBuffer: IO[F, Int] = genBuffers(1) map _tup1
   def genBuffer2: IO[F, (Int, Int)] = genBuffers(2) map _tup2
   def genBuffer3: IO[F, (Int, Int, Int)] = genBuffers(3) map _tup3 
@@ -68,7 +68,7 @@ abstract class GL[F[_]: Monad] {
   def bufferSubData(target: BufferTarget, offset: Int, size: Int, data: Buffer): IO[F, Unit]
   def enableVertexAttribArray(location: Int): IO[F, Unit]
   def vertexAttribPointer(location: Int, size: Int,`type`: VertexAttribType, normalized: Boolean, stride: Int, offset: Int): IO[F, Unit]
-  private[gl] def genFramebuffers(num: Int): IO[F,Array[Int]]
+  private[kernel] def genFramebuffers(num: Int): IO[F,Array[Int]]
   def genFramebuffer: IO[F, Int] = genFramebuffers(1) map _tup1
   def genFramebuffer2(num: Int): IO[F, (Int, Int)] = genFramebuffers(2) map _tup2
   def genFramebuffer3(num: Int): IO[F, (Int, Int, Int)] = genFramebuffers(3) map _tup3
@@ -77,7 +77,7 @@ abstract class GL[F[_]: Monad] {
   def checkFramebufferStatus(target: FramebufferTarget): IO[F, FramebufferStatus]
   def framebufferTexture2D(target: FramebufferTarget, attachment: FramebufferAttachment, texTarget: FramebufferTexTarget, texture: Int, level: Int): IO[F, Unit]
 
-  private[gl] def genRenderbuffers(num: Int): IO[F, Array[Int]]
+  private[kernel] def genRenderbuffers(num: Int): IO[F, Array[Int]]
   def genRenderbuffer: IO[F, Int] = genRenderbuffers(1) map _tup1
   def genRenderbuffer2: IO[F, (Int, Int)] = genRenderbuffers(2) map _tup2
   def genRenderbuffer3: IO[F, (Int, Int, Int)] = genRenderbuffers(3) map _tup3
@@ -85,13 +85,13 @@ abstract class GL[F[_]: Monad] {
   def renderbufferStorage(format: RenderbufferInternalFormat, width: Int, height: Int): IO[F, Unit]
   def bindTexture(target: TextureTarget, texture: Int): IO[F, Unit]
 
-  private[gl] def genTextures(num: Int): IO[F, Array[Int]]
+  private[kernel] def genTextures(num: Int): IO[F, Array[Int]]
   def genTexture: IO[F, Int] = genTextures(1) map _tup1
   def genTexture2: IO[F, (Int, Int)] = genTextures(2) map _tup2
   def genTexture3: IO[F, (Int, Int, Int)] = genTextures(3) map _tup3
 
-  private[gl] def texParameteri(target: TextureTarget, name: TextureParameter, value: Int): IO[F, Unit]
-  private[gl] def texParameteri(target: TextureTarget, name: TextureParameter, value: IntConstant): IO[F, Unit]
+  private[kernel] def texParameteri(target: TextureTarget, name: TextureParameter, value: Int): IO[F, Unit]
+  private[kernel] def texParameteri(target: TextureTarget, name: TextureParameter, value: IntConstant): IO[F, Unit]
   def texParameter(target: TextureTarget, name: GL_TEXTURE_BASE_LEVEL.type, value: Int): IO[F, Unit] = texParameteri(target, name, value)
   def texParameter(target: TextureTarget, name: GL_TEXTURE_COMPARE_FUNC.type, value: TextureCompareFunc): IO[F, Unit] = texParameteri(target, name, value)
   def texParameter(target: TextureTarget, name: GL_TEXTURE_COMPARE_MODE.type, value: TextureCompareMode): IO[F, Unit] = texParameteri(target, name, value)
@@ -117,25 +117,25 @@ abstract class GL[F[_]: Monad] {
   def drawElements(mode: PrimitiveType, count: Int, `type`: IndexType, offset: Int): IO[F, Unit]
   def drawElements(mode: PrimitiveType, count: Int, `type`: IndexType, indices: Buffer): IO[F, Unit]
 
-  private[gl] def uniform1i(location: Int, arg0: Int): IO[F, Unit]
-  private[gl] def uniform1f(location: Int, arg0: Float): IO[F, Unit]
-  private[gl] def uniform1fv(location: Int, count: Int, arr: Array[Float]): IO[F, Unit]
-  private[gl] def uniform1iv(location: Int, count: Int, arr: Array[Int]): IO[F, Unit]
-  private[gl] def uniform2i(location: Int, arg0: Int, arg1: Int): IO[F, Unit]
-  private[gl] def uniform2f(location: Int, arg0: Float, arg1: Float): IO[F, Unit]
-  private[gl] def uniform2fv(location: Int, count: Int, arr: Array[Float]): IO[F, Unit]
-  private[gl] def uniform2iv(location: Int, count: Int, arr: Array[Int]): IO[F, Unit]
-  private[gl] def uniform3i(location: Int, arg0: Int, arg1: Int, arg2: Int): IO[F, Unit]
-  private[gl] def uniform3f(location: Int, arg0: Float, arg1: Float, arg2: Float): IO[F, Unit]
-  private[gl] def uniform3fv(location: Int, count: Int, arr: Array[Float]): IO[F, Unit]
-  private[gl] def uniform3iv(location: Int, count: Int, arr: Array[Int]): IO[F, Unit]
-  private[gl] def uniform4i(location: Int, arg0: Int, arg1: Int, arg2: Int, arg3: Int): IO[F, Unit]
-  private[gl] def uniform4f(location: Int, arg0: Float, arg1: Float, arg2: Float, arg3: Float): IO[F, Unit]
-  private[gl] def uniform4fv(location: Int, count: Int, arr: Array[Float]): IO[F, Unit]
-  private[gl] def uniform4iv(location: Int, count: Int, arr: Array[Int]): IO[F, Unit]
-  private[gl] def uniformMatrix2fv(location: Int, count: Int, transpose: Boolean, arg0: Array[Float]): IO[F, Unit]
-  private[gl] def uniformMatrix3fv(location: Int, count: Int, transpose: Boolean, arg0: Array[Float]): IO[F, Unit]
-  private[gl] def uniformMatrix4fv(location: Int, count: Int, transpose: Boolean, arg0: Array[Float]): IO[F, Unit]
+  private[kernel] def uniform1i(location: Int, arg0: Int): IO[F, Unit]
+  private[kernel] def uniform1f(location: Int, arg0: Float): IO[F, Unit]
+  private[kernel] def uniform1fv(location: Int, count: Int, arr: Array[Float]): IO[F, Unit]
+  private[kernel] def uniform1iv(location: Int, count: Int, arr: Array[Int]): IO[F, Unit]
+  private[kernel] def uniform2i(location: Int, arg0: Int, arg1: Int): IO[F, Unit]
+  private[kernel] def uniform2f(location: Int, arg0: Float, arg1: Float): IO[F, Unit]
+  private[kernel] def uniform2fv(location: Int, count: Int, arr: Array[Float]): IO[F, Unit]
+  private[kernel] def uniform2iv(location: Int, count: Int, arr: Array[Int]): IO[F, Unit]
+  private[kernel] def uniform3i(location: Int, arg0: Int, arg1: Int, arg2: Int): IO[F, Unit]
+  private[kernel] def uniform3f(location: Int, arg0: Float, arg1: Float, arg2: Float): IO[F, Unit]
+  private[kernel] def uniform3fv(location: Int, count: Int, arr: Array[Float]): IO[F, Unit]
+  private[kernel] def uniform3iv(location: Int, count: Int, arr: Array[Int]): IO[F, Unit]
+  private[kernel] def uniform4i(location: Int, arg0: Int, arg1: Int, arg2: Int, arg3: Int): IO[F, Unit]
+  private[kernel] def uniform4f(location: Int, arg0: Float, arg1: Float, arg2: Float, arg3: Float): IO[F, Unit]
+  private[kernel] def uniform4fv(location: Int, count: Int, arr: Array[Float]): IO[F, Unit]
+  private[kernel] def uniform4iv(location: Int, count: Int, arr: Array[Int]): IO[F, Unit]
+  private[kernel] def uniformMatrix2fv(location: Int, count: Int, transpose: Boolean, arg0: Array[Float]): IO[F, Unit]
+  private[kernel] def uniformMatrix3fv(location: Int, count: Int, transpose: Boolean, arg0: Array[Float]): IO[F, Unit]
+  private[kernel] def uniformMatrix4fv(location: Int, count: Int, transpose: Boolean, arg0: Array[Float]): IO[F, Unit]
 
   def uniform[A](location: Int, value: A)(implicit update: CanUniformUpdate[F, A]): IO[F, Unit] = update(this)(location, value)
 
@@ -146,13 +146,13 @@ abstract class GL[F[_]: Monad] {
   def getUniformLocation(program: Int, name: String): IO[F, Int]
   def getUniformLocations[G[_] : Traverse](program: Int, names: G[String]): IO[F, G[(String, Int)]] = getLocationTraverse(names)(getUniformLocation(program, _))
 
-  private[gl] def genSamplers(num: Int): IO[F, Array[Int]]
+  private[kernel] def genSamplers(num: Int): IO[F, Array[Int]]
   def genSampler: IO[F, Int] = genSamplers(1) map _tup1
   def genSampler2: IO[F, (Int, Int)] = genSamplers(2) map _tup2
   def genSampler3: IO[F, (Int, Int, Int)] = genSamplers(3) map _tup3
 
-  private[gl] def samplerParameteri(sampler: Int, name: SamplerParameter, value: IntConstant): IO[F, Unit]
-  private[gl] def samplerParameteri(sampler: Int, name: SamplerParameter, value: Int): IO[F, Unit]
+  private[kernel] def samplerParameteri(sampler: Int, name: SamplerParameter, value: IntConstant): IO[F, Unit]
+  private[kernel] def samplerParameteri(sampler: Int, name: SamplerParameter, value: Int): IO[F, Unit]
   
 
   def samplerParameter(sampler: Int, name: GL_TEXTURE_MIN_FILTER.type, value: TextureMinFilter): IO[F, Unit] = samplerParameteri(sampler, name, value)
@@ -169,10 +169,10 @@ abstract class GL[F[_]: Monad] {
   def bindVertexArray(vertexArray: Int): IO[F, Unit]
   def drawBuffers(num: Int, buffers: Seq[ColorOutputTarget]): IO[F, Unit]
 
-  private[gl] def clearBufferfi(target: Channel, drawBuffer: Int, depth: Float, stencil: Int): IO[F, Unit]
-  private[gl] def clearBufferiv(target: Channel, drawBuffer: Int, value: Array[Int]): IO[F, Unit]
-  private[gl] def clearBufferuiv(target: Channel, drawBuffer: Int, value: Array[Int]): IO[F, Unit]
-  private[gl] def clearBufferfv(target: Channel, drawBuffer: Int, value: Array[Float]): IO[F, Unit]
+  private[kernel] def clearBufferfi(target: Channel, drawBuffer: Int, depth: Float, stencil: Int): IO[F, Unit]
+  private[kernel] def clearBufferiv(target: Channel, drawBuffer: Int, value: Array[Int]): IO[F, Unit]
+  private[kernel] def clearBufferuiv(target: Channel, drawBuffer: Int, value: Array[Int]): IO[F, Unit]
+  private[kernel] def clearBufferfv(target: Channel, drawBuffer: Int, value: Array[Float]): IO[F, Unit]
 
   def clearBuffer(target: GL_COLOR.type, drawBuffer: DrawBuffer, red: Float, green: Float, blue: Float, alpha: Float): IO[F, Unit] = clearBufferfv(target, drawBuffer.n, Array(red, green, blue, alpha))
   def clearBuffer(target: GL_COLOR.type, drawBuffer: DrawBuffer, red: Int, green: Int, blue: Int, alpha: Int): IO[F, Unit] = clearBufferiv(target, drawBuffer.n, Array(red, green, blue, alpha))
@@ -264,10 +264,10 @@ object MissingCatsImplicits {
 import MissingCatsImplicits._
 
 object GL {
-  val noEffect: GL[Id] = NoEffectRunning
+  val run: GL[Id] = GLRunner
   
-  def log(logCfg: LoggerConfig): GL[Logger[Id, ?]] = new Logging(logCfg, noEffect)
-  def debugAndLog(debugCfg: DebuggerConfig, logCfg: LoggerConfig): GL[Debugger[Logger[Id, ?], ?]] = new Debugging[Logger[Id, ?]](log(logCfg))
+  def log(logCfg: LoggerConfig): GL[LogEffect[Id, ?]] = new GLLogger(logCfg, run)
+  def debugAndLog(debugCfg: DebuggerConfig, logCfg: LoggerConfig): GL[DebugEffect[LogEffect[Id, ?], ?]] = new GLDebugger[LogEffect[Id, ?]](log(logCfg))
  
   /** Logger config for specifying which methods to log and verbosity */
   case class LoggerConfig(s: Set[String])
@@ -276,7 +276,7 @@ object GL {
   /** Debugging config for specifying which methods to debug */
   case class DebuggerConfig(filtered: Set[String])
 
-  type IO[F[_], A] = ReaderT[F, Lib, A]
-  type Logger[F[_], A] = WriterT[F, List[String], A]
-  type Debugger[F[_], A] = XorT[F, String, A]
+  type IO[F[_], A] = ReaderT[F, GLES30Library, A]
+  type LogEffect[F[_], A] = WriterT[F, List[String], A]
+  type DebugEffect[F[_], A] = XorT[F, String, A]
 }

@@ -1,7 +1,7 @@
 package iliad
 package kernel
 
-import iliad.kernel.utils.vectord._
+import iliad.kernel.vectord._
 
 import com.sun.jna.platform.win32.User32._
 import com.sun.jna.platform.win32.WinDef._

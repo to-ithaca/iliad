@@ -1,7 +1,7 @@
 package iliad
 package kernel
-package egl
 
+object EGLConstants {
 abstract class IntConstant(val value: Int)
 
 sealed trait ConfigAttrib extends IntConstant
@@ -201,3 +201,5 @@ case object EGL_GL_TEXTURE_CUBE_MAP_POSITIVE_Z extends IntConstant(0x30B7)
 case object EGL_GL_TEXTURE_CUBE_MAP_NEGATIVE_Z extends IntConstant(0x30B8)
 case object EGL_IMAGE_PRESERVED extends IntConstant(0x30D2)
 case object EGL_NO_IMAGE extends IntConstant(0)
+
+}

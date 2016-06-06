@@ -1,11 +1,11 @@
 package iliad
 package kernel
 
-import iliad.kernel.utils.vectord._
+import iliad.kernel.vectord._
 import iliad.kernel.platform.unix.X11
 
-import iliad.kernel.egl._
-import iliad.kernel.gl.GL
+import iliad.kernel._
+import iliad.kernel.GLConstants._
 
 import com.sun.jna.platform.unix.X11._
 import com.sun.jna._
@@ -121,7 +121,7 @@ trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
   }
 
   def setupGL: Unit = {
-    import iliad.kernel.gl._
+    import iliad.kernel._
     val gl = GL.debugAndLog(GL.DebuggerConfig(Set.empty), GL.LoggerConfig(Set.empty))
     val cmds = for {
       _ <- gl.clear(GL_COLOR_BUFFER_BIT)

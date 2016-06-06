@@ -1,8 +1,7 @@
 package iliad
 package kernel
-package egl
 
-import iliad.kernel.platform.egl.Lib
+import iliad.kernel.platform.EGL14Library
 
 import scala.reflect._
 
@@ -10,13 +9,15 @@ import cats._
 import cats.data._
 import cats.implicits._
 
+import EGLConstants._
+
 object EGL {
 
   /** Effect type of Debugging runner */
-  type Debugger[F[_], A] = XorT[F, String, A]
+  type DebugEffect[F[_], A] = XorT[F, String, A]
 
   /** Effect type of Logging runner */
-  type Logger[F[_], A] = WriterT[F, List[String], A]
+  type LogEffect[F[_], A] = WriterT[F, List[String], A]
 
   /** Major and minor EGL versions for the display */
   case class DisplayVersion(major: Int, minor: Int)
@@ -47,30 +48,30 @@ object EGL {
   case class Session[Disp, Cfg, Sfc, Ctx](display: Disp, config: Cfg, surface: Sfc, context: Ctx)
 
   /** EGL runners */
-  def noEffectsRunning[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]: EGL[Id, NDisp, NWin, Disp, Cfg, Sfc, Ctx] = new NoEffectsRunning[NDisp, NWin, Disp, Cfg, Sfc, Ctx]()
-  def debugging[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]: EGL[Debugger[Id, ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] = new Debugging(noEffectsRunning[NDisp, NWin, Disp, Cfg, Sfc, Ctx])
-  def logging[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]: EGL[Logger[Id, ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] = new Logging(noEffectsRunning[NDisp, NWin, Disp, Cfg, Sfc, Ctx])
-  def debuggingLogging[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]: EGL[Debugger[Logger[Id, ?], ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] = new Debugging(new Logging(new NoEffectsRunning[NDisp, NWin, Disp, Cfg, Sfc, Ctx]()))
+  def runner[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]: EGL[Id, NDisp, NWin, Disp, Cfg, Sfc, Ctx] = new EGLRunner[NDisp, NWin, Disp, Cfg, Sfc, Ctx]()
+  def debugging[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]: EGL[DebugEffect[Id, ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] = new EGLDebugger(runner[NDisp, NWin, Disp, Cfg, Sfc, Ctx])
+  def logging[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]: EGL[LogEffect[Id, ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] = new EGLLogger(runner[NDisp, NWin, Disp, Cfg, Sfc, Ctx])
+  def debuggingLogging[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]: EGL[DebugEffect[LogEffect[Id, ?], ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] = new EGLDebugger(new EGLLogger(new EGLRunner[NDisp, NWin, Disp, Cfg, Sfc, Ctx]()))
 }
 
 /** EGL API to be implemented by EGL runners.
   * 
   * Type parameters are mapped as follows:
-  *   NDisp corresponds to [[iliad.kernel.platform.egl.Lib.EGLNativeDisplayType]]
-  *   NWin  corresponds to [[iliad.kernel.platform.egl.Lib.EGLNativeWindowType]]
-  *   Disp  corresponds to [[iliad.kernel.platform.egl.Lib.EGLDisplay]]
-  *   Cfg   corresponds to [[iliad.kernel.platform.egl.Lib.EGLConfig]]
-  *   Sfc   corresponds to [[iliad.kernel.platform.egl.Lib.EGLSurface]]
-  *   Ctx   corresponds to [[iliad.kernel.platform.egl.Lib.EGLContext]]
+  *   NDisp corresponds to [[iliad.kernel.platform.EGL14Library.EGLNativeDisplayType]]
+  *   NWin  corresponds to [[iliad.kernel.platform.EGL14Library.EGLNativeWindowType]]
+  *   Disp  corresponds to [[iliad.kernel.platform.EGL14Library.EGLDisplay]]
+  *   Cfg   corresponds to [[iliad.kernel.platform.EGL14Library.EGLConfig]]
+  *   Sfc   corresponds to [[iliad.kernel.platform.EGL14Library.EGLSurface]]
+  *   Ctx   corresponds to [[iliad.kernel.platform.EGL14Library.EGLContext]]
   */
 abstract class EGL[F[_]: Monad, NDisp, NWin, Disp, Cfg : ClassTag, Sfc, Ctx] {
   import EGL._
 
-  type EGLLib = Lib.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx]
+  type EGLLib = EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx]
   type IO[A] = ReaderT[F, EGLLib, A]
 
   def getError: IO[Option[Int Xor ErrorCode]]
-  private[egl] def getConfigAttrib(display: Disp, config: Cfg, attribute: FixedConfigAttrib): IO[Int]
+  private[kernel] def getConfigAttrib(display: Disp, config: Cfg, attribute: FixedConfigAttrib): IO[Int]
   def getEnumConfigAttrib(display: Disp, config: Cfg, attribute: EnumConfigAttrib): IO[Int Xor ConfigAttribValue] = getConfigAttrib(display, config, attribute).map( v => 
     Xor.fromOption(SealedEnum.values[ConfigAttribValue].find(_.value == v), v)
   )
@@ -79,17 +80,17 @@ abstract class EGL[F[_]: Monad, NDisp, NWin, Disp, Cfg : ClassTag, Sfc, Ctx] {
   def queryString(dpy: Disp, name: QueryKey): IO[String]
 
   def getDisplay(displayID: NDisp): IO[Disp]
-  private[egl] def initialise(display: Disp): IO[(Int, Int)]
+  private[kernel] def initialise(display: Disp): IO[(Int, Int)]
   def initialisedVersion(display: Disp): IO[DisplayVersion] = initialise(display).map(t => DisplayVersion(t._1, t._2))
 
   def chooseConfig(display: Disp, attributes: ConfigAttributes): IO[Cfg]
   def createWindowSurface(display: Disp, config: Cfg, win: NWin, attributes: WindowAttributes): IO[Sfc]
   def createPbufferSurface(display: Disp, config: Cfg, attributes: PBufferAttributes): IO[Sfc]
   
-  private[egl] def bindApi(api: API): IO[Unit]
-  def bindOpenGLESApi: IO[Unit] = bindApi(EGL_OPENGL_ES_API)
+  private[kernel] def bindApi(api: API): IO[Unit]
+  def bindGL: IO[Unit] = bindApi(EGL_OPENGL_ES_API)
   
-  private[egl] def createContext(display: Disp, config: Cfg, shareContext: Ctx, attributes: ContextAttributes): IO[Ctx]
+  private[kernel] def createContext(display: Disp, config: Cfg, shareContext: Ctx, attributes: ContextAttributes): IO[Ctx]
   def primaryContext(display: Disp, config: Cfg, noContext: Ctx, attributes: ContextAttributes): IO[Ctx] = createContext(display, config, noContext, attributes)
   def secondaryContext(display: Disp, config: Cfg, primaryContext: Ctx, attributes: ContextAttributes): IO[Ctx] = createContext(display, config, primaryContext, attributes)
 
@@ -100,26 +101,26 @@ abstract class EGL[F[_]: Monad, NDisp, NWin, Disp, Cfg : ClassTag, Sfc, Ctx] {
   def setupPrimaryContext(displayID: NDisp, windowID: NWin, noContext: Ctx): IO[Session[Disp, Cfg, Sfc, Ctx]] = for {
     display <- getDisplay(displayID)
     _ <- initialisedVersion(display)
-    config <- chooseConfig(display, Defaults.primaryConfigAttributes)
-    surface <- createWindowSurface(display, config, windowID, Defaults.windowAttributes)
-    _ <- bindOpenGLESApi
-    context <- primaryContext(display, config, noContext, Defaults.contextAttributes)
+    config <- chooseConfig(display, EGLDefaults.primaryConfig)
+    surface <- createWindowSurface(display, config, windowID, EGLDefaults.window)
+    _ <- bindGL
+    context <- primaryContext(display, config, noContext, EGLDefaults.context)
     _ <- makeCurrent(display, surface, surface, context)
   } yield Session(display, config, surface, context)
 
   def setupSecondaryContext(session: Session[Disp, Cfg, Sfc, Ctx]): IO[Ctx] = for {
     _ <- initialisedVersion(session.display)
-    config <- chooseConfig(session.display, Defaults.secondaryConfigAttributes)
-    surface <- createPbufferSurface(session.display, config, Defaults.pBBufferAttributes)
-    _ <- bindOpenGLESApi
-    context <- secondaryContext(session.display, config, session.context, Defaults.contextAttributes)
+    config <- chooseConfig(session.display, EGLDefaults.secondaryConfig)
+    surface <- createPbufferSurface(session.display, config, EGLDefaults.pBuffer)
+    _ <- bindGL
+    context <- secondaryContext(session.display, config, session.context, EGLDefaults.context)
   } yield context
 }
 
-object Defaults {
+object EGLDefaults {
   import EGL._
 
-  def primaryConfigAttributes: ConfigAttributes = Attributes[ConfigAttrib, ConfigAttribValue](Map(
+  val primaryConfig: ConfigAttributes = Attributes[ConfigAttrib, ConfigAttribValue](Map(
     EGL_LEVEL -> configValue(0),
     EGL_SURFACE_TYPE -> configValue(EGL_WINDOW_BIT),
     EGL_RENDERABLE_TYPE -> configValue(EGL_OPENGL_ES3_BIT),
@@ -131,13 +132,13 @@ object Defaults {
     EGL_DEPTH_SIZE -> configValue(24)
   ))
 
-  def contextAttributes: ContextAttributes = Attributes[ContextAttrib, ContextAttribValue](Map(
+  val context: ContextAttributes = Attributes[ContextAttrib, ContextAttribValue](Map(
     EGL_CONTEXT_CLIENT_VERSION -> contextValue(3)
   ))
 
-  def windowAttributes: WindowAttributes = Attributes[WindowAttrib, WindowAttribValue](Map.empty)
+  val window: WindowAttributes = Attributes[WindowAttrib, WindowAttribValue](Map.empty)
 
-  def secondaryConfigAttributes: ConfigAttributes = Attributes[ConfigAttrib, ConfigAttribValue](Map(
+  val secondaryConfig: ConfigAttributes = Attributes[ConfigAttrib, ConfigAttribValue](Map(
     EGL_SAMPLES -> configValue(1),
     EGL_SURFACE_TYPE -> configValue(EGL_PBUFFER_BIT),
     EGL_RENDERABLE_TYPE -> configValue(EGL_OPENGL_ES3_BIT),
@@ -149,7 +150,7 @@ object Defaults {
     EGL_DEPTH_SIZE -> configValue(16)
   ))
  
-  def pBBufferAttributes: PBufferAttributes = Attributes[PBufferAttrib, PBufferAttribValue](Map(
+  val pBuffer: PBufferAttributes = Attributes[PBufferAttrib, PBufferAttribValue](Map(
     EGL_WIDTH -> pbufferValue(1),
     EGL_HEIGHT -> pbufferValue(1),
     EGL_TEXTURE_FORMAT -> pbufferValue(EGL_TEXTURE_RGBA),

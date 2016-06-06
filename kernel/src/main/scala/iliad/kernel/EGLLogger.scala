@@ -1,6 +1,5 @@
 package iliad
 package kernel
-package egl
 
 import scala.reflect._
 
@@ -8,14 +7,15 @@ import cats._
 import cats.data._
 import cats.implicits._
 
+import EGLConstants._
 
 /** Runs EGL commands with the [[EGL.Logger]] (WriterT) effect type */
-class Logging[F[_]: Monad, NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](egl: EGL[F, NDisp, NWin, Disp, Cfg, Sfc, Ctx]) extends EGL[EGL.Logger[F, ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] {  
+class EGLLogger[F[_]: Monad, NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](egl: EGL[F, NDisp, NWin, Disp, Cfg, Sfc, Ctx]) extends EGL[EGL.LogEffect[F, ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] {  
   import EGL._
 
   type FIO[A] = ReaderT[F, EGLLib, A]
 
-  private def lift[A](io: FIO[A]): IO[A] = io.mapF{ fa => fa.liftT[EGL.Logger] }
+  private def lift[A](io: FIO[A]): IO[A] = io.mapF{ fa => fa.liftT[EGL.LogEffect] }
   private def log[A](io: FIO[A])(s: String): IO[A] = lift(io).mapF {_.mapWritten(_ => List(s))}
   private def logOutput[A](io: FIO[A])(logf: A => String) = lift(io).mapF(_.mapBoth( (_, a) => (List(logf(a)), a)))
 

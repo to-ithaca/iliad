@@ -1,14 +1,13 @@
 package iliad
 package kernel
 package platform
-package egl
 
 import java.nio.IntBuffer
 
-object Lib {
+object EGL14Library {
 
   /** Promotes path dependent types to higher kinded types */
-  type Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx] = Lib {
+  type Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx] = EGL14Library {
     type EGLNativeDisplayType = NDisp
     type EGLNativeWindowType = NWin
     type EGLDisplay = Disp
@@ -18,7 +17,7 @@ object Lib {
   }
 }
 
-trait Lib {
+trait EGL14Library {
 
   type EGLDisplay
   type EGLSurface

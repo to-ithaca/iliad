@@ -1,6 +1,5 @@
 package iliad
 package kernel
-package egl
 
 import scala.reflect._
 
@@ -10,17 +9,19 @@ import cats.implicits._
 import cats.std._
 import cats.std.option._
 
+import EGLConstants._
+
 /** Runs EGL commands with the Debugger (XorT) effect type
   * 
   *  Calls eglGetError after each command
   *  Terminates if an error is detected
   */
-class Debugging[F[_], NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](val egl: EGL[F, NDisp, NWin, Disp, Cfg, Sfc, Ctx])(implicit val M: Monad[F]) extends EGL[EGL.Debugger[F, ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
+class EGLDebugger[F[_], NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](val egl: EGL[F, NDisp, NWin, Disp, Cfg, Sfc, Ctx])(implicit val M: Monad[F]) extends EGL[EGL.DebugEffect[F, ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
   import EGL._
 
   type FIO[A] = ReaderT[F, EGLLib, A]
 
-  private def lift[A](io: FIO[A]): IO[A] = io.mapF{ fa => fa.liftT[EGL.Debugger]}
+  private def lift[A](io: FIO[A]): IO[A] = io.mapF{ fa => fa.liftT[EGL.DebugEffect]}
 
   private def errorText(method: String, code: Int Xor ErrorCode): String = code match {
     case Xor.Right(code) => s"call $method failed with error code $code"

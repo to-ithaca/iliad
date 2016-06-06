@@ -1,9 +1,8 @@
 package iliad
-package kernel
 
 import iliad.syntax._
 
-object utils {
+package object kernel {
   object vectord extends VectorDSyntax
   object matrixd extends MatrixDSyntax
 }

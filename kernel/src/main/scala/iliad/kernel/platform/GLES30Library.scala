@@ -1,11 +1,10 @@
 package iliad
 package kernel
 package platform
-package gl
 
 import java.nio._
 
-trait Lib {
+trait GLES30Library {
   def glBlitFramebuffer(srcX0: Int, srcY0: Int, srcX1: Int, srcY1: Int, destX0: Int, destY0: Int, destX1: Int, destY1: Int, bitMask: Int, filter: Int): Unit
   def glViewport(x: Int, y: Int, width: Int, height: Int): Unit
   def glFlush(): Unit

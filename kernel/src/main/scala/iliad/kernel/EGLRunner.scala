@@ -1,6 +1,5 @@
 package iliad
 package kernel
-package egl
 
 import scala.reflect._
 
@@ -9,8 +8,10 @@ import java.nio.IntBuffer
 import cats._
 import cats.data._
 
+import EGLConstants._
+
 /** Runs EGL commands with the Id effect type */
-class NoEffectsRunning[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx] extends EGL[Id, NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
+class EGLRunner[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx] extends EGL[Id, NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
   import EGL._
 
   def getError: IO[Option[Int Xor ErrorCode]] = Reader(_.eglGetError match {
