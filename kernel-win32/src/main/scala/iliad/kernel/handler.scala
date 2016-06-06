@@ -18,18 +18,18 @@ trait Win32EventHandler extends EventHandler {
 
   private val log = LoggerFactory.getLogger(classOf[Win32EventHandler])
 
-  //TODO: This should be the meta information of the actual "platform itself"
-  def viewDimensions: Vec2i
+  def width: Int
+  def height: Int
 
   private var tapCallback: Callback[Tap] = EventHandler.zero
 
   def onTap(cb: Tap => Unit) = tapCallback = cb
 
   def handleEvent(hwnd: HWND, uMsg: Int, wParam: WPARAM, lParam: LPARAM): Boolean = uMsg match {
-    case 1 =>
+    case WM_LBUTTONDOWN =>
       log.debug("received tap")
-      val xFraction = Macros.GET_X_LPARAM(lParam).toFloat / viewDimensions(0).toFloat
-      val yFraction = GET_Y_LPARAM(lParam).toFloat / viewDimensions(1).toFloat
+      val xFraction = Macros.GET_X_LPARAM(lParam).toFloat / width.toFloat
+      val yFraction = GET_Y_LPARAM(lParam).toFloat / height.toFloat
       //TODO: windows must have a better way of getting the time
       tapCallback(Tap(System.currentTimeMillis(), v"$xFraction $yFraction"))
       true
