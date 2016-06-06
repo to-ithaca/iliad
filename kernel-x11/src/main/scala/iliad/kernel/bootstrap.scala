@@ -104,7 +104,8 @@ trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
     }
   }
 
-  def setupEGL(d: Display, w: Window) = {
+  //TODO: tidy this code up
+  def setupEGL(d: Display, w: Window): EGL.Session[EGL14.EGLDisplay, EGL14.EGLConfig, EGL14.EGLSurface, EGL14.EGLContext] = {
     val eglRunner= EGL.debuggingLogging[EGL14.EGLNativeDisplayType, EGL14.EGLNativeWindowType, EGL14.EGLDisplay, EGL14.EGLConfig, EGL14.EGLSurface, EGL14.EGLContext]
 
     val writer = eglRunner.setupPrimaryContext(d, w, EGL14.EGL_NO_CONTEXT).run(EGL14).value
@@ -162,8 +163,6 @@ trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
         val session = setupEGL(d, w)
         setupGL
         swapBuffers(session.display, session.surface)
-
-
         app.run()
         var shouldDraw = true
         while(shouldDraw) {

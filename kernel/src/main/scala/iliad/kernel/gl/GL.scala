@@ -14,11 +14,6 @@ import cats.implicits._
  
 import GL._
 
-//TODO: remove this definition - we already have a rect defined in core
-case class Rectangle(topLeft: Vec2i, width: Int, height: Int) {
-  def bottomRight: Vec2i = topLeft |+| v"$width $height"
-}
-
 /**
   Typesafe GL. The type parameter `F` has type constraints to compose operations.
  */
@@ -27,8 +22,8 @@ abstract class GL[F[_]: Monad] {
   //Semigroup and Monad are defined for |+| and >>= operations
   val S: Semigroup[F[Unit]]
 
-  def blitFramebuffer(src: Rectangle, dest: Rectangle, bitMask: ChannelBitMask, filter: BlitFilter): IO[F, Unit]
-  def viewport(rect: Rectangle): IO[F, Unit]
+  def blitFramebuffer(src: Rect[Int], dest: Rect[Int], bitMask: ChannelBitMask, filter: BlitFilter): IO[F, Unit]
+  def viewport(rect: Rect[Int]): IO[F, Unit]
   def flush: IO[F, Unit]
   def clear(bitMask: ChannelBitMask): IO[F, Unit]
   def clearColor(red: Float, green: Float, blue: Float, alpha: Float): IO[F, Unit]

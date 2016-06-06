@@ -19,12 +19,12 @@ private[gl] object NoEffectRunning extends GL[Id] {
 
   val S: Semigroup[Unit] = imp[Semigroup[Unit]]
 
-  def blitFramebuffer(src: Rectangle, dest: Rectangle, bitMask: ChannelBitMask, filter: BlitFilter): IO[Id, Unit] = {
+  def blitFramebuffer(src: Rect[Int], dest: Rect[Int], bitMask: ChannelBitMask, filter: BlitFilter): IO[Id, Unit] = {
     val sbr = src.bottomRight
     val dbr = dest.bottomRight
     Reader(_.glBlitFramebuffer(src.topLeft.x, src.topLeft.y, sbr.x, sbr.y, dest.topLeft.x, dest.topLeft.y, dbr.x, dbr.y, bitMask.value, filter.value))
   }
-  def viewport(rect: Rectangle): IO[Id, Unit] = Reader(_.glViewport(rect.topLeft.x, rect.topLeft.y, rect.width, rect.height))
+  def viewport(rect: Rect[Int]): IO[Id, Unit] = Reader(_.glViewport(rect.topLeft.x, rect.topLeft.y, rect.width, rect.height))
   def enable(cap: Capability): IO[Id, Unit] = Reader(_.glEnable(cap.value))
   def disable(cap: Capability): IO[Id, Unit] = Reader(_.glDisable(cap.value))
   def flush: IO[Id, Unit] = Reader(_.glFlush())

@@ -11,8 +11,8 @@ import GL._
 private[gl] final class Logging[F[_]](config: LoggerConfig, gl: GL[F])(implicit F: Functor[F], val S: Semigroup[Logger[F, Unit]], val M: Monad[Logger[F, ?]]) extends GL[Logger[F, ?]] {
   private def lift[A](io: IO[F, A]): IO[Logger[F, ?], A] = io.mapF(_.liftT[Logger])
   private def log[A](io: IO[F, A])(s: String): IO[Logger[F, ?], A] = lift(io).mapF(_.mapWritten(_ => List(s)))
-  def blitFramebuffer(src: Rectangle, dest: Rectangle, bitMask: ChannelBitMask, filter: BlitFilter): IO[Logger[F, ?], Unit] = log(gl.blitFramebuffer(src, dest, bitMask, filter))("glBlitFramebuffer")
-  def viewport(rect: Rectangle): IO[Logger[F, ?], Unit] = log(gl.viewport(rect))(s"glViewport($rect)")
+  def blitFramebuffer(src: Rect[Int], dest: Rect[Int], bitMask: ChannelBitMask, filter: BlitFilter): IO[Logger[F, ?], Unit] = log(gl.blitFramebuffer(src, dest, bitMask, filter))("glBlitFramebuffer")
+  def viewport(rect: Rect[Int]): IO[Logger[F, ?], Unit] = log(gl.viewport(rect))(s"glViewport($rect)")
   def flush: IO[Logger[F, ?], Unit] = log(gl.flush)("glFlush")
   def enable(cap: Capability): IO[Logger[F, ?], Unit] = log(gl.enable(cap))(s"glEnable($cap)")
   def getError: IO[Logger[F, ?], Option[Int Xor ErrorCode]] = log(gl.getError)("glGetError")

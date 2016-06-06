@@ -26,9 +26,9 @@ private[gl] final class Debugging[F[_]](gl: GL[F])(implicit A: Applicative[F], v
 
   def getError: IO[Debugger[F, ?], Option[Int Xor ErrorCode]] = lift(gl.getError)
 
-  def blitFramebuffer(src: Rectangle, dest: Rectangle, bitMask: ChannelBitMask, filter: BlitFilter): IO[Debugger[F, ?], Unit] = debug(gl.blitFramebuffer(src, dest, bitMask, filter))("glBlitFramebuffer")
+  def blitFramebuffer(src: Rect[Int], dest: Rect[Int], bitMask: ChannelBitMask, filter: BlitFilter): IO[Debugger[F, ?], Unit] = debug(gl.blitFramebuffer(src, dest, bitMask, filter))("glBlitFramebuffer")
 
-  def viewport(rect: Rectangle): IO[Debugger[F, ?], Unit] = debug(gl.viewport(rect))("glViewport")
+  def viewport(rect: Rect[Int]): IO[Debugger[F, ?], Unit] = debug(gl.viewport(rect))("glViewport")
   def flush: IO[Debugger[F, ?], Unit] = debug(gl.flush)("glFlush")
   def enable(cap: Capability): IO[Debugger[F, ?], Unit] = debug(gl.enable(cap))(s"glEnable($cap)")
 
