@@ -8,7 +8,7 @@ import cats.implicits._
 import GL._
 import GLConstants._
 
-private[kernel] final class GLLogger[F[_]](config: LoggerConfig, gl: GL[F])(implicit F: Functor[F], val S: Semigroup[LogEffect[F, Unit]], val M: Monad[LogEffect[F, ?]]) extends GL[LogEffect[F, ?]] {
+private[kernel] final class GLLogger[F[_]](config: LoggerConfig, gl: GL[F])(implicit F: Functor[F], val M: Monad[LogEffect[F, ?]]) extends GL[LogEffect[F, ?]] {
   private def lift[A](io: IO[F, A]): IO[LogEffect[F, ?], A] = io.mapF(_.liftT[LogEffect])
   private def log[A](io: IO[F, A])(s: String): IO[LogEffect[F, ?], A] = lift(io).mapF(_.mapWritten(_ => List(s)))
   def blitFramebuffer(src: Rect[Int], dest: Rect[Int], bitMask: ChannelBitMask, filter: BlitFilter): IO[LogEffect[F, ?], Unit] = log(gl.blitFramebuffer(src, dest, bitMask, filter))("glBlitFramebuffer")

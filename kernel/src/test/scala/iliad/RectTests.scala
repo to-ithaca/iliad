@@ -17,23 +17,9 @@ import org.scalacheck.Arbitrary
 import org.scalacheck._
 import org.scalatest.prop._
 
+import arbitrary._
+
 class RectTests extends FunSuite with Discipline with GeneratorDrivenPropertyChecks with Matchers {
-
-  implicit def rectGen[A : algebra.Signed](implicit arb: Arbitrary[A]): Arbitrary[Rect[A]] = Arbitrary {
-    for {
-      a <- arb.arbitrary
-      b <- arb.arbitrary
-      c <- arb.arbitrary
-      d <- arb.arbitrary
-    } yield Rect(v"$a $b", c.abs, d.abs)
-  }
-
-  implicit def vectGen[A: algebra.Signed](implicit arb: Arbitrary[A]): Arbitrary[VectorD[nat._2, A]] = Arbitrary {
-    for {
-      a <- arb.arbitrary
-      b <- arb.arbitrary
-    } yield v"$a $b"
-  }
 
   { 
     // Int has a Numeric

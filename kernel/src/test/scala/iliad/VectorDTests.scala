@@ -21,6 +21,8 @@ import iliad.kernel.vectord._
 
 import org.scalacheck.Arbitrary
 
+import arbitrary._
+
 class VectorDTests extends FunSuite with Discipline {
 
   implicit val iso = CartesianTests.Isomorphisms.invariant[VectorD[nat._3, ?]]
@@ -31,12 +33,6 @@ class VectorDTests extends FunSuite with Discipline {
       println("d = %f, (x - y).abs = %f" format (delta, (x - y).abs))
       (x - y).abs < delta
     }
-  }
-
-  implicit def vectorDArbitrary[N <: Nat, A](implicit arb: Arbitrary[A], toInt: ToInt[N]): Arbitrary[VectorD[N, A]] = Arbitrary {
-    for {
-      a <- arb.arbitrary
-    } yield VectorD.fill[N, A](a)
   }
 
   {
