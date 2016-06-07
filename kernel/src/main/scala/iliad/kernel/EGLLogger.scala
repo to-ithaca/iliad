@@ -10,7 +10,7 @@ import cats.implicits._
 import EGLConstants._
 
 /** Runs EGL commands with the [[EGL.Logger]] (WriterT) effect type */
-class EGLLogger[F[_]: Monad, NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](egl: EGL[F, NDisp, NWin, Disp, Cfg, Sfc, Ctx]) extends EGL[EGL.LogEffect[F, ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] {  
+final class EGLLogger[F[_]: Monad, NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](egl: EGL[F, NDisp, NWin, Disp, Cfg, Sfc, Ctx]) extends EGL[EGL.LogEffect[F, ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] {  
   import EGL._
 
   type FIO[A] = ReaderT[F, EGLLib, A]
@@ -22,7 +22,7 @@ class EGLLogger[F[_]: Monad, NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](egl: EG
   def getError(): IO[Option[Int Xor ErrorCode]] = lift(egl.getError)
   def getConfigAttrib(display: Disp, config: Cfg, attribute: FixedConfigAttrib): IO[Int] = lift(egl.getConfigAttrib(display, config, attribute))
   
-  override def getEnumConfigAttrib(display: Disp, config: Cfg, attribute: EnumConfigAttrib): IO[Int Xor ConfigAttribValue] = logOutput(egl.getEnumConfigAttrib(display, config, attribute))(v => v match {
+  override def getEnumConfigAttrib(display: Disp, config: Cfg, attribute: EnumConfigAttrib)(implicit F: Functor[EGL.LogEffect[F, ?]]): IO[Int Xor ConfigAttribValue] = logOutput(egl.getEnumConfigAttrib(display, config, attribute))(v => v match {
     case Xor.Right(v) => s"eglGetConfigAttrib: [$attribute - $v]"
     case Xor.Left(i) =>  s"eglGetConfigAttrib: [$attribute - undefined enum $i]"
   })

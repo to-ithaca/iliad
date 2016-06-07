@@ -8,7 +8,7 @@ import cats.implicits._
 import GL._
 import GLConstants._
 
-private[kernel] final class GLDebugger[F[_]](gl: GL[F])(implicit A: Applicative[F], val S: Semigroup[DebugEffect[F, Unit]], val M: Monad[DebugEffect[F, ?]]) extends GL[DebugEffect[F, ?]] {
+private[kernel] final class GLDebugger[F[_]](gl: GL[F])(implicit A: Applicative[F], val M: Monad[DebugEffect[F, ?]]) extends GL[DebugEffect[F, ?]] {
 
   private def errorText(method: String)(code: Int Xor ErrorCode): String = code match {
     case Xor.Right(c) => s"call $method failed with error code $c"
