@@ -108,7 +108,7 @@ abstract class GL[F[_]: Monad] {
   def texParameter(target: TextureTarget, name: GL_TEXTURE_WRAP_T.type, value: TextureWrap): IO[F, Unit] = texParameteri(target, name, value)
   def texParameter(target: TextureTarget, name: GL_TEXTURE_WRAP_R.type, value: TextureWrap): IO[F, Unit] = texParameteri(target, name, value)
 
-  def texImage2D(target: TextureTarget, level: Int, internalFormat: TextureInteralFormat, width: Int, height: Int, format: TextureFormat, `type`: TexturePixelType, data: Buffer): IO[F, Unit]
+  def texImage2D(target: TextureTarget, level: Int, internalFormat: TextureInternalFormat, width: Int, height: Int, format: TextureFormat, `type`: TexturePixelType, data: Buffer): IO[F, Unit]
 
   def pixelStorei(name: PixelStoreParameter, value: Int): IO[F, Unit]
 

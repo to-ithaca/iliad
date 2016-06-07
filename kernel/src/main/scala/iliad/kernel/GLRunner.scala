@@ -88,7 +88,7 @@ private[kernel] object GLRunner extends GL[Id] {
   def texParameteri(target: TextureTarget, name: TextureParameter, value: Int): IO[Id, Unit] = Reader(_.glTexParameteri(target.value, name.value, value))
   def texParameteri(target: TextureTarget, name: TextureParameter, value: IntConstant): IO[Id, Unit] = Reader(_.glTexParameteri(target.value, name.value, value.value))
 
-  def texImage2D(target: TextureTarget, level: Int, internalFormat: TextureInteralFormat, width: Int, height: Int, format: TextureFormat, `type`: TexturePixelType, data: NBuffer): IO[Id, Unit] = Reader(_.glTexImage2D(target.value, level, internalFormat.value, width, height, 0, internalFormat.value, `type`.value, data))
+  def texImage2D(target: TextureTarget, level: Int, internalFormat: TextureInternalFormat, width: Int, height: Int, format: TextureFormat, `type`: TexturePixelType, data: NBuffer): IO[Id, Unit] = Reader(_.glTexImage2D(target.value, level, internalFormat.value, width, height, 0, internalFormat.value, `type`.value, data))
 
   def pixelStorei(name: PixelStoreParameter, value: Int): IO[Id, Unit] = Reader(_.glPixelStorei(name.value, value))
   def activeTexture(texture: Int): IO[Id, Unit] = Reader(_.glActiveTexture(texture))

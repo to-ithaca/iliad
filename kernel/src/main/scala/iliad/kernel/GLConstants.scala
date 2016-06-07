@@ -35,9 +35,9 @@ object GLConstants {
   sealed trait TextureSwizzle extends IntConstant
   sealed trait TextureWrap extends IntConstant
   sealed trait TextureCompareFunc extends IntConstant
-  sealed trait TextureInteralFormat extends IntConstant
-  sealed trait TextureSizedInternalFormat extends TextureInteralFormat
-  sealed trait TextureUnsizedInternalFormat extends TextureInteralFormat
+  sealed trait TextureInternalFormat extends IntConstant
+  sealed trait TextureSizedInternalFormat extends TextureInternalFormat
+  sealed trait TextureUnsizedInternalFormat extends TextureInternalFormat
   sealed trait TextureFormat extends IntConstant
   sealed trait TexturePixelType extends IntConstant
   sealed trait PixelStoreParameter extends IntConstant with Parameter
@@ -723,7 +723,7 @@ object GLConstants {
   case object GL_BUFFER_MAP_OFFSET extends IntConstant(0x9121) with BufferParameter
   case object GL_DEPTH_COMPONENT32F extends IntConstant(0x8CAC) with RenderbufferInternalFormat with TextureSizedInternalFormat
   case object GL_DEPTH32F_STENCIL8 extends IntConstant(0x8CAD) with TextureSizedInternalFormat
-  case object GL_FLOAT_32_UNSIGNED_INT_24_8_REV extends IntConstant(0x8DAD) with TextureInteralFormat
+  case object GL_FLOAT_32_UNSIGNED_INT_24_8_REV extends IntConstant(0x8DAD) with TextureInternalFormat
   case object GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING extends IntConstant(0x8210)
   case object GL_FRAMEBUFFER_ATTACHMENT_COMPONENT_TYPE extends IntConstant(0x8211)
   case object GL_FRAMEBUFFER_ATTACHMENT_RED_SIZE extends IntConstant(0x8212)
@@ -736,8 +736,8 @@ object GLConstants {
   case object GL_FRAMEBUFFER_UNDEFINED extends IntConstant(0x8219) with FramebufferStatus
   case object GL_DEPTH_STENCIL_ATTACHMENT extends IntConstant(0x821A) with FramebufferAttachment
   case object GL_DEPTH_STENCIL extends IntConstant(0x84F9) with TextureFormat with Channel
-  case object GL_UNSIGNED_INT_24_8 extends IntConstant(0x84FA) with TextureInteralFormat
-  case object GL_DEPTH24_STENCIL8 extends IntConstant(0x88F0) with RenderbufferInternalFormat with TextureInteralFormat
+  case object GL_UNSIGNED_INT_24_8 extends IntConstant(0x84FA) with TextureInternalFormat
+  case object GL_DEPTH24_STENCIL8 extends IntConstant(0x88F0) with RenderbufferInternalFormat with TextureInternalFormat
   case object GL_UNSIGNED_NORMALIZED extends IntConstant(0x8C17) with Parameter
   case object GL_DRAW_FRAMEBUFFER_BINDING extends IntConstant(0x8CA6)
   case object GL_READ_FRAMEBUFFER extends IntConstant(0x8CA8) with FramebufferTarget
