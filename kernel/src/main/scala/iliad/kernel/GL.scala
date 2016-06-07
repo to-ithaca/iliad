@@ -17,11 +17,8 @@ import GLConstants._
 /**
   Typesafe GL. The type parameter `F` has type constraints to compose operations.
  */
-abstract class GL[F[_]: Monad] {
-
-  //Semigroup and Monad are defined for |+| and >>= operations
-  val S: Semigroup[F[Unit]]
-
+abstract class GL[F[_]] {
+ 
   def blitFramebuffer(src: Rect[Int], dest: Rect[Int], bitMask: ChannelBitMask, filter: BlitFilter): IO[F, Unit]
   def viewport(rect: Rect[Int]): IO[F, Unit]
   def flush: IO[F, Unit]
@@ -38,16 +35,16 @@ abstract class GL[F[_]: Monad] {
   def attachShader(program: Int, shader: Int): IO[F, Unit]
   private[kernel] def getShaderiv(shader: Int, pname: ShaderParameter): IO[F, Int]
   
-  private def getShaderiv[A](shader: Int, pname: ShaderParameter, expected: Set[A])(eq: A => Int): IO[F, A] = getShaderiv(shader, pname).map(code => expected.find(eq(_) == code).get)
+  private def getShaderiv[A](shader: Int, pname: ShaderParameter, expected: Set[A])(eq: A => Int)(implicit F: Functor[F]): IO[F, A] = getShaderiv(shader, pname).map(code => expected.find(eq(_) == code).get)
 
-  def getShaderiv(shader: Int, pname: GL_SHADER_TYPE.type): IO[F, ShaderType] = getShaderiv(shader, pname, SealedEnum.values[ShaderType])(_.value)
-  def getShaderiv(shader: Int, pname: GL_DELETE_STATUS.type): IO[F, Boolean] = getShaderiv(shader, pname, SealedEnum.values[TrueFalse])(_.value).map(_ == GL_TRUE)
-  def getShaderiv(shader: Int, pname: GL_COMPILE_STATUS.type): IO[F, Boolean] = getShaderiv(shader, pname, SealedEnum.values[TrueFalse])(_.value).map(_ == GL_TRUE)
-  def getShaderiv(shader: Int, pname: GL_INFO_LOG_LENGTH.type): IO[F, Int] = getShaderiv(shader, pname: ShaderParameter)
-  def getShaderiv(shader: Int, pname: GL_SHADER_SOURCE_LENGTH.type): IO[F, Int] = getShaderiv(shader, pname: ShaderParameter)
+  def getShaderiv(shader: Int, pname: GL_SHADER_TYPE.type)(implicit F: Functor[F]): IO[F, ShaderType] = getShaderiv(shader, pname, SealedEnum.values[ShaderType])(_.value)
+  def getShaderiv(shader: Int, pname: GL_DELETE_STATUS.type)(implicit F: Functor[F]): IO[F, Boolean] = getShaderiv(shader, pname, SealedEnum.values[TrueFalse])(_.value).map(_ == GL_TRUE)
+  def getShaderiv(shader: Int, pname: GL_COMPILE_STATUS.type)(implicit F: Functor[F]): IO[F, Boolean] = getShaderiv(shader, pname, SealedEnum.values[TrueFalse])(_.value).map(_ == GL_TRUE)
+  def getShaderiv(shader: Int, pname: GL_INFO_LOG_LENGTH.type)(implicit F: Functor[F]): IO[F, Int] = getShaderiv(shader, pname: ShaderParameter)
+  def getShaderiv(shader: Int, pname: GL_SHADER_SOURCE_LENGTH.type)(implicit F: Functor[F]): IO[F, Int] = getShaderiv(shader, pname: ShaderParameter)
 
   private[kernel] def getShaderInfoLog(shader: Int, maxLength: Int): IO[F, String]
-  def getShaderInfoLog(shader: Int): IO[F, String] = getShaderiv(shader, GL_SHADER_SOURCE_LENGTH) >>= (getShaderInfoLog(shader, _))
+  def getShaderInfoLog(shader: Int)(implicit M: Monad[F]): IO[F, String] = getShaderiv(shader, GL_SHADER_SOURCE_LENGTH) >>= (getShaderInfoLog(shader, _))
 
   def createProgram: IO[F, Int]
   def useProgram(program: Int): IO[F, Unit]
@@ -60,35 +57,35 @@ abstract class GL[F[_]: Monad] {
 
   //TODO: Work out how best to expose N buffers safely
   private[kernel] def genBuffers(num: Int): IO[F, Array[Int]]
-  def genBuffer: IO[F, Int] = genBuffers(1) map _tup1
-  def genBuffer2: IO[F, (Int, Int)] = genBuffers(2) map _tup2
-  def genBuffer3: IO[F, (Int, Int, Int)] = genBuffers(3) map _tup3 
+  def genBuffer(implicit F: Functor[F]): IO[F, Int] = genBuffers(1) map _tup1
+  def genBuffer2(implicit F: Functor[F]): IO[F, (Int, Int)] = genBuffers(2) map _tup2
+  def genBuffer3(implicit F: Functor[F]): IO[F, (Int, Int, Int)] = genBuffers(3) map _tup3 
   def bindBuffer(target: BufferTarget, buffer: Int): IO[F , Unit]
   def bufferData(target: BufferTarget, size: Int, data: Buffer, usage: BufferUsage): IO[F, Unit]
   def bufferSubData(target: BufferTarget, offset: Int, size: Int, data: Buffer): IO[F, Unit]
   def enableVertexAttribArray(location: Int): IO[F, Unit]
   def vertexAttribPointer(location: Int, size: Int,`type`: VertexAttribType, normalized: Boolean, stride: Int, offset: Int): IO[F, Unit]
   private[kernel] def genFramebuffers(num: Int): IO[F,Array[Int]]
-  def genFramebuffer: IO[F, Int] = genFramebuffers(1) map _tup1
-  def genFramebuffer2(num: Int): IO[F, (Int, Int)] = genFramebuffers(2) map _tup2
-  def genFramebuffer3(num: Int): IO[F, (Int, Int, Int)] = genFramebuffers(3) map _tup3
+  def genFramebuffer(implicit F: Functor[F]): IO[F, Int] = genFramebuffers(1) map _tup1
+  def genFramebuffer2(num: Int)(implicit F: Functor[F]): IO[F, (Int, Int)] = genFramebuffers(2) map _tup2
+  def genFramebuffer3(num: Int)(implicit F: Functor[F]): IO[F, (Int, Int, Int)] = genFramebuffers(3) map _tup3
   def bindFramebuffer(target: FramebufferTarget, framebuffer: Int): IO[F, Unit]
   def framebufferRenderbuffer(target: FramebufferTarget, attachment: FramebufferAttachment, renderbuffer: Int): IO[F, Unit]
   def checkFramebufferStatus(target: FramebufferTarget): IO[F, FramebufferStatus]
   def framebufferTexture2D(target: FramebufferTarget, attachment: FramebufferAttachment, texTarget: FramebufferTexTarget, texture: Int, level: Int): IO[F, Unit]
 
   private[kernel] def genRenderbuffers(num: Int): IO[F, Array[Int]]
-  def genRenderbuffer: IO[F, Int] = genRenderbuffers(1) map _tup1
-  def genRenderbuffer2: IO[F, (Int, Int)] = genRenderbuffers(2) map _tup2
-  def genRenderbuffer3: IO[F, (Int, Int, Int)] = genRenderbuffers(3) map _tup3
+  def genRenderbuffer(implicit F: Functor[F]): IO[F, Int] = genRenderbuffers(1) map _tup1
+  def genRenderbuffer2(implicit F: Functor[F]): IO[F, (Int, Int)] = genRenderbuffers(2) map _tup2
+  def genRenderbuffer3(implicit F: Functor[F]): IO[F, (Int, Int, Int)] = genRenderbuffers(3) map _tup3
   def bindRenderbuffer(renderbuffer: Int): IO[F, Unit]
   def renderbufferStorage(format: RenderbufferInternalFormat, width: Int, height: Int): IO[F, Unit]
   def bindTexture(target: TextureTarget, texture: Int): IO[F, Unit]
 
   private[kernel] def genTextures(num: Int): IO[F, Array[Int]]
-  def genTexture: IO[F, Int] = genTextures(1) map _tup1
-  def genTexture2: IO[F, (Int, Int)] = genTextures(2) map _tup2
-  def genTexture3: IO[F, (Int, Int, Int)] = genTextures(3) map _tup3
+  def genTexture(implicit F: Functor[F]): IO[F, Int] = genTextures(1) map _tup1
+  def genTexture2(implicit F: Functor[F]): IO[F, (Int, Int)] = genTextures(2) map _tup2
+  def genTexture3(implicit F: Functor[F]): IO[F, (Int, Int, Int)] = genTextures(3) map _tup3
 
   private[kernel] def texParameteri(target: TextureTarget, name: TextureParameter, value: Int): IO[F, Unit]
   private[kernel] def texParameteri(target: TextureTarget, name: TextureParameter, value: IntConstant): IO[F, Unit]
@@ -139,17 +136,17 @@ abstract class GL[F[_]: Monad] {
 
   def uniform[A](location: Int, value: A)(implicit update: CanUniformUpdate[F, A]): IO[F, Unit] = update(this)(location, value)
 
-  private def getLocationTraverse[A, B, G[_] : Traverse](keys: G[A])(f: A => IO[F, B]): IO[F, G[(A, B)]] =  keys.traverse[IO[F, ?], (A, B)](s => f(s).map(s -> _))
+  private def getLocationTraverse[A, B, G[_] : Traverse](keys: G[A])(f: A => IO[F, B])(implicit A: Applicative[F]): IO[F, G[(A, B)]] =  keys.traverse[IO[F, ?], (A, B)](s => f(s).map(s -> _))
 
   def getAttribLocation(program: Int, name: String): IO[F, Int]
-  def getAttribLocation[G[_] : Traverse](program: Int, names: G[String]): IO[F,  G[(String, Int)]] = getLocationTraverse(names)(getAttribLocation(program, _))
+  def getAttribLocation[G[_] : Traverse](program: Int, names: G[String])(implicit A: Applicative[F]): IO[F,  G[(String, Int)]] = getLocationTraverse(names)(getAttribLocation(program, _))
   def getUniformLocation(program: Int, name: String): IO[F, Int]
-  def getUniformLocations[G[_] : Traverse](program: Int, names: G[String]): IO[F, G[(String, Int)]] = getLocationTraverse(names)(getUniformLocation(program, _))
+  def getUniformLocations[G[_] : Traverse](program: Int, names: G[String])(implicit A: Applicative[F]): IO[F, G[(String, Int)]] = getLocationTraverse(names)(getUniformLocation(program, _))
 
   private[kernel] def genSamplers(num: Int): IO[F, Array[Int]]
-  def genSampler: IO[F, Int] = genSamplers(1) map _tup1
-  def genSampler2: IO[F, (Int, Int)] = genSamplers(2) map _tup2
-  def genSampler3: IO[F, (Int, Int, Int)] = genSamplers(3) map _tup3
+  def genSampler(implicit F: Functor[F]): IO[F, Int] = genSamplers(1) map _tup1
+  def genSampler2(implicit F: Functor[F]): IO[F, (Int, Int)] = genSamplers(2) map _tup2
+  def genSampler3(implicit F: Functor[F]): IO[F, (Int, Int, Int)] = genSamplers(3) map _tup3
 
   private[kernel] def samplerParameteri(sampler: Int, name: SamplerParameter, value: IntConstant): IO[F, Unit]
   private[kernel] def samplerParameteri(sampler: Int, name: SamplerParameter, value: Int): IO[F, Unit]

@@ -64,7 +64,7 @@ object EGL {
   *   Sfc   corresponds to [[iliad.kernel.platform.EGL14Library.EGLSurface]]
   *   Ctx   corresponds to [[iliad.kernel.platform.EGL14Library.EGLContext]]
   */
-abstract class EGL[F[_]: Monad, NDisp, NWin, Disp, Cfg : ClassTag, Sfc, Ctx] {
+abstract class EGL[F[_], NDisp, NWin, Disp, Cfg : ClassTag, Sfc, Ctx] {
   import EGL._
 
   type EGLLib = EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx]
@@ -72,7 +72,7 @@ abstract class EGL[F[_]: Monad, NDisp, NWin, Disp, Cfg : ClassTag, Sfc, Ctx] {
 
   def getError: IO[Option[Int Xor ErrorCode]]
   private[kernel] def getConfigAttrib(display: Disp, config: Cfg, attribute: FixedConfigAttrib): IO[Int]
-  def getEnumConfigAttrib(display: Disp, config: Cfg, attribute: EnumConfigAttrib): IO[Int Xor ConfigAttribValue] = getConfigAttrib(display, config, attribute).map( v => 
+  def getEnumConfigAttrib(display: Disp, config: Cfg, attribute: EnumConfigAttrib)(implicit F: Functor[F]): IO[Int Xor ConfigAttribValue] = getConfigAttrib(display, config, attribute).map( v => 
     Xor.fromOption(SealedEnum.values[ConfigAttribValue].find(_.value == v), v)
   )
   def getIntConfigAttrib(display: Disp, config: Cfg, attribute: IntConfigAttrib): IO[Int] = getConfigAttrib(display, config, attribute)
@@ -81,7 +81,7 @@ abstract class EGL[F[_]: Monad, NDisp, NWin, Disp, Cfg : ClassTag, Sfc, Ctx] {
 
   def getDisplay(displayID: NDisp): IO[Disp]
   private[kernel] def initialise(display: Disp): IO[(Int, Int)]
-  def initialisedVersion(display: Disp): IO[DisplayVersion] = initialise(display).map(t => DisplayVersion(t._1, t._2))
+  def initialisedVersion(display: Disp)(implicit F: Functor[F]): IO[DisplayVersion] = initialise(display).map(t => DisplayVersion(t._1, t._2))
 
   def chooseConfig(display: Disp, attributes: ConfigAttributes): IO[Cfg]
   def createWindowSurface(display: Disp, config: Cfg, win: NWin, attributes: WindowAttributes): IO[Sfc]
@@ -98,7 +98,7 @@ abstract class EGL[F[_]: Monad, NDisp, NWin, Disp, Cfg : ClassTag, Sfc, Ctx] {
   def swapBuffers(display: Disp, surface: Sfc): IO[Unit]
   def makeCurrent(display: Disp, draw: Sfc, read: Sfc, context: Ctx): IO[Unit]
 
-  def setupPrimaryContext(displayID: NDisp, windowID: NWin, noContext: Ctx): IO[Session[Disp, Cfg, Sfc, Ctx]] = for {
+  def setupPrimaryContext(displayID: NDisp, windowID: NWin, noContext: Ctx)(implicit M: Monad[F]): IO[Session[Disp, Cfg, Sfc, Ctx]] = for {
     display <- getDisplay(displayID)
     _ <- initialisedVersion(display)
     config <- chooseConfig(display, EGLDefaults.primaryConfig)
@@ -108,7 +108,7 @@ abstract class EGL[F[_]: Monad, NDisp, NWin, Disp, Cfg : ClassTag, Sfc, Ctx] {
     _ <- makeCurrent(display, surface, surface, context)
   } yield Session(display, config, surface, context)
 
-  def setupSecondaryContext(session: Session[Disp, Cfg, Sfc, Ctx]): IO[Ctx] = for {
+  def setupSecondaryContext(session: Session[Disp, Cfg, Sfc, Ctx])(implicit M: Monad[F]): IO[Ctx] = for {
     _ <- initialisedVersion(session.display)
     config <- chooseConfig(session.display, EGLDefaults.secondaryConfig)
     surface <- createPbufferSurface(session.display, config, EGLDefaults.pBuffer)

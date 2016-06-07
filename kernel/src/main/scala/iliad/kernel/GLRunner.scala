@@ -3,9 +3,8 @@ package kernel
 
 import iliad.kernel.platform._
 
-import java.nio.{IntBuffer, ByteBuffer, Buffer => NBuffer}
+import java.nio.{IntBuffer, Buffer => NBuffer}
 
-import imp._
 import cats._
 import cats.implicits._
 import cats.data._
@@ -14,8 +13,6 @@ import GL._
 import GLConstants._
 
 private[kernel] object GLRunner extends GL[Id] {
-
-  val S: Semigroup[Unit] = imp[Semigroup[Unit]]
 
   def blitFramebuffer(src: Rect[Int], dest: Rect[Int], bitMask: ChannelBitMask, filter: BlitFilter): IO[Id, Unit] = {
     val sbr = src.bottomRight
