@@ -79,4 +79,3 @@ private[iliad] final class VectorContextMacro(val c: whitebox.Context) {
     }
   }
 }
-

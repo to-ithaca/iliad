@@ -1,6 +1,5 @@
 package iliad
 package kernel
-package egl
 
 import scala.reflect._
 
@@ -8,22 +7,22 @@ import cats._
 import cats.data._
 import cats.implicits._
 
+import EGLConstants._
 
 /** Runs EGL commands with the [[EGL.Logger]] (WriterT) effect type */
-class Logging[F[_]: Monad, NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](egl: EGL[F, NDisp, NWin, Disp, Cfg, Sfc, Ctx]) extends EGL[EGL.Logger[F, ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] {  
+final class EGLLogger[F[_]: Monad, NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](egl: EGL[F, NDisp, NWin, Disp, Cfg, Sfc, Ctx]) extends EGL[EGL.LogEffect[F, ?], NDisp, NWin, Disp, Cfg, Sfc, Ctx] {  
   import EGL._
-  import Constants._
 
   type FIO[A] = ReaderT[F, EGLLib, A]
 
-  private def lift[A](io: FIO[A]): IO[A] = io.mapF{ fa => fa.liftT[EGL.Logger] }
+  private def lift[A](io: FIO[A]): IO[A] = io.mapF{ fa => fa.liftT[EGL.LogEffect] }
   private def log[A](io: FIO[A])(s: String): IO[A] = lift(io).mapF {_.mapWritten(_ => List(s))}
   private def logOutput[A](io: FIO[A])(logf: A => String) = lift(io).mapF(_.mapBoth( (_, a) => (List(logf(a)), a)))
 
-  def getError(): IO[Int] = lift(egl.getError)
+  def getError(): IO[Option[Int Xor ErrorCode]] = lift(egl.getError)
   def getConfigAttrib(display: Disp, config: Cfg, attribute: FixedConfigAttrib): IO[Int] = lift(egl.getConfigAttrib(display, config, attribute))
   
-  override def getEnumConfigAttrib(display: Disp, config: Cfg, attribute: EnumConfigAttrib): IO[Int Xor ConfigAttribValue] = logOutput(egl.getEnumConfigAttrib(display, config, attribute))(v => v match {
+  override def getEnumConfigAttrib(display: Disp, config: Cfg, attribute: EnumConfigAttrib)(implicit F: Functor[EGL.LogEffect[F, ?]]): IO[Int Xor ConfigAttribValue] = logOutput(egl.getEnumConfigAttrib(display, config, attribute))(v => v match {
     case Xor.Right(v) => s"eglGetConfigAttrib: [$attribute - $v]"
     case Xor.Left(i) =>  s"eglGetConfigAttrib: [$attribute - undefined enum $i]"
   })
@@ -50,4 +49,7 @@ class Logging[F[_]: Monad, NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](egl: EGL[
 
   private[kernel] def bindApi(api: API): IO[Unit] = log(egl.bindApi(api))("eglBindApi")  
   private[kernel] def createContext(display: Disp, config: Cfg, shareContext: Ctx, attributes: ContextAttributes): IO[Ctx] = log(egl.createContext(display, config, shareContext, attributes))("eglCreateContext")
+
+  def swapBuffers(display: Disp, surface: Sfc): IO[Unit] = log(egl.swapBuffers(display, surface))("eglSwapBuffers")
+  def makeCurrent(display: Disp, draw: Sfc, read: Sfc, context: Ctx): IO[Unit] = log(egl.makeCurrent(display, draw, read, context))("eglMakeCurrent")
 }

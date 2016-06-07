@@ -1,6 +1,5 @@
 package iliad
 package kernel
-package egl
 
 import scala.reflect._
 
@@ -9,12 +8,16 @@ import java.nio.IntBuffer
 import cats._
 import cats.data._
 
-/** Runs EGL commands with the Id effect type */
-class NoEffectsRunning[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx] extends EGL[Id, NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
-  import EGL._
-  import Constants._
+import EGLConstants._
 
-  def getError: IO[Int] = Reader(egl => egl.eglGetError)
+/** Runs EGL commands with the Id effect type */
+class EGLRunner[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx] extends EGL[Id, NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
+  import EGL._
+
+  def getError: IO[Option[Int Xor ErrorCode]] = Reader(_.eglGetError match {
+    case EGL_SUCCESS.value => None
+    case value => Some(Xor.fromOption(SealedEnum.values[ErrorCode].find(_.value == value), value)) 
+  })
   def getConfigAttrib(display: Disp, config: Cfg, attribute: FixedConfigAttrib): IO[Int] = Reader { egl => 
     val buf = Buffer.capacity[Int](1)
     egl.eglGetConfigAttrib(display, config, attribute.value, buf)
@@ -43,4 +46,7 @@ class NoEffectsRunning[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx] extends EGL[I
   def bindApi(api: API): IO[Unit] = Reader( _.eglBindAPI(api.value))
 
   def createContext(display: Disp, config: Cfg, shareContext: Ctx, attributes: ContextAttributes): IO[Ctx] = Reader( _.eglCreateContext(display, config, shareContext, attributes.toArray))
+
+  def swapBuffers(display: Disp, surface: Sfc): IO[Unit] = Reader(_.eglSwapBuffers(display, surface))
+  def makeCurrent(display: Disp, draw: Sfc, read: Sfc, context: Ctx): IO[Unit] = Reader(_.eglMakeCurrent(display, draw, read, context))
 }
