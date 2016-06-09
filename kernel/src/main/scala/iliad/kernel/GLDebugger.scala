@@ -6,7 +6,6 @@ import cats.data._
 import cats.implicits._
 
 import GL._
-import GLConstants._
 
 private[kernel] final class GLDebugger[F[_]](gl: GL[F])(implicit A: Applicative[F], val M: Monad[DebugEffect[F, ?]]) extends GL[DebugEffect[F, ?]] {
 

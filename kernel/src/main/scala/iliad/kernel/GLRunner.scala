@@ -10,7 +10,6 @@ import cats.implicits._
 import cats.data._
 
 import GL._
-import GLConstants._
 
 private[kernel] object GLRunner extends GL[Id] {
 

@@ -6,7 +6,6 @@ import cats.data._
 import cats.implicits._
 
 import GL._
-import GLConstants._
 
 private[kernel] final class GLLogger[F[_]](config: LoggerConfig, gl: GL[F])(implicit F: Functor[F], val M: Monad[LogEffect[F, ?]]) extends GL[LogEffect[F, ?]] {
   private def lift[A](io: IO[F, A]): IO[LogEffect[F, ?], A] = io.mapF(_.liftT[LogEffect])

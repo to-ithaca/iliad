@@ -5,7 +5,7 @@ import iliad.kernel.vectord._
 import iliad.kernel.platform.unix.X11
 
 import iliad.kernel._
-import iliad.kernel.GLConstants._
+import iliad.kernel.GL._
 
 import com.sun.jna.platform.unix.X11._
 import com.sun.jna._

@@ -11,6 +11,7 @@ trait GLES30Library {
   def glClear(bitMask: Int): Unit
   //def glReadPixels(x: Int, y: Int, width: Int, height: Int, format: Int, `type`: Int, data: Buffer): Unit
   def glClearColor(red: Float, green: Float, blue: Float, alpha: Float): Unit
+  def glColorMask(red: Boolean, green: Boolean, blue: Boolean, alpha: Boolean): Unit
   def glEnable(cap: Int): Unit
   def glDisable(cap: Int): Unit
   def glGetError(): Int
