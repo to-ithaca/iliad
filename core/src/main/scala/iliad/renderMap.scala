@@ -95,7 +95,7 @@ void main() {
   gl_Position = vec4(position, 0.0, 1.0);
 }
 
-""", Map("position" -> GL.AttributeType.Vec2f), Map.empty, Map.empty)
+""", List("position" -> ???), Nil, Nil)
 
   val fsh = GL.FragmentShader(s"""
 #version 300 es
@@ -105,7 +105,7 @@ out vec4 color;
 void main() {
   color = vec4(0.0, 1.0, 0.0, 1.0);
 }
-""", Map.empty, Map.empty, Map.empty)
+""", Nil, Nil, Map.empty)
 
   val program = GL.Program(vsh, fsh)
 

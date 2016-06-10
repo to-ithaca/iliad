@@ -10,6 +10,8 @@ import java.nio._
 import cats._
 import cats.data._
 import cats.implicits._
+
+import simulacrum.typeclass
  
 import GL._
 
@@ -27,21 +29,38 @@ abstract class GL[F[_]] {
   def enable(cap: Capability): IO[F, Unit]
   def disable(cap: Capability): IO[F, Unit]
   def getError: IO[F, Option[Int Xor ErrorCode]]
+  
   private[kernel] def createShader(`type`: ShaderType): IO[F, Int]
   private[kernel] def shaderSource(shader: Int, count: Int, sources: Seq[String]): IO[F, Unit]
   private[kernel] def shaderSource(shader: Int, source: String): IO[F, Unit] = shaderSource(shader, 0, Seq(source))
-  def deleteShader(shader: Int): IO[F, Unit]
+ 
   private[kernel] def compileShader(shader: Int): IO[F, Unit]
-  def attachShader(program: Int, shader: Int): IO[F, Unit]
-
   private[kernel] def loadShader(`type`: ShaderType, source: String)(implicit M: Monad[F]): IO[F, Int] = createShader(`type`) >>= { id => 
     shaderSource(id, source) *> compileShader(id) map (_ => id)
   }
 
-  def shader(shader: VertexShader)(implicit M: Monad[F]): IO[F, Int] = loadShader(GL_VERTEX_SHADER, shader.source)
-  def shader(shader: FragmentShader)(implicit M: Monad[F]): IO[F, Int] = loadShader(GL_FRAGMENT_SHADER, shader.source)
-  def program(vertexId: Int, fragmentId: Int)(implicit M: FlatMap[F]): IO[F, Int] = createProgram >>= { id => 
-    (attachShader(id, vertexId) *> attachShader(id, fragmentId) *> linkProgram(id)) map (_ => id)
+  def shader(shader: VertexShader)(implicit M: Monad[F]): IO[F, Loaded[VertexShader]] = loadShader(GL_VERTEX_SHADER, shader.source) map (Loaded(_, shader))
+  def shader(shader: FragmentShader)(implicit M: Monad[F]): IO[F, Loaded[FragmentShader]] = loadShader(GL_FRAGMENT_SHADER, shader.source) map (Loaded(_, shader))
+
+  def deleteShader(shader: Int): IO[F, Unit]
+
+  private[kernel] def createProgram: IO[F, Int]
+  private[kernel] def attachShader(program: Int, shader: Int): IO[F, Unit]
+  private[kernel] def linkProgram(program: Int): IO[F, Unit]
+
+  private def keyTraverse[A, B, G[_] : Traverse](keys: G[A])(f: A => IO[F, B])(implicit A: Applicative[F]): IO[F, G[(A, B)]] =  keys.traverse[IO[F, ?], (A, B)](s => f(s).map(s -> _))
+
+  def getAttribLocation(program: Int, name: String): IO[F, Int]
+  def getAttribLocation[G[_] : Traverse](program: Int, names: G[(String, AttributeType[_])])(implicit A: Applicative[F]): IO[F,  G[((String, AttributeType[_]), Int)]] = keyTraverse(names)(n => getAttribLocation(program, n._1))
+  def getUniformLocation(program: Int, name: String): IO[F, Int]
+  def getUniformLocations[G[_] : Traverse, A](program: Int, names: G[(String, A)])(implicit AA: Applicative[F]): IO[F, G[((String, A), Int)]] = keyTraverse(names)(n => getUniformLocation(program, n._1))
+
+  def program(program: Program, vertex: Loaded[VertexShader], fragment: Loaded[FragmentShader])(implicit M: Monad[F]): IO[F, LoadedProgram] = createProgram >>= { id => 
+    attachShader(id, vertex.id) *> 
+    attachShader(id, fragment.id) *>
+    linkProgram(id) *> 
+    getAttribLocation(id, program.attributes) |@| getUniformLocations(id, program.uniforms) |@| getUniformLocations(id, program.textures)  map ( (as, us, ts) => 
+      LoadedProgram(program, id, vertex, fragment, as, us, ts))
   }
 
   private[kernel] def getShaderiv(shader: Int, pname: ShaderParameter): IO[F, Int]
@@ -57,33 +76,36 @@ abstract class GL[F[_]] {
   private[kernel] def getShaderInfoLog(shader: Int, maxLength: Int): IO[F, String]
   def getShaderInfoLog(shader: Int)(implicit M: Monad[F]): IO[F, String] = getShaderiv(shader, GL_SHADER_SOURCE_LENGTH) >>= (getShaderInfoLog(shader, _))
 
-  private[kernel] def createProgram: IO[F, Int]
   def useProgram(program: Int): IO[F, Unit]
-  private[kernel] def linkProgram(program: Int): IO[F, Unit]
 
+  private[kernel] def genSamplers(num: Int): IO[F, Array[Int]]
+  def genSampler(implicit F: Functor[F]): IO[F, Int] = genSamplers(1) map _tup1
+  def genSampler2(implicit F: Functor[F]): IO[F, (Int, Int)] = genSamplers(2) map _tup2
+  def genSampler3(implicit F: Functor[F]): IO[F, (Int, Int, Int)] = genSamplers(3) map _tup3
+
+  private[kernel] def samplerParameteri(sampler: Int, name: SamplerParameter, value: IntConstant): IO[F, Unit]
+  private[kernel] def samplerParameteri(sampler: Int, name: SamplerParameter, value: Int): IO[F, Unit]
+  
+  private[kernel] def samplerParameter(sampler: Int, name: GL_TEXTURE_MIN_FILTER.type, value: TextureMinFilter): IO[F, Unit] = samplerParameteri(sampler, name, value)
+  private[kernel] def samplerParameter(sampler: Int, name: GL_TEXTURE_WRAP_S.type, value: TextureWrap): IO[F, Unit] = samplerParameteri(sampler, name, value)
+  private[kernel] def samplerParameter(sampler: Int, name: GL_TEXTURE_WRAP_T.type, value: TextureWrap): IO[F, Unit] = samplerParameteri(sampler, name, value)
+  private[kernel] def samplerParameter(sampler: Int, name: GL_TEXTURE_WRAP_R.type, value: TextureWrap): IO[F, Unit] = samplerParameteri(sampler, name, value)
+  private[kernel] def samplerParameter(sampler: Int, name: GL_TEXTURE_MAG_FILTER.type, value: TextureMagFilter): IO[F, Unit] = samplerParameteri(sampler, name, value)
+  private[kernel] def samplerParameter(sampler: Int, name: GL_TEXTURE_MIN_LOD.type, value: Int): IO[F, Unit] = samplerParameteri(sampler, name, value)
+  private[kernel] def samplerParameter(sampler: Int, name: GL_TEXTURE_MAX_LOD.type, value: Int): IO[F, Unit] = samplerParameteri(sampler, name, value)
+  private[kernel] def samplerParameter(sampler: Int, name: GL_TEXTURE_COMPARE_MODE.type, value: TextureCompareMode): IO[F, Unit] = samplerParameteri(sampler, name, value)
+  private[kernel] def samplerParameter(sampler: Int, name: GL_TEXTURE_COMPARE_FUNC.type, value: TextureCompareFunc): IO[F, Unit] = samplerParameteri(sampler, name, value)
+
+  def sampler(sampler: Sampler)(implicit M: FlatMap[F]): IO[F, Loaded[Sampler]] = genSampler >>= { id => 
+    samplerParameter(id, GL_TEXTURE_MIN_FILTER, sampler.minFilter) *>
+    samplerParameter(id, GL_TEXTURE_MAG_FILTER, sampler.magFilter) *>
+    samplerParameter(id, GL_TEXTURE_WRAP_S, sampler.wrapS) *>
+    samplerParameter(id, GL_TEXTURE_WRAP_T, sampler.wrapT) map (_ => Loaded(id, sampler))
+  }
 
   private def _tup1[A](arr: Array[A]): A = arr(0)
   private def _tup2[A](arr: Array[A]): (A, A) = (arr(0), arr(1))
   private def _tup3[A](arr: Array[A]): (A, A, A) = (arr(0), arr(1), arr(2))
-
-  //TODO: Work out how best to expose N buffers safely
-  private[kernel] def genBuffers(num: Int): IO[F, Array[Int]]
-  def genBuffer(implicit F: Functor[F]): IO[F, Int] = genBuffers(1) map _tup1
-  def genBuffer2(implicit F: Functor[F]): IO[F, (Int, Int)] = genBuffers(2) map _tup2
-  def genBuffer3(implicit F: Functor[F]): IO[F, (Int, Int, Int)] = genBuffers(3) map _tup3 
-  def bindBuffer(target: BufferTarget, buffer: Int): IO[F , Unit]
-  def bufferData(target: BufferTarget, size: Int, data: Buffer, usage: BufferUsage): IO[F, Unit]
-  def bufferSubData(target: BufferTarget, offset: Int, size: Int, data: Buffer): IO[F, Unit]
-  def enableVertexAttribArray(location: Int): IO[F, Unit]
-  def vertexAttribPointer(location: Int, size: Int,`type`: VertexAttribType, normalized: Boolean, stride: Int, offset: Int): IO[F, Unit]
-  private[kernel] def genFramebuffers(num: Int): IO[F,Array[Int]]
-  def genFramebuffer(implicit F: Functor[F]): IO[F, Int] = genFramebuffers(1) map _tup1
-  def genFramebuffer2(num: Int)(implicit F: Functor[F]): IO[F, (Int, Int)] = genFramebuffers(2) map _tup2
-  def genFramebuffer3(num: Int)(implicit F: Functor[F]): IO[F, (Int, Int, Int)] = genFramebuffers(3) map _tup3
-  def bindFramebuffer(target: FramebufferTarget, framebuffer: Int): IO[F, Unit]
-  def framebufferRenderbuffer(target: FramebufferTarget, attachment: FramebufferAttachment, renderbuffer: Int): IO[F, Unit]
-  def checkFramebufferStatus(target: FramebufferTarget): IO[F, FramebufferStatus]
-  def framebufferTexture2D(target: FramebufferTarget, attachment: FramebufferAttachment, texTarget: FramebufferTexTarget, texture: Int, level: Int): IO[F, Unit]
 
   private[kernel] def genRenderbuffers(num: Int): IO[F, Array[Int]]
   private[kernel] def genRenderbuffer(implicit F: Functor[F]): IO[F, Int] = genRenderbuffers(1) map _tup1
@@ -92,9 +114,10 @@ abstract class GL[F[_]] {
   private[kernel] def bindRenderbuffer(renderbuffer: Int): IO[F, Unit]
   private[kernel] def renderbufferStorage(format: RenderbufferInternalFormat, width: Int, height: Int): IO[F, Unit]
 
-  def renderbuffer(r: RenderbufferInstance)(implicit F: FlatMap[F]): IO[F, Int] = genRenderbuffer >>= { id => 
-    bindRenderbuffer(id) *> renderbufferStorage(r.internalFormat, r.viewport.width, r.viewport.height) map (_ => id)
+  def renderbuffer(r: RenderbufferInstance)(implicit F: FlatMap[F]): IO[F, LoadedRenderbuffer] = genRenderbuffer >>= { id => 
+    bindRenderbuffer(id) *> renderbufferStorage(r.internalFormat, r.viewport.width, r.viewport.height) map (_ => LoadedRenderbuffer(r, id))
   }
+
 
   private[kernel] def bindTexture(target: TextureTarget, texture: Int): IO[F, Unit]
   def bindTexture2D(texture: Int): IO[F, Unit] = bindTexture(GL_TEXTURE_2D, texture)
@@ -122,20 +145,70 @@ abstract class GL[F[_]] {
   def texParameter(target: TextureTarget, name: GL_TEXTURE_WRAP_T.type, value: TextureWrap): IO[F, Unit] = texParameteri(target, name, value)
   def texParameter(target: TextureTarget, name: GL_TEXTURE_WRAP_R.type, value: TextureWrap): IO[F, Unit] = texParameteri(target, name, value)
 
-  def texImage2D(target: TextureTarget, level: Int, internalFormat: TextureInternalFormat, width: Int, height: Int, format: TextureFormat, `type`: TexturePixelType, data: Buffer): IO[F, Unit]
-  def texImage2D(internalFormat: TextureInternalFormat, viewport: Rect[Int], format: TextureFormat, `type`: TexturePixelType, data: Option[Buffer]): IO[F, Unit] = texImage2D(GL_TEXTURE_2D, 0, internalFormat, viewport.width, viewport.height, format, `type`, data.getOrElse(null))
+  private[kernel] def texImage2D(target: TextureTarget, level: Int, internalFormat: TextureInternalFormat, width: Int, height: Int, format: TextureFormat, `type`: TexturePixelType, data: Buffer): IO[F, Unit]
+  private [kernel] def texImage2D(data: TextureData): IO[F, Unit] = texImage2D(GL_TEXTURE_2D, 0, data.texture.template.internalFormat, data.texture.template.viewport.width, data.texture.template.viewport.height, data.texture.template.format, data.texture.template.`type`, data.data.getOrElse(null))
 
-  def singleTexture(texture: TextureInstance, data: Option[ByteBuffer])(implicit M: FlatMap[F]): IO[F, Int] = genTexture >>= { id => 
+  private[kernel] def texture(data: TextureData)(implicit M: FlatMap[F]): IO[F, LoadedTexture] = genTexture >>= { id => 
     bindTexture2D(id) *>
-    texImage2D(texture.template.internalFormat, texture.template.viewport, texture.template.format, texture.template.`type`, data) map (_ => id)
+    texImage2D(data) map (_ => LoadedTexture(data.texture, id))
   }
 
-  def doubleTexture(texture: TextureInstance, data: Option[ByteBuffer])(implicit M: FlatMap[F]): IO[F, (Int, Int)] = genTexture2 >>= { case (frontId, backId) =>
-    bindTexture2D(frontId) *>
-    texImage2D(texture.template.internalFormat, texture.template.viewport, texture.template.format, texture.template.`type`, data) *>
-    bindTexture2D(backId) *>
-    texImage2D(texture.template.internalFormat, texture.template.viewport, texture.template.format, texture.template.`type`, data) map (_ => (frontId, backId))
- }
+  private[kernel] def genFramebuffers(num: Int): IO[F,Array[Int]]
+  def genFramebuffer(implicit F: Functor[F]): IO[F, Int] = genFramebuffers(1) map _tup1
+  def genFramebuffer2(num: Int)(implicit F: Functor[F]): IO[F, (Int, Int)] = genFramebuffers(2) map _tup2
+  def genFramebuffer3(num: Int)(implicit F: Functor[F]): IO[F, (Int, Int, Int)] = genFramebuffers(3) map _tup3
+  def bindFramebuffer(target: FramebufferTarget, framebuffer: Int): IO[F, Unit]
+  private[kernel] def framebufferRenderbuffer(target: FramebufferTarget, attachment: FramebufferAttachment, renderbuffer: Int): IO[F, Unit]
+  private[kernel] def framebufferRenderbuffer(attachment: FramebufferAttachment, renderbuffer: Int): IO[F, Unit] = framebufferRenderbuffer(GL_FRAMEBUFFER, attachment, renderbuffer)
+  def checkFramebufferStatus(target: FramebufferTarget): IO[F, FramebufferStatus]
+  private[kernel] def framebufferTexture2D(target: FramebufferTarget, attachment: FramebufferAttachment, texTarget: FramebufferTexTarget, texture: Int, level: Int): IO[F, Unit]
+  private[kernel] def framebufferTexture2D(attachment: FramebufferAttachment, texture: Int): IO[F, Unit] = framebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, texture, 0)
+  private[kernel] def bindAttachment(a: FramebufferAttachment, output: LoadedShaderOutput): IO[F, Unit] = output match {
+    case LoadedTexture(t, id) => framebufferTexture2D(a, id)
+    case LoadedRenderbuffer(r, id) => framebufferRenderbuffer(a, id)
+  }
+
+  private[kernel] def bindAttachments[G[_]: Traverse](as: G[(FramebufferAttachment, LoadedShaderOutput)])(implicit A: Applicative[F]) = keyTraverse(as)(a => bindAttachment(a._1, a._2))
+  private[kernel] def drawBuffers(num: Int, buffers: Seq[ColorOutputTarget]): IO[F, Unit]
+  private[kernel] def drawBuffers(buffers: Seq[ColorOutputTarget]): IO[F, Unit] = drawBuffers(buffers.size, buffers)
+
+  def framebuffer(framebuffer: Framebuffer, outputs: List[LoadedShaderOutput])(implicit M: Monad[F]): IO[F, LoadedFramebuffer] = genFramebuffer >>= { id => 
+    bindFramebuffer(GL_FRAMEBUFFER, id) *>
+    bindAttachments(framebuffer.attachments(outputs)) *>
+    drawBuffers(framebuffer.drawBuffers) map (_ => LoadedFramebuffer(framebuffer, outputs, id))
+  }
+
+  //TODO: Work out how best to expose N buffers safely
+  private[kernel] def genBuffers(num: Int): IO[F, Array[Int]]
+  def genBuffer(implicit F: Functor[F]): IO[F, Int] = genBuffers(1) map _tup1
+  def genBuffer2(implicit F: Functor[F]): IO[F, (Int, Int)] = genBuffers(2) map _tup2
+  def genBuffer3(implicit F: Functor[F]): IO[F, (Int, Int, Int)] = genBuffers(3) map _tup3 
+  def bindBuffer(target: BufferTarget, buffer: Int): IO[F , Unit]
+  def bufferData(target: BufferTarget, size: Int, data: Buffer, usage: BufferUsage): IO[F, Unit]
+  def bufferSubData(target: BufferTarget, offset: Int, size: Int, data: Buffer): IO[F, Unit]
+  def enableVertexAttribArray(location: Int): IO[F, Unit]
+  def vertexAttribPointer(location: Int, size: Int,`type`: VertexAttribType, normalized: Boolean, stride: Int, offset: Int): IO[F, Unit]
+
+  def copyBufferSubData(read: BufferTarget, write: BufferTarget, readOffset: Int, writeOffset: Int, size: Int): IO[F, Unit]
+
+
+  def newBuffer(target: BufferTarget, capacity: Int)(implicit M: FlatMap[F]): IO[F, Int] = genBuffer >>= { id =>
+    bindBuffer(target, id) *> bufferData(target, capacity, null, GL_STATIC_DRAW) map (_ => id)
+  }
+
+  def initialBuffer(buffer: BufferInstance, target: BufferTarget, data: Buffer, size: Int, capacity: Int, usage: BufferUsage)(implicit M: FlatMap[F]): IO[F, LoadedBuffer] = newBuffer(target, capacity) >>= { id =>
+    bufferSubData(target, 0, size, data) map (_ => LoadedBuffer(buffer, id, capacity, size, target))
+  }
+
+  def insertInBuffer(buffer: LoadedBuffer, data: Buffer, size: Int)(implicit A: Apply[F]): IO[F, LoadedBuffer] = bindBuffer(buffer.target, buffer.id) *> 
+    bufferSubData(buffer.target, buffer.filled, size, data) map (_ => buffer.add(size))
+
+  def copyToNew(buffer: LoadedBuffer, data: Buffer, size: Int, capacity: Int)(implicit M: FlatMap[F]): IO[F, LoadedBuffer] = newBuffer(buffer.target, capacity) >>= { id =>
+    bindBuffer(GL_COPY_READ_BUFFER, buffer.id) *>
+    copyBufferSubData(GL_COPY_READ_BUFFER, buffer.target, 0, 0, buffer.filled) *>
+    bufferSubData(buffer.target, buffer.filled, size, data) map (_ => LoadedBuffer(buffer.instance, id, capacity, buffer.filled + size, buffer.target)
+  )
+}
 
   def pixelStorei(name: PixelStoreParameter, value: Int): IO[F, Unit]
 
@@ -166,48 +239,7 @@ abstract class GL[F[_]] {
 
   def uniform[A](location: Int, value: A)(implicit update: CanUniformUpdate[F, A]): IO[F, Unit] = update(this)(location, value)
 
-  private def getLocationTraverse[A, B, G[_] : Traverse](keys: G[A])(f: A => IO[F, B])(implicit A: Applicative[F]): IO[F, G[(A, B)]] =  keys.traverse[IO[F, ?], (A, B)](s => f(s).map(s -> _))
-
-  def getAttribLocation(program: Int, name: String): IO[F, Int]
-  def getAttribLocation[G[_] : Traverse](program: Int, names: G[String])(implicit A: Applicative[F]): IO[F,  G[(String, Int)]] = getLocationTraverse(names)(getAttribLocation(program, _))
-  def getUniformLocation(program: Int, name: String): IO[F, Int]
-  def getUniformLocations[G[_] : Traverse](program: Int, names: G[String])(implicit A: Applicative[F]): IO[F, G[(String, Int)]] = getLocationTraverse(names)(getUniformLocation(program, _))
-
-  private[kernel] def genSamplers(num: Int): IO[F, Array[Int]]
-  def genSampler(implicit F: Functor[F]): IO[F, Int] = genSamplers(1) map _tup1
-  def genSampler2(implicit F: Functor[F]): IO[F, (Int, Int)] = genSamplers(2) map _tup2
-  def genSampler3(implicit F: Functor[F]): IO[F, (Int, Int, Int)] = genSamplers(3) map _tup3
-
-  private[kernel] def samplerParameteri(sampler: Int, name: SamplerParameter, value: IntConstant): IO[F, Unit]
-  private[kernel] def samplerParameteri(sampler: Int, name: SamplerParameter, value: Int): IO[F, Unit]
-  
-
-  private[kernel] def samplerParameter(sampler: Int, name: GL_TEXTURE_MIN_FILTER.type, value: TextureMinFilter): IO[F, Unit] = samplerParameteri(sampler, name, value)
-  private[kernel] def samplerParameter(sampler: Int, name: GL_TEXTURE_WRAP_S.type, value: TextureWrap): IO[F, Unit] = samplerParameteri(sampler, name, value)
-  private[kernel] def samplerParameter(sampler: Int, name: GL_TEXTURE_WRAP_T.type, value: TextureWrap): IO[F, Unit] = samplerParameteri(sampler, name, value)
-  private[kernel] def samplerParameter(sampler: Int, name: GL_TEXTURE_WRAP_R.type, value: TextureWrap): IO[F, Unit] = samplerParameteri(sampler, name, value)
-  private[kernel] def samplerParameter(sampler: Int, name: GL_TEXTURE_MAG_FILTER.type, value: TextureMagFilter): IO[F, Unit] = samplerParameteri(sampler, name, value)
-  private[kernel] def samplerParameter(sampler: Int, name: GL_TEXTURE_MIN_LOD.type, value: Int): IO[F, Unit] = samplerParameteri(sampler, name, value)
-  private[kernel] def samplerParameter(sampler: Int, name: GL_TEXTURE_MAX_LOD.type, value: Int): IO[F, Unit] = samplerParameteri(sampler, name, value)
-  private[kernel] def samplerParameter(sampler: Int, name: GL_TEXTURE_COMPARE_MODE.type, value: TextureCompareMode): IO[F, Unit] = samplerParameteri(sampler, name, value)
-  private[kernel] def samplerParameter(sampler: Int, name: GL_TEXTURE_COMPARE_FUNC.type, value: TextureCompareFunc): IO[F, Unit] = samplerParameteri(sampler, name, value)
-
-  def sampler(sampler: Sampler)(implicit M: FlatMap[F]): IO[F, Int] = genSampler >>= { id => 
-    samplerParameter(id, GL_TEXTURE_MIN_FILTER, sampler.minFilter) *>
-    samplerParameter(id, GL_TEXTURE_MAG_FILTER, sampler.magFilter) *>
-    samplerParameter(id, GL_TEXTURE_WRAP_S, sampler.wrapS) *>
-    samplerParameter(id, GL_TEXTURE_WRAP_T, sampler.wrapT) map (_ => id)
-  }
-
-  def copyBufferSubData(read: BufferTarget, write: BufferTarget, readOffset: Int, writeOffset: Int, size: Int): IO[F, Unit]
-
-  def initialBuffer(buffer: BufferInstance, target: BufferTarget, data: Buffer, size: Int, capacity: Int, usage: BufferUsage)(implicit M: FlatMap[F]): IO[F, Int] = genBuffer >>= { id =>
-    bindBuffer(target, id) *>
-    bufferData(target, size, data: Buffer, usage: BufferUsage) map (_ => id)
-  }
-
   def bindVertexArray(vertexArray: Int): IO[F, Unit]
-  def drawBuffers(num: Int, buffers: Seq[ColorOutputTarget]): IO[F, Unit]
 
   private[kernel] def clearBufferfi(target: Channel, drawBuffer: Int, depth: Float, stencil: Int): IO[F, Unit]
   private[kernel] def clearBufferiv(target: Channel, drawBuffer: Int, value: Array[Int]): IO[F, Unit]
@@ -319,41 +351,43 @@ object GL {
   type IO[F[_], A] = ReaderT[F, GLES30Library, A]
   type LogEffect[F[_], A] = WriterT[F, List[String], A]
   type DebugEffect[F[_], A] = XorT[F, String, A]
-
+  type StateEffect[F[_], A] = StateT[F, GLState, A]
 
   /** Custom constructs */
-  case class VertexShader(source: String, attributes: Map[String, AttributeType], uniforms: Map[String, UniformType], textures: Map[String, Sampler])
-  case class FragmentShader(source: String, uniforms: Map[String, UniformType], textures: Map[String, Sampler], outputs: Map[ColorAttachment, ShaderOutputTemplate])
-  case class Program(vertex: VertexShader, fragment: FragmentShader)
+  case class Loaded[A](id: Int, glObject: A)
 
-  case class LoadedVertexShader(shader: VertexShader, id: Int)
-  case class LoadedFragmentShader(shader: FragmentShader, id: Int)
+  case class VertexShader(source: String, attributes: List[(String, AttributeType[_])], uniforms: List[(String, UniformType)], textures: List[(String, Sampler)])
+  case class FragmentShader(source: String, uniforms: List[(String, UniformType)], textures: List[(String, Sampler)], outputs: Map[ColorAttachment, ShaderOutputTemplate])
+  case class Program(vertex: VertexShader, fragment: FragmentShader) {
+    val attributes: List[(String, AttributeType[_])] = vertex.attributes
+    val uniforms: List[(String, UniformType)] = vertex.uniforms ++ fragment.uniforms
+    val textures: List[(String, Sampler)] = vertex.textures ++ fragment.textures
+  }
 
-  case class LoadedProgram(program: Program, 
+  case class LoadedProgram(
+    program: Program,
     id: Int, 
-    vertex: LoadedVertexShader, 
-    fragment: LoadedFragmentShader, 
-    attributeLocations: Map[(String, AttributeType), Int], 
-    uniformLocations: Map[(String, UniformType), Int], 
-    textureLocations: Map[(String, Sampler), Int])
-
-
-  sealed trait AttributeType {
+    vertex: Loaded[VertexShader], 
+    fragment: Loaded[FragmentShader], 
+    attributeLocations: List[((String, AttributeType[_]), Int)], 
+    uniformLocations: List[((String, UniformType), Int)], 
+    textureLocations: List[((String, Sampler), Int)]
+  )
+  
+  @typeclass trait AttributeType[A] {
     def baseType: VertexAttribType
     def byteSize: Int
     def elementSize: Int
   }
-  object AttributeType {
-    case object Vec3f extends AttributeType {
-      val baseType = GL_FLOAT
-      val byteSize = 12
-      val elementSize = 3
-    }
-    case object Vec2f extends AttributeType {
-      val baseType = GL_FLOAT
-      val byteSize = 8
-      val elementSize = 2
-    }
+
+  @typeclass trait IAttributeType[A] {
+    def baseType: VertexAttribIType
+    def byteSize: Int
+    def elementSize: Int
+  }
+
+  @typeclass trait VertexAttribTypeOf[A] {
+    def baseType: VertexAttribType
   }
 
   sealed trait UniformType
@@ -381,38 +415,38 @@ object GL {
     val fLookupTable = Sampler(SamplerType.FloatSampler, GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE)
   }
 
-  case class LoadedSampler(sampler: Sampler, id: Int)
-
   sealed trait TextureUniform
   sealed trait ShaderOutputTemplate
   sealed trait ShaderOutputInstance
-  sealed trait LoadedShaderOutput
+  sealed trait LoadedShaderOutput {
+    def instance: ShaderOutputInstance
+  }
 
-  case class ImageTemplate(name: String, format: TextureFormat, internalFormat: TextureInternalFormat, `type`: TexturePixelType, viewport: Rect[Int]) extends TextureUniform
-  case class ImageInstance(name: String, template: ImageTemplate)
-
-  case class TextureTemplate(name: String, format: TextureFormat, internalFormat: TextureInternalFormat, `type`: TexturePixelType, viewport: Rect[Int]) extends ShaderOutputTemplate with TextureUniform
+  case class TextureTemplate(name: String, format: TextureFormat, internalFormat: TextureInternalFormat, `type`: TexturePixelType, viewport: Rect[Int], isDouble: Boolean) extends ShaderOutputTemplate with TextureUniform
   case class TextureInstance(name: String, template: TextureTemplate) extends ShaderOutputInstance
-  case class TextureData(key: TextureInstance, data: Option[ByteBuffer])
-  case class LoadedTexture(texture: TextureInstance, id: Int) extends LoadedShaderOutput
+  case class TextureData(texture: TextureInstance, data: Option[ByteBuffer])
+  case class LoadedTexture(instance: TextureInstance, id: Int) extends LoadedShaderOutput
 
   case class RenderbufferTemplate(name: String, internalFormat: RenderbufferInternalFormat, viewport: Rect[Int]) extends ShaderOutputTemplate
   case class RenderbufferInstance(name: String, internalFormat: RenderbufferInternalFormat, viewport: Rect[Int]) extends ShaderOutputInstance
-  case class LoadedRenderbuffer(renderbuffer: RenderbufferInstance, id: Int) extends LoadedShaderOutput
+  case class LoadedRenderbuffer(instance: RenderbufferInstance, id: Int) extends LoadedShaderOutput
 
-  case class Framebuffer(outputs: Map[FramebufferAttachment, ShaderOutputInstance], viewport: Rect[Int])
-  case class LoadedFramebuffer(framebuffer: Framebuffer, outputs: List[LoadedShaderOutput])
+  case class Framebuffer(outputs: List[(FramebufferAttachment, ShaderOutputInstance)], viewport: Rect[Int]) {
+    private def attachment(i: ShaderOutputInstance): FramebufferAttachment = outputs.find(_._2 == i).get._1
+    def attachments(loadedOutputs: List[LoadedShaderOutput]): List[(FramebufferAttachment, LoadedShaderOutput)] = loadedOutputs map (o => attachment(o.instance) -> o)
+    def drawBuffers: List[ColorOutputTarget] = outputs flatMap { //TODO: add ofType flatMap back in 
+      case (o: ColorAttachment, _) => Some(o)
+      case _ => None
+    }
+  }
+  case class LoadedFramebuffer(framebuffer: Framebuffer, outputs: List[LoadedShaderOutput], id: Int)
 
-  case class BufferInstance(attributes: List[(String, AttributeType)], primitiveType: PrimitiveType)
-  case class LoadedBuffer(instance: BufferInstance, id: Int)
-
-  //TODO: put these somewhere else.  They should not be in GL
-  case class VertexData(data: ByteBuffer, numVertices: Int)
-  case class ElementData(data: ByteBuffer, numElements: Int)
-  case class ModelData(buffer: BufferInstance, vertexData: VertexData, elementData: ElementData)
+  case class BufferInstance(attributes: List[(String, AttributeType[_])], primitiveType: PrimitiveType)
+  case class LoadedBuffer(instance: BufferInstance, id: Int, capacity: Int, filled: Int, target: BufferTarget) {
+    def add(size: Int): LoadedBuffer = copy(filled = filled + size)
+  }
 
   case class ColorMask(red: Boolean, blue: Boolean, green: Boolean, alpha: Boolean)
-
 
   /** GL Constructs */
 
@@ -421,9 +455,9 @@ object GL {
   abstract class LongConstant(val value: Long)
 
   sealed trait Texture extends IntConstant
-  sealed trait ColorAttachment extends IntConstant with ColorBuffer
-  sealed trait DrawBuffer extends IntConstant with Parameter with ColorOutputTarget {
-    def n: Int = this.value - Bounded[DrawBuffer].MaxValue.value
+  sealed trait ColorAttachment extends IntConstant with ColorBuffer with ColorOutputTarget
+  sealed trait DrawBuffer extends IntConstant with Parameter {
+    def n: Int = this.value - Bounded[DrawBuffer].MinValue.value
   }
   sealed trait Capability extends IntConstant with Parameter
   sealed trait ChannelBit extends IntConstant
