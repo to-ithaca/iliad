@@ -7,13 +7,14 @@ import cats.implicits._
 
 import GL._
 
-private[kernel] final class GLLogger[F[_]](config: LoggerConfig, gl: GL[F])(implicit F: Functor[F], val M: Monad[LogEffect[F, ?]]) extends GL[LogEffect[F, ?]] {
-  private def lift[A](io: IO[F, A]): IO[LogEffect[F, ?], A] = io.mapF(_.liftT[LogEffect])
-  private def log[A](io: IO[F, A])(s: String): IO[LogEffect[F, ?], A] = lift(io).mapF(_.mapWritten(_ => List(s)))
+private[kernel] final class GLLogger[F[_]](config: LoggerConfig, gl: GL[F])(implicit M: Monad[F], val MM: Monad[LogEffect[F, ?]]) extends GL[LogEffect[F, ?]] {
+  private def lift[A](io: IO[F, A]): IO[LogEffect[F, ?], A] = io.mapF(_.transformF(_.liftT[LogEffect]))
+  private def log[A](io: IO[F, A])(s: String): IO[LogEffect[F, ?], A] = lift(io).mapF(_.transformF(_.mapWritten(_ => List(s))))
   def blitFramebuffer(src: Rect[Int], dest: Rect[Int], bitMask: ChannelBitMask, filter: BlitFilter): IO[LogEffect[F, ?], Unit] = log(gl.blitFramebuffer(src, dest, bitMask, filter))("glBlitFramebuffer")
   def viewport(rect: Rect[Int]): IO[LogEffect[F, ?], Unit] = log(gl.viewport(rect))(s"glViewport($rect)")
   def flush: IO[LogEffect[F, ?], Unit] = log(gl.flush)("glFlush")
   def enable(cap: Capability): IO[LogEffect[F, ?], Unit] = log(gl.enable(cap))(s"glEnable($cap)")
+  def colorMask(red: Boolean, green: Boolean, blue: Boolean, alpha: Boolean): IO[LogEffect[F, ?], Unit] = log(gl.colorMask(red, green, blue, alpha))(s"glColorMask($red, $green, $blue, $alpha)")
   def getError: IO[LogEffect[F, ?], Option[Int Xor ErrorCode]] = log(gl.getError)("glGetError")
 
   def activeTexture(texture: Int): IO[LogEffect[F, ?], Unit] = log(gl.activeTexture(texture))(s"glActiveTexture($texture)")
@@ -64,7 +65,7 @@ private[kernel] final class GLLogger[F[_]](config: LoggerConfig, gl: GL[F])(impl
   def readBuffer(src: DrawBuffer): IO[LogEffect[F, ?], Unit] = log(gl.readBuffer(src))(s"glReadBuffer($src)")
   def renderbufferStorage(format: RenderbufferInternalFormat, width: Int, height: Int): IO[LogEffect[F, ?], Unit] = log(gl.renderbufferStorage(format, width, height))(s"glRenderbufferStorage($format, $width, $height)")
   private[kernel] def samplerParameteri(sampler: Int, name: SamplerParameter, value: Int): IO[LogEffect[F, ?], Unit] = log(gl.samplerParameteri(sampler, name, value))(s"glSamplerParameteri($sampler, $name, $value)")
-  private[kernel] def samplerParameteri(sampler: Int, name: SamplerParameter, value: IntConstant): IO[LogEffect[F, ?], Unit] = log(gl.samplerParameteri(sampler, name, value))(s"glSamplerParameteri($sampler, $name, $value)")
+  override def samplerParameteri(sampler: Int, name: SamplerParameter, value: IntConstant): IO[LogEffect[F, ?], Unit] = log(gl.samplerParameteri(sampler, name, value))(s"glSamplerParameteri($sampler, $name, $value)")
   def shaderSource(shader: Int, count: Int, sources: Seq[String]): IO[LogEffect[F, ?], Unit] = log(gl.shaderSource(shader, count, sources))(s"glShaderSource($shader, $count, $sources)")
   def texImage2D(target: TextureTarget, level: Int, internalFormat: TextureInternalFormat, width: Int, height: Int, format: TextureFormat, `type`: TexturePixelType, data: java.nio.Buffer): IO[LogEffect[F, ?], Unit] = log(gl.texImage2D(target, level, internalFormat, width, height, format, `type`, data))(s"glTexImage2D($target, $level, $internalFormat, $width, $height, $format, ${`type`}, data)")
   private[kernel] def texParameteri(target: TextureTarget, name: TextureParameter, value: IntConstant): IO[LogEffect[F, ?], Unit] = log(gl.texParameteri(target, name, value))(s"glTexParameteri($target, $name, $value)")

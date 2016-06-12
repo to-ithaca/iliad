@@ -129,7 +129,8 @@ trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
       _ <- gl.clear(GL_COLOR_BUFFER_BIT)
     } yield ()
 
-    val writer = cmds.run(GLES30).value
+    //FIXME: add a glState in here
+    val writer = cmds.run(GLES30).run(???).value
     writer.written.foreach(s => log.info("GL log {}", s))
 
     writer.value match {

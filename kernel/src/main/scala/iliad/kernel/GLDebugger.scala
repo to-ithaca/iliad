@@ -7,19 +7,19 @@ import cats.implicits._
 
 import GL._
 
-private[kernel] final class GLDebugger[F[_]](gl: GL[F])(implicit A: Applicative[F], val M: Monad[DebugEffect[F, ?]]) extends GL[DebugEffect[F, ?]] {
+private[kernel] final class GLDebugger[F[_]](gl: GL[F])(implicit M: Monad[F], val MM: Monad[DebugEffect[F, ?]]) extends GL[DebugEffect[F, ?]] {
 
   private def errorText(method: String)(code: Int Xor ErrorCode): String = code match {
     case Xor.Right(c) => s"call $method failed with error code $c"
     case Xor.Left(i) => s"call $method failed with undefined error code $i"
   }
-  private def lift[A](io: IO[F, A]): IO[DebugEffect[F, ?], A] = io.mapF(_.liftT[DebugEffect])
+  private def lift[A](io: IO[F, A]): IO[DebugEffect[F, ?], A] = io.mapF(_.transformF(_.liftT[DebugEffect]))
 
-  private def error[A](method: String): IO[DebugEffect[F, ?], A => A] = getError.mapF(_.transform {
-    case Xor.Right(Some(c)) => Xor.Left(errorText(method)(c))
-    case Xor.Right(None) => Xor.Right(identity)
+  private def error[A](method: String): IO[DebugEffect[F, ?], A => A] = getError.mapF(_.transformF(_.transform {
+    case Xor.Right((_, Some(c))) => Xor.Left(errorText(method)(c))
+    case Xor.Right((s, None)) => Xor.Right((s, identity))
     case Xor.Left(msg) => Xor.Left(msg)
-  })
+  }))
 
   private def debug[A](io: IO[F, A])(method: String): IO[DebugEffect[F, ?], A] = lift(io).ap(error(method))
 
@@ -30,6 +30,7 @@ private[kernel] final class GLDebugger[F[_]](gl: GL[F])(implicit A: Applicative[
   def viewport(rect: Rect[Int]): IO[DebugEffect[F, ?], Unit] = debug(gl.viewport(rect))("glViewport")
   def flush: IO[DebugEffect[F, ?], Unit] = debug(gl.flush)("glFlush")
   def enable(cap: Capability): IO[DebugEffect[F, ?], Unit] = debug(gl.enable(cap))(s"glEnable($cap)")
+  def colorMask(red: Boolean, green: Boolean, blue: Boolean, alpha: Boolean): IO[DebugEffect[F, ?], Unit] = debug(gl.colorMask(red, green, blue, alpha))("glColorMask")
 
   def activeTexture(texture: Int): IO[DebugEffect[F, ?], Unit] = debug(gl.activeTexture(texture))("glActiveTexture")
   def attachShader(program: Int, shader: Int): IO[DebugEffect[F, ?], Unit] = debug(gl.attachShader(program, shader))("glAttachShader")
@@ -78,7 +79,6 @@ private[kernel] final class GLDebugger[F[_]](gl: GL[F])(implicit A: Applicative[
   def readBuffer(src: DrawBuffer): IO[DebugEffect[F, ?], Unit] = debug(gl.readBuffer(src))("glReadBuffer")
   def renderbufferStorage(format: RenderbufferInternalFormat, width: Int, height: Int): IO[DebugEffect[F, ?], Unit] = debug(gl.renderbufferStorage(format, width, height))("glRenderbufferStorage")
   private[kernel] def samplerParameteri(sampler: Int, name: SamplerParameter, value: Int): IO[DebugEffect[F, ?], Unit] = debug(gl.samplerParameteri(sampler, name, value))("glSamplerParameteri")
-  private[kernel] def samplerParameteri(sampler: Int, name: SamplerParameter, value: IntConstant): IO[DebugEffect[F, ?], Unit] = debug(gl.samplerParameteri(sampler, name, value))("glSamplerParameteri")
   def shaderSource(shader: Int, count: Int, sources: Seq[String]): IO[DebugEffect[F, ?], Unit] = debug(gl.shaderSource(shader, count, sources))("glShaderSource")
   def texImage2D(target: TextureTarget, level: Int, internalFormat: TextureInternalFormat, width: Int, height: Int, format: TextureFormat, `type`: TexturePixelType, data: java.nio.Buffer): IO[DebugEffect[F, ?], Unit] = debug(gl.texImage2D(target, level, internalFormat, width, height, format, `type`, data))("glShaderSource")
   private[kernel] def texParameteri(target: TextureTarget, name: TextureParameter, value: IntConstant): IO[DebugEffect[F, ?], Unit] = debug(gl.texParameteri(target, name, value))("glTexParameteri")
