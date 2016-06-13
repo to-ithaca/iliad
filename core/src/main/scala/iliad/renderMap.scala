@@ -1,6 +1,6 @@
 package iliad
 
-import iliad.kernel.GL
+import iliad.kernel._
 
 object RenderMap {
  
@@ -9,28 +9,27 @@ object RenderMap {
 
   case class ProgramNode(
     name: String,
-    program: GL.Program,
-    primitive: GL.PrimitiveType,
-    capabilities: List[GL.Capability],
+    program: Program,
+    primitive: PrimitiveType,
+    capabilities: List[Capability],
     isInstanced: Boolean,
-    channelBitMask: GL.ChannelBitMask,
-    colorMask: GL.ColorMask,
+    channelBitMask: ChannelBitMask,
+    colorMask: ColorMask,
     isOnScreen: Boolean
   ) extends Node
 
   case class ClearNode(
     name: String,
-    outputs: Map[GL.ColorAttachment, GL.ShaderOutputTemplate],
-    channelBitMask: GL.ChannelBitMask,
+    outputs: Map[ColorAttachment, ShaderOutputTemplate],
+    channelBitMask: ChannelBitMask,
     isOnScreen: Boolean
   ) extends Node
 
   /** Link on the renderMap.  Links a node to another node via textures */
-  case class Link(start: Node, end: Node, uniforms: Map[String, GL.TextureTemplate], outputs: List[GL.ShaderOutputTemplate])
+  case class Link(start: Node, end: Node, uniforms: Map[String, TextureTemplate], outputs: List[ShaderOutputTemplate])
 
   /** Switches between multiple links.  All links have the same start node */
   case class Valve(links: List[Link])
-
 }
 
 /** A group of nodes and links */
@@ -86,7 +85,7 @@ case class RenderMap(nodes: List[RenderMap.Node], links: List[RenderMap.Link], v
 object Basic {
 
  //this should be 
-  val vsh = GL.VertexShader(s"""
+  val vsh = VertexShader(s"""
 #version 300 es
 
 in vec2 position;
@@ -97,7 +96,7 @@ void main() {
 
 """, List("position" -> ???), Nil, Nil)
 
-  val fsh = GL.FragmentShader(s"""
+  val fsh = FragmentShader(s"""
 #version 300 es
 
 out vec4 color;
@@ -107,15 +106,16 @@ void main() {
 }
 """, Nil, Nil, Map.empty)
 
-  val program = GL.Program(vsh, fsh)
+  val program = Program(vsh, fsh)
 
-  val node = RenderMap.ProgramNode(name = "basic", 
+  val node = RenderMap.ProgramNode(
+    name = "basic",
     program = program,
-    primitive = GL.GL_TRIANGLES,
-    capabilities = List(GL.GL_DEPTH_TEST),
+    primitive = GL_TRIANGLES,
+    capabilities = List(GL_DEPTH_TEST),
     isInstanced = false,
-    channelBitMask = GL.ChannelBitMask.Empty,
-    colorMask = GL.ColorMask(true, true, true, true),
+    channelBitMask = ChannelBitMask.Empty,
+    colorMask = ColorMask(true, true, true, true),
     isOnScreen = true
   )
 
@@ -134,7 +134,6 @@ void main() {
    Q: how do we know what instance info to provide?  It would be good to be compile time safe, but not at the moment.
    we assume that we load as soon as we know we are going to draw.
    
-
    val table = Model("table")
    val chair = Model("chair")
 
@@ -184,43 +183,3 @@ What we have missed:
 **/
 
 //constraints can be added in afterwards
-
-/**
-When designing the data model, we must disinguish between:
- - templates. Created when writing the renderMap
- - gl requirements.  Used when performing commands
- - instances. Specific instances of data.
- - loaded.  After GL has created the object, it is associated with an id / other info.
-
-Each GL object has a template, a GL representation, and an instance representation.
-Program: 
- - template: Program
- - gl rep: Program
- - instance: Program
- - loaded Program + id + locations
-   perhaps this is a loadedProgram
-
-Sampler: same as Program
-
-Texture:
- - template: TextureTemplate
- - instance: TextureInstance, same as GL rep
- - loaded: LoadedTexture
-
-Renderbuffer:
- - template: RenderbufferTemplate
- - instance: RenderbufferInstance
- - loaded: LoadedRenderbuffer
-
-Buffer:
- - template: None.  This is never referenced.
- - instance: BufferInstance.
- - loaded: LoadedBuffer
-
-Framebuffer:
- - template: None.  This is never referenced.
- - instance: FramebufferInstance
- - loaded: LoadedFramebuffer
-
-**/
-

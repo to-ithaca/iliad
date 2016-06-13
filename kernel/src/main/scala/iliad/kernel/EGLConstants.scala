@@ -2,7 +2,7 @@ package iliad
 package kernel
 
 object EGLConstants {
-abstract class IntConstant(val value: Int)
+//abstract class IntConstant(val value: Int)
 
 sealed trait ConfigAttrib extends IntConstant
 sealed trait ConfigAttribValue extends IntConstant
