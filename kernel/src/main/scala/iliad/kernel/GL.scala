@@ -97,11 +97,6 @@ abstract class GL[F[_]: Monad] {
   private def _tup2[A](arr: Array[A]): (A, A) = (arr(0), arr(1))
   private def _tup3[A](arr: Array[A]): (A, A, A) = (arr(0), arr(1), arr(2))
 
-  def blitFramebuffer(src: Rect[Int],
-                      dest: Rect[Int],
-                      bitMask: ChannelBitMask,
-                      filter: BlitFilter): IO[F, Unit]
-
   def viewport(rect: Rect[Int]): IO[F, Unit]
   def flush: IO[F, Unit]
   def clear(bitMask: ChannelBitMask): IO[F, Unit]
@@ -158,8 +153,6 @@ abstract class GL[F[_]: Monad] {
         modify(makeNewShader(GL_FRAGMENT_SHADER, s.source) map (Loaded(_, s)))(
             GLState.addFragmentShader))
 
-  private[kernel] def deleteShader(shader: Int): IO[F, Unit]
-
   private[kernel] def createProgram: IO[F, Int]
   private[kernel] def attachShader(program: Int, shader: Int): IO[F, Unit]
   private[kernel] def linkProgram(program: Int): IO[F, Unit]
@@ -198,23 +191,12 @@ abstract class GL[F[_]: Monad] {
   private[kernel] def getShaderiv(
       shader: Int, pname: ShaderParameter): IO[F, Int]
 
-  private def getShaderiv[A](
-      shader: Int, pname: ShaderParameter, expected: Set[A])(
-      eq: A => Int): IO[F, A] =
-    getShaderiv(shader, pname).map(code => expected.find(eq(_) == code).get)
+  private def getShaderiv[A <: IntConstant](
+      shader: Int, pname: ShaderParameter, expected: Set[A]): IO[F, A] =
+    getShaderiv(shader, pname).map(code => expected.find(_.value == code).get)
 
-  def getShaderiv(shader: Int, pname: GL_SHADER_TYPE.type): IO[F, ShaderType] =
-    getShaderiv(shader, pname, SealedEnum.values[ShaderType])(_.value)
-  def getShaderiv(shader: Int, pname: GL_DELETE_STATUS.type): IO[F, Boolean] =
-    getShaderiv(shader, pname, SealedEnum.values[TrueFalse])(_.value)
-      .map(_ == GL_TRUE)
-  def getShaderiv(shader: Int, pname: GL_COMPILE_STATUS.type): IO[F, Boolean] =
-    getShaderiv(shader, pname, SealedEnum.values[TrueFalse])(_.value)
-      .map(_ == GL_TRUE)
+
   def getShaderiv(shader: Int, pname: GL_INFO_LOG_LENGTH.type): IO[F, Int] =
-    getShaderiv(shader, pname: ShaderParameter)
-  def getShaderiv(
-      shader: Int, pname: GL_SHADER_SOURCE_LENGTH.type): IO[F, Int] =
     getShaderiv(shader, pname: ShaderParameter)
 
   private[kernel] def getShaderInfoLog(
@@ -332,75 +314,6 @@ abstract class GL[F[_]: Monad] {
   private[kernel] def genTextures(num: Int): IO[F, Array[Int]]
   private def genTexture: IO[F, Int] = genTextures(1) map _tup1
   private def genTexture2: IO[F, (Int, Int)] = genTextures(2) map _tup2
-
-  private[kernel] def texParameteri(
-      target: TextureTarget, name: TextureParameter, value: Int): IO[F, Unit]
-
-  private[kernel] def texParameteri(target: TextureTarget,
-                                    name: TextureParameter,
-                                    value: IntConstant): IO[F, Unit] =
-    texParameteri(target, name, value.value)
-
-  def texParameter(target: TextureTarget,
-                   name: GL_TEXTURE_BASE_LEVEL.type,
-                   value: Int): IO[F, Unit] =
-    texParameteri(target, name, value)
-  def texParameter(target: TextureTarget,
-                   name: GL_TEXTURE_COMPARE_FUNC.type,
-                   value: TextureCompareFunc): IO[F, Unit] =
-    texParameteri(target, name, value)
-  def texParameter(target: TextureTarget,
-                   name: GL_TEXTURE_COMPARE_MODE.type,
-                   value: TextureCompareMode): IO[F, Unit] =
-    texParameteri(target, name, value)
-  def texParameter(target: TextureTarget,
-                   name: GL_TEXTURE_MIN_FILTER.type,
-                   value: TextureMinFilter): IO[F, Unit] =
-    texParameteri(target, name, value)
-  def texParameter(target: TextureTarget,
-                   name: GL_TEXTURE_MAG_FILTER.type,
-                   value: TextureMagFilter): IO[F, Unit] =
-    texParameteri(target, name, value)
-  def texParameter(target: TextureTarget,
-                   name: GL_TEXTURE_MIN_LOD.type,
-                   value: Int): IO[F, Unit] =
-    texParameteri(target, name, value)
-  def texParameter(target: TextureTarget,
-                   name: GL_TEXTURE_MAX_LOD.type,
-                   value: Int): IO[F, Unit] =
-    texParameteri(target, name, value)
-  def texParameter(target: TextureTarget,
-                   name: GL_TEXTURE_MAX_LEVEL.type,
-                   value: Int): IO[F, Unit] =
-    texParameteri(target, name, value)
-  def texParameter(target: TextureTarget,
-                   name: GL_TEXTURE_SWIZZLE_R.type,
-                   value: TextureSwizzle): IO[F, Unit] =
-    texParameteri(target, name, value)
-  def texParameter(target: TextureTarget,
-                   name: GL_TEXTURE_SWIZZLE_G.type,
-                   value: TextureSwizzle): IO[F, Unit] =
-    texParameteri(target, name, value)
-  def texParameter(target: TextureTarget,
-                   name: GL_TEXTURE_SWIZZLE_B.type,
-                   value: TextureSwizzle): IO[F, Unit] =
-    texParameteri(target, name, value)
-  def texParameter(target: TextureTarget,
-                   name: GL_TEXTURE_SWIZZLE_A.type,
-                   value: TextureSwizzle): IO[F, Unit] =
-    texParameteri(target, name, value)
-  def texParameter(target: TextureTarget,
-                   name: GL_TEXTURE_WRAP_S.type,
-                   value: TextureWrap): IO[F, Unit] =
-    texParameteri(target, name, value)
-  def texParameter(target: TextureTarget,
-                   name: GL_TEXTURE_WRAP_T.type,
-                   value: TextureWrap): IO[F, Unit] =
-    texParameteri(target, name, value)
-  def texParameter(target: TextureTarget,
-                   name: GL_TEXTURE_WRAP_R.type,
-                   value: TextureWrap): IO[F, Unit] =
-    texParameteri(target, name, value)
 
   private[kernel] def texImage2D(target: TextureTarget,
                                  level: Int,
@@ -658,8 +571,6 @@ abstract class GL[F[_]: Monad] {
                m.buffer, GL_ELEMENT_ARRAY_BUFFER, eData, eSize, capacity)
     } yield LoadedModel(m, vb._2, eb._2))(GLState.addModel)
 
-  def pixelStorei(name: PixelStoreParameter, value: Int): IO[F, Unit]
-
   private[kernel] def activeTexture(texture: Int): IO[F, Unit]
   private def activeTexture(texture: Texture): IO[F, Unit] =
     activeTexture(texture)
@@ -673,8 +584,6 @@ abstract class GL[F[_]: Monad] {
       _ <- bindTexture2DState(id)
     } yield ()
 
-  def drawArrays(mode: PrimitiveType, first: Int, count: Int): IO[F, Unit]
-
   def drawElements(mode: PrimitiveType,
                    count: Int,
                    `type`: IndexType,
@@ -686,33 +595,16 @@ abstract class GL[F[_]: Monad] {
                  GL_UNSIGNED_INT,
                  m.elementRange._1)
 
-  def drawElements(mode: PrimitiveType,
-                   count: Int,
-                   `type`: IndexType,
-                   indices: Buffer): IO[F, Unit]
-
   private[kernel] def uniform1i(location: Int, arg0: Int): IO[F, Unit]
   private[kernel] def uniform1f(location: Int, arg0: Float): IO[F, Unit]
-  private[kernel] def uniform1fv(
-      location: Int, count: Int, arr: Array[Float]): IO[F, Unit]
-  private[kernel] def uniform1iv(
-      location: Int, count: Int, arr: Array[Int]): IO[F, Unit]
   private[kernel] def uniform2i(
       location: Int, arg0: Int, arg1: Int): IO[F, Unit]
   private[kernel] def uniform2f(
       location: Int, arg0: Float, arg1: Float): IO[F, Unit]
-  private[kernel] def uniform2fv(
-      location: Int, count: Int, arr: Array[Float]): IO[F, Unit]
-  private[kernel] def uniform2iv(
-      location: Int, count: Int, arr: Array[Int]): IO[F, Unit]
   private[kernel] def uniform3i(
       location: Int, arg0: Int, arg1: Int, arg2: Int): IO[F, Unit]
   private[kernel] def uniform3f(
       location: Int, arg0: Float, arg1: Float, arg2: Float): IO[F, Unit]
-  private[kernel] def uniform3fv(
-      location: Int, count: Int, arr: Array[Float]): IO[F, Unit]
-  private[kernel] def uniform3iv(
-      location: Int, count: Int, arr: Array[Int]): IO[F, Unit]
   private[kernel] def uniform4i(
       location: Int, arg0: Int, arg1: Int, arg2: Int, arg3: Int): IO[F, Unit]
   private[kernel] def uniform4f(location: Int,
@@ -720,33 +612,11 @@ abstract class GL[F[_]: Monad] {
                                 arg1: Float,
                                 arg2: Float,
                                 arg3: Float): IO[F, Unit]
-  private[kernel] def uniform4fv(
-      location: Int, count: Int, arr: Array[Float]): IO[F, Unit]
-  private[kernel] def uniform4iv(
-      location: Int, count: Int, arr: Array[Int]): IO[F, Unit]
-  private[kernel] def uniformMatrix2fv(location: Int,
-                                       count: Int,
-                                       transpose: Boolean,
-                                       arg0: Array[Float]): IO[F, Unit]
-  private[kernel] def uniformMatrix3fv(location: Int,
-                                       count: Int,
-                                       transpose: Boolean,
-                                       arg0: Array[Float]): IO[F, Unit]
-  private[kernel] def uniformMatrix4fv(location: Int,
-                                       count: Int,
-                                       transpose: Boolean,
-                                       arg0: Array[Float]): IO[F, Unit]
 
   def uniform[A](location: Int, value: A)(
       implicit update: CanUniformUpdate[F, A]): IO[F, Unit] =
     update(this)(location, value)
 
-  def bindVertexArray(vertexArray: Int): IO[F, Unit]
-
-  private[kernel] def clearBufferfi(target: Channel,
-                                    drawBuffer: Int,
-                                    depth: Float,
-                                    stencil: Int): IO[F, Unit]
   private[kernel] def clearBufferiv(
       target: Channel, drawBuffer: Int, value: Array[Int]): IO[F, Unit]
   private[kernel] def clearBufferuiv(
@@ -774,9 +644,6 @@ abstract class GL[F[_]: Monad] {
     clearBufferfv(target, 0, Array(value))
   def clearBuffer(target: GL_STENCIL.type, value: Int): IO[F, Unit] =
     clearBufferiv(target, 0, Array(value))
-  def clearBuffer(
-      target: GL_DEPTH_STENCIL.type, depth: Float, stencil: Int): IO[F, Unit] =
-    clearBufferfi(target, 0, depth, stencil)
 
   // TODO: Need to tag unsigned Ints since they are so common!  Perhaps use spire.math.Natural
   def clearBufferu(target: GL_COLOR.type,
@@ -787,20 +654,11 @@ abstract class GL[F[_]: Monad] {
                    alpha: Int): IO[F, Unit] =
     clearBufferuiv(target, drawBuffer.n, Array(red, green, blue, alpha))
 
-  def readBuffer(src: DrawBuffer): IO[F, Unit]
   def drawElementsInstanced(mode: PrimitiveType,
                             count: Int,
                             `type`: IndexType,
                             offset: Int,
                             primCount: Int): IO[F, Unit]
-  def drawElementsInstanced(mode: PrimitiveType,
-                            count: Int,
-                            `type`: IndexType,
-                            ptr: Buffer,
-                            primCount: Int): IO[F, Unit]
-  def bindAttribLocation(program: Int, index: Int, name: String): IO[F, Unit]
-  def blendColor(
-      red: Float, green: Float, blue: Float, alpha: Float): IO[F, Unit]
 
   def existingFramebufferId(f: Framebuffer): IO[F, String Xor Int] =
     inspect(GLState.existingFramebufferId(f))
@@ -903,7 +761,7 @@ object CanUniformUpdate {
       def apply(gl: GL[F])(at: Int, value: Vec4f): IO[F, Unit] =
         gl.uniform4f(at, value.x, value.y, value.z, value.w)
     }
-  implicit def mat2fCanUniformUpdate[F[_]]: CanUniformUpdate[F, Mat2f] =
+/*  implicit def mat2fCanUniformUpdate[F[_]]: CanUniformUpdate[F, Mat2f] =
     new CanUniformUpdate[F, Mat2f] {
       def apply(gl: GL[F])(at: Int, value: Mat2f): IO[F, Unit] =
         gl.uniformMatrix2fv(at, 1, false, value.toArray)
@@ -917,5 +775,5 @@ object CanUniformUpdate {
     new CanUniformUpdate[F, Mat4f] {
       def apply(gl: GL[F])(at: Int, value: Mat4f): IO[F, Unit] =
         gl.uniformMatrix4fv(at, 1, false, value.toArray)
-    }
+    }*/
 }

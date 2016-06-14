@@ -25,7 +25,6 @@ private[kernel] object GLRunner extends GL[Id] {
   }
   def compileShader(shader: Int): IO[Id, Unit] =
     lift(_.glCompileShader(shader))
-  def deleteShader(shader: Int): IO[Id, Unit] = lift(_.glDeleteShader(shader))
 
   def getShaderiv(shader: Int, pname: ShaderParameter): IO[Id, Int] = lift {
     gl =>
@@ -33,6 +32,7 @@ private[kernel] object GLRunner extends GL[Id] {
       gl.glGetShaderiv(shader, pname.value, ptr)
       ptr.get()
   }
+
   def getShaderInfoLog(shader: Int, maxLength: Int): IO[Id, String] = lift {
     gl =>
       val lenPtr = Buffer.capacity[Int](1)
@@ -76,10 +76,6 @@ private[kernel] object GLRunner extends GL[Id] {
     lift(_.glBindTexture(target.value, texture))
   def genTextures(num: Int): IO[Id, Array[Int]] =
     genObject(_.glGenTextures, num)
-  def texParameteri(target: TextureTarget,
-                    name: TextureParameter,
-                    value: Int): IO[Id, Unit] =
-    lift(_.glTexParameteri(target.value, name.value, value))
 
   def texImage2D(target: TextureTarget,
                  level: Int,
@@ -100,8 +96,6 @@ private[kernel] object GLRunner extends GL[Id] {
                        `type`.value,
                        data))
 
-  def pixelStorei(name: PixelStoreParameter, value: Int): IO[Id, Unit] =
-    lift(_.glPixelStorei(name.value, value))
   def activeTexture(texture: Int): IO[Id, Unit] =
     lift(_.glActiveTexture(texture))
 
@@ -130,25 +124,6 @@ private[kernel] object GLRunner extends GL[Id] {
     lift(
         _.glFramebufferTexture2D(
             target.value, attachment.value, texTarget.value, texture, level))
-
-  def blitFramebuffer(src: Rect[Int],
-                      dest: Rect[Int],
-                      bitMask: ChannelBitMask,
-                      filter: BlitFilter): IO[Id, Unit] = {
-    val sbr = src.bottomRight
-    val dbr = dest.bottomRight
-    lift(
-        _.glBlitFramebuffer(src.topLeft.x,
-                            src.topLeft.y,
-                            sbr.x,
-                            sbr.y,
-                            dest.topLeft.x,
-                            dest.topLeft.y,
-                            dbr.x,
-                            dbr.y,
-                            bitMask.value,
-                            filter.value))
-  }
 
   def viewport(rect: Rect[Int]): IO[Id, Unit] =
     lift(_.glViewport(rect.topLeft.x, rect.topLeft.y, rect.width, rect.height))
@@ -208,44 +183,26 @@ private[kernel] object GLRunner extends GL[Id] {
         _.glVertexAttribPointer(
             location, size, `type`.value, normalized, stride, offset))
 
-  def drawArrays(mode: PrimitiveType, first: Int, count: Int): IO[Id, Unit] =
-    lift(_.glDrawArrays(mode.value, first, count))
   def drawElements(mode: PrimitiveType,
                    count: Int,
                    `type`: IndexType,
                    offset: Int): IO[Id, Unit] =
     lift(_.glDrawElements(mode.value, count, `type`.value, offset))
-  def drawElements(mode: PrimitiveType,
-                   count: Int,
-                   `type`: IndexType,
-                   indices: NBuffer): IO[Id, Unit] =
-    lift(_.glDrawElements(mode.value, count, `type`.value, indices))
 
   def uniform1i(location: Int, arg0: Int): IO[Id, Unit] =
     lift(_.glUniform1i(location, arg0))
   def uniform1f(location: Int, arg0: Float): IO[Id, Unit] =
     lift(_.glUniform1f(location, arg0))
-  def uniform1fv(location: Int, count: Int, arr: Array[Float]): IO[Id, Unit] =
-    lift(_.glUniform1fv(location, count, arr))
-  def uniform1iv(location: Int, count: Int, arr: Array[Int]): IO[Id, Unit] =
-    lift(_.glUniform1iv(location, count, arr))
+
   def uniform2i(location: Int, arg0: Int, arg1: Int): IO[Id, Unit] =
     lift(_.glUniform2i(location, arg0, arg0))
   def uniform2f(location: Int, arg0: Float, arg1: Float): IO[Id, Unit] =
     lift(_.glUniform2f(location, arg0, arg1))
-  def uniform2fv(location: Int, count: Int, arr: Array[Float]): IO[Id, Unit] =
-    lift(_.glUniform2fv(location, count, arr))
-  def uniform2iv(location: Int, count: Int, arr: Array[Int]): IO[Id, Unit] =
-    lift(_.glUniform2iv(location, count, arr))
   def uniform3i(location: Int, arg0: Int, arg1: Int, arg2: Int): IO[Id, Unit] =
     lift(_.glUniform3i(location, arg0, arg1, arg2))
   def uniform3f(
       location: Int, arg0: Float, arg1: Float, arg2: Float): IO[Id, Unit] =
     lift(_.glUniform3f(location, arg0, arg1, arg2))
-  def uniform3fv(location: Int, count: Int, arr: Array[Float]): IO[Id, Unit] =
-    lift(_.glUniform3fv(location, count, arr))
-  def uniform3iv(location: Int, count: Int, arr: Array[Int]): IO[Id, Unit] =
-    lift(_.glUniform3iv(location, count, arr))
   def uniform4i(location: Int,
                 arg0: Int,
                 arg1: Int,
@@ -258,40 +215,7 @@ private[kernel] object GLRunner extends GL[Id] {
                 arg2: Float,
                 arg3: Float): IO[Id, Unit] =
     lift(_.glUniform4f(location, arg0, arg1, arg2, arg3))
-  def uniform4fv(location: Int, count: Int, arr: Array[Float]): IO[Id, Unit] =
-    lift(_.glUniform4fv(location, count, arr))
-  def uniform4iv(location: Int, count: Int, arr: Array[Int]): IO[Id, Unit] =
-    lift(_.glUniform4iv(location, count, arr))
 
-  def uniformMatrix2fv(location: Int,
-                       count: Int,
-                       transpose: Boolean,
-                       arr: Array[Float]): IO[Id, Unit] =
-    lift(_.glUniformMatrix2fv(location, count, transpose, arr))
-  def uniformMatrix3fv(location: Int,
-                       count: Int,
-                       transpose: Boolean,
-                       arr: Array[Float]): IO[Id, Unit] =
-    lift(_.glUniformMatrix3fv(location, count, transpose, arr))
-  def uniformMatrix4fv(location: Int,
-                       count: Int,
-                       transpose: Boolean,
-                       arr: Array[Float]): IO[Id, Unit] =
-    lift(_.glUniformMatrix4fv(location, count, transpose, arr))
-
-  def bindAttribLocation(
-      program: Int, index: Int, name: String): IO[cats.Id, Unit] =
-    lift(_.glBindAttribLocation(program, index, name))
-  def bindVertexArray(vertexArray: Int): IO[cats.Id, Unit] =
-    lift(_.glBindVertexArray(vertexArray))
-  def blendColor(
-      red: Float, green: Float, blue: Float, alpha: Float): IO[cats.Id, Unit] =
-    lift(_.glBlendColor(red, green, blue, alpha))
-  def clearBufferfi(target: Channel,
-                    drawBuffer: Int,
-                    depth: Float,
-                    stencil: Int): IO[cats.Id, Unit] =
-    lift(_.glClearBufferfi(target.value, drawBuffer, depth, stencil))
   def clearBufferfv(target: Channel,
                     drawBuffer: Int,
                     value: Array[Float]): IO[cats.Id, Unit] =
@@ -313,14 +237,7 @@ private[kernel] object GLRunner extends GL[Id] {
   def drawBuffers(
       num: Int, buffers: Seq[ColorOutputTarget]): IO[cats.Id, Unit] =
     lift(_.glDrawBuffers(num, Buffer(buffers.map(_.value): _*)))
-  def drawElementsInstanced(mode: PrimitiveType,
-                            count: Int,
-                            `type`: IndexType,
-                            ptr: NBuffer,
-                            primCount: Int): IO[cats.Id, Unit] =
-    lift(
-        _.glDrawElementsInstanced(
-            mode.value, count, `type`.value, ptr, primCount))
+
   def drawElementsInstanced(mode: PrimitiveType,
                             count: Int,
                             `type`: IndexType,
@@ -329,6 +246,4 @@ private[kernel] object GLRunner extends GL[Id] {
     lift(
         _.glDrawElementsInstanced(
             mode.value, count, `type`.value, offset, primCount))
-  def readBuffer(src: DrawBuffer): IO[cats.Id, Unit] =
-    lift(_.glReadBuffer(src.value))
 }
