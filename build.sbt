@@ -15,7 +15,8 @@ lazy val commonScalacOptions = Seq(
   "-language:existentials",
   "-language:higherKinds",
   "-language:implicitConversions",
-  "-language:experimental.macros"
+  "-language:experimental.macros",
+  "-language:postfixOps"
 )
 
 lazy val compilerOptions = Seq(
