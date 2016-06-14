@@ -176,22 +176,18 @@ object GLState {
       s: GLState): Option[LoadedBuffer] =
     Zoom._buffers.get(s).find(bb => bb.instance == b && bb.target == t)
 
-  def addBufferModel(t: (LoadedBuffer, LoadedModel))(s: GLState): GLState =
-    t match {
-      case (b, m) =>
-        val s1 = Zoom._buffers.modify(b :: _)(s)
-        Zoom._models.modify(m :: _)(s1)
-    }
+  def addBuffer(b: LoadedBuffer)(s: GLState): GLState =
+    Zoom._buffers.modify(b :: _)(s)
 
-  def replaceBufferModel(prev: LoadedBuffer)(t: (LoadedBuffer, LoadedModel))(
-      s: GLState): GLState = t match {
-    case (next, m) =>
-      val s1 = Zoom._buffers.modify(_.map {
-        case b if b == prev => next
-        case x => x
-      })(s)
-      Zoom._models.modify(m :: _)(s1)
-  }
+  def replaceBuffer(
+      prev: LoadedBuffer)(next: LoadedBuffer)(s: GLState): GLState =
+    Zoom._buffers.modify(_.map {
+      case b if b == prev => next
+      case x => x
+    })(s)
+
+  def addModel(m: LoadedModel)(s: GLState): GLState =
+    Zoom._models.modify(m :: _)(s)
 
   def hasCapability(c: Capability, v: Boolean)(s: GLState): Boolean =
     Zoom._capabilities.get(s).get(c) == Some(v)
@@ -233,5 +229,32 @@ object GLState {
   def bindTexture(id: Int)(s: GLState): GLState =
     Zoom._boundTextures.modify(_ + (Zoom._activeTexture.get(s) -> id))(s)
 
-//  def hasFramebuffer(f: Framebuffer)(s: GLState): GLState = Zoom._framebuffers.get(s).find(_.framebuffer == f)
+  //TODO: fix this
+  def hasBoundFramebuffer(f: Framebuffer)(s: GLState): Boolean =
+    framebuffer(f)(s).exists(ff => hasFramebuffer(ff.id.front)(s))
+
+  def existingFramebufferId(f: Framebuffer)(s: GLState): String Xor Int =
+    framebuffer(f)(s)
+      .map(_.id.front)
+      .toRightXor(s"Framebuffer has not been loaded $f")
+
+  def hasBoundProgram(p: LoadedProgram)(s: GLState): Boolean =
+    Zoom._program.get(s).contains(p)
+
+  def existingProgram(p: Program)(s: GLState): String Xor LoadedProgram =
+    program(p)(s).toRightXor(s"Program has not been loaded: $p")
+
+  def hasBoundBuffer(b: BufferInstance, t: BufferTarget)(s: GLState): Boolean =
+    Zoom._buffers.get(s).find(_.instance == b).map(b => hasBuffer(t, b.id)(s)) == Some(
+        true)
+
+  def existingBuffer(b: BufferInstance, t: BufferTarget)(
+      s: GLState): String Xor LoadedBuffer =
+    buffer(b, t)(s).toRightXor(s"Buffer has not been loaded: $b $t")
+
+  def existingModel(m: Model)(s: GLState): String Xor LoadedModel =
+    Zoom._models
+      .get(s)
+      .find(_.model == m)
+      .toRightXor(s"Model $m has not been loaded")
 }

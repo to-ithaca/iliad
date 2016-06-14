@@ -3,6 +3,10 @@ package kernel
 
 import simulacrum.typeclass
 
+import cats._
+import cats.data._
+import cats.implicits._
+
 import java.nio.ByteBuffer
 
 /** Custom constructs */
@@ -39,13 +43,6 @@ case class LoadedProgram(
 @typeclass
 trait AttributeType[A] {
   def baseType: VertexAttribType
-  def byteSize: Int
-  def elementSize: Int
-}
-
-@typeclass
-trait IAttributeType[A] {
-  def baseType: VertexAttribIType
   def byteSize: Int
   def elementSize: Int
 }
@@ -167,8 +164,46 @@ case class Framebuffer(
 
 case class LoadedFramebuffer(framebuffer: Framebuffer, id: BufferedId)
 
+case class AttributeLocation(name: String,
+                             aType: AttributeType[_],
+                             offset: Int,
+                             stride: Int,
+                             location: Int) {
+  def addOffset(base: Int) = copy(offset = offset + base)
+}
+
 case class BufferInstance(attributes: List[(String, AttributeType[_])],
-                          primitiveType: PrimitiveType)
+                          primitiveType: PrimitiveType) {
+
+  private def stride: Int = attributes.map(_._2.byteSize).sum
+
+  private val attributeOffsets: List[(String, AttributeType[_], Int)] =
+    attributes
+      .foldLeft(0 -> List.empty[(String, AttributeType[_], Int)])((t, a) =>
+            (t, a) match {
+          case ((offset, acc), (name, aType)) =>
+            (offset + aType.byteSize, (name, aType, offset) :: acc)
+      })
+      ._2
+
+  def zipLocations(locations: List[((String, AttributeType[_]), Int)])
+    : String Xor List[AttributeLocation] =
+    locations.map {
+      case ((name, at), l) =>
+        attributeOffsets
+          .find(_._1 == name)
+          .map {
+            case (name, aType, offset) =>
+              AttributeLocation(name, aType, offset, stride, l)
+          }
+          .toRightXor(
+              s"Unable to find attribute $name in attributes $attributes")
+    }.sequence
+
+  def attributeLocations(locations: List[((String, AttributeType[_]), Int)],
+                         offset: Int): String Xor List[AttributeLocation] =
+    zipLocations(locations) map (_.map(_.addOffset(offset)))
+}
 
 case class LoadedBuffer(instance: BufferInstance,
                         id: Int,
@@ -177,15 +212,41 @@ case class LoadedBuffer(instance: BufferInstance,
                         target: BufferTarget) {
   def add(size: Int): LoadedBuffer = copy(filled = filled + size)
   def hasSpace(size: Int): Boolean = filled + size < capacity
+
+  def attributeLocations(locations: List[((String, AttributeType[_]), Int)],
+                         offset: Int): String Xor List[AttributeLocation] =
+    instance.attributeLocations(locations, offset)
 }
 
 case class LoadedModel(
-    instance: BufferInstance, target: BufferTarget, range: (Int, Int))
+    model: Model,
+    vertexRange: (Int, Int),
+    elementRange: (Int, Int)
+) {
+  def numElements = elementRange._2 - elementRange._1
+}
 
 case class ColorMask(red: Boolean,
                      blue: Boolean,
                      green: Boolean,
                      alpha: Boolean)
+
+case class ModelKey(name: String)
+
+case class Model(key: ModelKey, buffer: BufferInstance)
+
+case class VertexData(data: ByteBuffer, numVertices: Int)
+case class ElementData(data: ByteBuffer, numElements: Int)
+case class ModelData(
+    buffer: BufferInstance, vertexData: VertexData, elementData: ElementData)
+
+case class Draw(
+    framebuffer: Framebuffer,
+    capabilities: Map[Capability, Boolean],
+    colorMask: ColorMask,
+    program: Program,
+    model: Model
+)
 
 /** GL Constructs */
 abstract class IntConstant(val value: Int)

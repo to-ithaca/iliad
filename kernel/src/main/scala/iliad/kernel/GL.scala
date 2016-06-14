@@ -55,11 +55,39 @@ abstract class GL[F[_]: Monad] {
     case None => create
   }
 
-  private def performNot(f: GLState => Boolean)(io: IO[F, Unit]) =
+  private def performNotElse[A](f: GLState => Boolean)(a: A)(io: IO[F, A]) =
     inspect(f) >>= {
       case false => io
-      case true => ReaderT.pure(())
+      case true => ReaderT.pure(a)
     }
+
+  private def performNot(f: GLState => Boolean)(io: IO[F, Unit]) =
+    performNotElse(f)(())(io)
+
+  private def liftXorT[A](io: IO[F, A]): IO[XorT[F, (GLState, String), ?], A] =
+    toXorT(io.map(_.right[String]))
+
+  private def toXorT[A](
+      io: IO[F, String Xor A]): IO[XorT[F, (GLState, String), ?], A] =
+    io.mapF(
+        _.transformF(fsa =>
+              XorT(fsa.map {
+        case (s, xor) => xor.bimap(msg => s -> msg, a => s -> a)
+      })))
+
+  private def fromXorT[A](
+      io: IO[XorT[F, (GLState, String), ?], A]): IO[F, String Xor A] =
+    io.mapF(
+        _.transformF(_.value.map { xor =>
+      val s = xor.bimap(_._1, _._1).merge
+      (s, xor.bimap(_._2, _._2))
+    }))
+
+  private def flatMapXor[A, B](ioa: IO[F, String Xor A])(
+      f: A => IO[F, String Xor B]): IO[F, String Xor B] = ioa >>= {
+    case l: Xor.Left[String] => ReaderT.pure(l)
+    case Xor.Right(p) => f(p)
+  }
 
   private def keyTraverse[A, B, G[_]: Traverse](keys: G[A])(
       f: A => IO[F, B]): IO[F, G[(A, B)]] =
@@ -97,7 +125,7 @@ abstract class GL[F[_]: Monad] {
   def disable(cap: Capability): IO[F, Unit]
   def bindDisable(cap: Capability): IO[F, Unit] =
     performNot(GLState.hasCapability(cap, false))(modify(disable(cap))(_ =>
-              GLState.bind(cap, false)))
+              GLState.bind(cap, false))) //we need a different value for this
 
   def getError: IO[F, Option[Int Xor ErrorCode]]
 
@@ -200,6 +228,9 @@ abstract class GL[F[_]: Monad] {
   def bindProgram(p: LoadedProgram): IO[F, Unit] =
     performNot(GLState.hasProgram(p))(modify(useProgram(p.id))(_ =>
               GLState.bind(p)))
+
+  def loadedProgram(p: Program): IO[F, String Xor LoadedProgram] =
+    inspect(GLState.existingProgram(p))
 
   private[kernel] def genSamplers(num: Int): IO[F, Array[Int]]
 
@@ -537,6 +568,17 @@ abstract class GL[F[_]: Monad] {
                           stride: Int,
                           offset: Int): IO[F, Unit]
 
+  def vertexAttribPointer(location: Int,
+                          attribType: AttributeType[_],
+                          stride: Int,
+                          offset: Int): IO[F, Unit] =
+    vertexAttribPointer(location,
+                        attribType.elementSize,
+                        attribType.baseType,
+                        false,
+                        stride,
+                        offset)
+
   def copyBufferSubData(read: BufferTarget,
                         write: BufferTarget,
                         readOffset: Int,
@@ -550,37 +592,31 @@ abstract class GL[F[_]: Monad] {
       _ <- bufferData(target, capacity, null, GL_STATIC_DRAW)
     } yield id
 
-  private def makeNewBuffer(
-      buffer: BufferInstance,
-      target: BufferTarget,
-      data: Buffer,
-      size: Int,
-      capacity: Int): IO[F, (LoadedBuffer, LoadedModel)] =
+  private def makeNewBuffer(buffer: BufferInstance,
+                            target: BufferTarget,
+                            data: Buffer,
+                            size: Int,
+                            capacity: Int): IO[F, LoadedBuffer] =
     modify(
         for {
       id <- newBuffer(target, capacity)
       _ <- bufferSubData(target, 0, size, data)
-    } yield
-          (LoadedBuffer(buffer, id, capacity, size, target),
-           LoadedModel(buffer, target, 0 -> size)))(GLState.addBufferModel)
+    } yield (LoadedBuffer(buffer, id, capacity, size, target)))(
+        GLState.addBuffer)
 
   private def insertInBuffer(b: LoadedBuffer,
                              data: Buffer,
-                             size: Int): IO[F, (LoadedBuffer, LoadedModel)] =
+                             size: Int): IO[F, LoadedBuffer] =
     modify(
         for {
-          _ <- bindBufferState(b.target, b.id)
-          _ <- bufferSubData(b.target, b.filled, size, data)
-        } yield
-          (b.add(size),
-           LoadedModel(b.instance, b.target, b.filled -> (b.filled + size)))
-    )(GLState.replaceBufferModel(b))
+      _ <- bindBufferState(b.target, b.id)
+      _ <- bufferSubData(b.target, b.filled, size, data)
+    } yield (b.add(size)))(GLState.replaceBuffer(b))
 
-  private def copyToNewBuffer(
-      old: LoadedBuffer,
-      data: Buffer,
-      size: Int,
-      capacity: Int): IO[F, (LoadedBuffer, LoadedModel)] =
+  private def copyToNewBuffer(old: LoadedBuffer,
+                              data: Buffer,
+                              size: Int,
+                              capacity: Int): IO[F, LoadedBuffer] =
     modify(for {
       id <- newBuffer(old.target, capacity)
       _ <- bindBufferState(GL_COPY_READ_BUFFER, old.id)
@@ -591,22 +627,36 @@ abstract class GL[F[_]: Monad] {
                         id,
                         capacity,
                         old.filled + size,
-                        old.target),
-           LoadedModel(
-               old.instance, old.target, old.filled -> (old.filled + size))))(
-        GLState.replaceBufferModel(old))
+                        old.target)))(GLState.replaceBuffer(old))
 
   def makeModel(buffer: BufferInstance,
                 target: BufferTarget,
                 data: Buffer,
                 size: Int,
-                capacity: Int): IO[F, (LoadedBuffer, LoadedModel)] =
+                capacity: Int): IO[F, (LoadedBuffer, (Int, Int))] =
     inspect(GLState.buffer(buffer, target)) >>= {
       case Some(b) =>
-        if (b.hasSpace(size)) insertInBuffer(b, data, size)
-        else copyToNewBuffer(b, data, size, capacity)
-      case None => makeNewBuffer(buffer, target, data, size, capacity)
+        if (b.hasSpace(size))
+          insertInBuffer(b, data, size) map (_ -> (b.filled, b.filled + size))
+        else
+          copyToNewBuffer(b, data, size, capacity) map (_ -> (b.filled, b.filled +
+                  size))
+      case None =>
+        makeNewBuffer(buffer, target, data, size, capacity) map (_ -> (0, size))
     }
+
+  def makeModel(m: Model,
+                vData: Buffer,
+                vSize: Int,
+                eData: Buffer,
+                eSize: Int,
+                capacity: Int): IO[F, LoadedModel] =
+    modify(
+        for {
+      vb <- makeModel(m.buffer, GL_ARRAY_BUFFER, vData, vSize, capacity)
+      eb <- makeModel(
+               m.buffer, GL_ELEMENT_ARRAY_BUFFER, eData, eSize, capacity)
+    } yield LoadedModel(m, vb._2, eb._2))(GLState.addModel)
 
   def pixelStorei(name: PixelStoreParameter, value: Int): IO[F, Unit]
 
@@ -624,10 +674,18 @@ abstract class GL[F[_]: Monad] {
     } yield ()
 
   def drawArrays(mode: PrimitiveType, first: Int, count: Int): IO[F, Unit]
+
   def drawElements(mode: PrimitiveType,
                    count: Int,
                    `type`: IndexType,
                    offset: Int): IO[F, Unit]
+
+  def drawElements(m: LoadedModel): IO[F, Unit] =
+    drawElements(m.model.buffer.primitiveType,
+                 m.numElements,
+                 GL_UNSIGNED_INT,
+                 m.elementRange._1)
+
   def drawElements(mode: PrimitiveType,
                    count: Int,
                    `type`: IndexType,
@@ -744,17 +802,52 @@ abstract class GL[F[_]: Monad] {
   def blendColor(
       red: Float, green: Float, blue: Float, alpha: Float): IO[F, Unit]
 
-/*
-  def bindExistingFramebuffer(f: Framebuffer): IO[F, Unit] = performNot(GLState.hasFramebuffer(f))(inspect(GLState.framebuffer) map (f => bindFramebufferState(f.id)) )
+  def existingFramebufferId(f: Framebuffer): IO[F, String Xor Int] =
+    inspect(GLState.existingFramebufferId(f))
 
-  def draw(d: Draw): IO[F, Unit] = for {
-    _ <- bindExistingFramebuffer(d.framebuffer)
-    _ <- bindCapabilities(d.capabilities)
-    _ <- bindColorMask(d.colorMask)
-    _ <- bindProgram(d.program)
-    _ <- bindModel(d.model)
-  } yield ()
- */
+  private def bindCapability(c: Capability, v: Boolean): IO[F, Unit] =
+    if (v) bindEnable(c) else bindDisable(c)
+  private def bindCapabilities(cs: Map[Capability, Boolean]): IO[F, Unit] =
+    keyTraverse(cs.toList) { case (c, v) => bindCapability(c, v) } map (_ =>
+          ())
+
+  def existingBuffer(
+      i: BufferInstance, t: BufferTarget): IO[F, String Xor LoadedBuffer] =
+    inspect(GLState.existingBuffer(i, t))
+
+  def existingModel(m: Model): IO[F, String Xor LoadedModel] =
+    inspect(GLState.existingModel(m))
+
+  private def bindAttribute(a: AttributeLocation) =
+    for {
+      _ <- enableVertexAttribArray(a.location)
+      _ <- vertexAttribPointer(a.location, a.aType, a.stride, a.offset)
+    } yield ()
+
+  def bindAttributes(p: LoadedProgram,
+                     b: LoadedBuffer,
+                     m: LoadedModel): IO[F, String Xor Unit] =
+    b.attributeLocations(p.attributeLocations, m.vertexRange._1)
+      .map(_.map(bindAttribute).sequence.map(_ => ()))
+      .sequence
+
+  def draw(d: Draw): IO[F, String Xor Unit] = fromXorT(
+    for {
+      fid <- toXorT(existingFramebufferId(d.framebuffer))
+      _ <- liftXorT(bindFramebufferState(fid))
+      _ <- liftXorT(bindCapabilities(d.capabilities))
+      _ <- liftXorT(bindColorMask(d.colorMask))
+      p <- toXorT(loadedProgram(d.program))
+      _ <- liftXorT(bindProgram(p))
+      vb <- toXorT(existingBuffer(d.model.buffer, GL_ARRAY_BUFFER))
+      _ <- liftXorT(bindBufferState(GL_ARRAY_BUFFER, vb.id))
+      eb <- toXorT(existingBuffer(d.model.buffer, GL_ELEMENT_ARRAY_BUFFER))
+      _ <- liftXorT(bindBufferState(GL_ELEMENT_ARRAY_BUFFER, eb.id))
+      m <- toXorT(existingModel(d.model))
+      _ <- toXorT(bindAttributes(p, vb, m))
+      _ <- liftXorT(drawElements(m))
+    } yield ()
+)
 }
 
 @scala.annotation.implicitNotFound("Cannot find update of type $A")
@@ -826,14 +919,3 @@ object CanUniformUpdate {
         gl.uniformMatrix4fv(at, 1, false, value.toArray)
     }
 }
-
-//TODO; put these somewhere else!
-case class ModelKey(name: String)
-case class Model(key: ModelKey, buffer: BufferInstance)
-case class Draw(
-    framebuffer: Framebuffer,
-    capabilities: Map[Capability, Boolean],
-    colorMask: ColorMask,
-    program: Program,
-    model: Model
-)

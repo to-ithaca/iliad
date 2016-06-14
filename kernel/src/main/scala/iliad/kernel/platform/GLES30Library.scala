@@ -223,7 +223,8 @@ trait GLES30Library {
   // def glVertexAttrib4f(index: Int, x: Float, y: Float, z: Float, w: Float): Unit
   // def glVertexAttrib4fv(index: Int, v: Array[Float]): Unit
   // def glVertexAttribPointer(index: Int, size: Int, `type`: Int, normalized: Boolean, stride: Int, pointer: Buffer): Unit
-  // def glVertexAttribIPointer(index: Int, size: Int, `type`: Int, stride: Int, offset: Int): Unit
+  def glVertexAttribIPointer(
+      index: Int, size: Int, `type`: Int, stride: Int, offset: Int): Unit
   // def glBeginQuery(target: Int, id: Int): Unit
   // def glBeginTransformFeedback(primitiveMode: Int): Unit
   // def glBindBufferBase(target: Int, index: Int, buffer: Int): Unit
