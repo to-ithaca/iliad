@@ -5,7 +5,8 @@ import iliad.kernel.platform.{EGL14Library => Lib}
 import iliad.kernel.platform.unix._
 import com.sun.jna.platform.unix.X11
 
-@jna[EGL14Library] trait EGL14Binding
+@jna[EGL14Library]
+trait EGL14Binding
 
 object EGL14 extends Lib with EGL14Binding {
 

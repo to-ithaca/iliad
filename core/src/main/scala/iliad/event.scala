@@ -10,13 +10,16 @@ trait EventStream extends EventHandler {
 
   private implicit val S: Strategy = Strategy.fromFixedDaemonPool(8, "worker")
 
-  private def baseStream[A](register: (A => Unit) => Unit)(implicit R: Async.Run[Task]): Stream[Task, A] = {
+  private def baseStream[A](register: (A => Unit) => Unit)(
+      implicit R: Async.Run[Task]): Stream[Task, A] = {
     for {
       q <- Stream.eval(async.unboundedQueue[Task, A])
       _ <- Stream.suspend {
-        register {(a: A) => R.unsafeRunAsyncEffects(q.enqueue1(a))(_ => ()) }
-        Stream.emit(())
-      }
+            register { (a: A) =>
+              R.unsafeRunAsyncEffects(q.enqueue1(a))(_ => ())
+            }
+            Stream.emit(())
+          }
       a <- q.dequeue
     } yield a
   }

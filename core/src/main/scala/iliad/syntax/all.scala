@@ -1,4 +1,4 @@
 package iliad
 package syntax
 
-trait AllSyntax extends VectorDSyntax
+trait AllSyntax extends VectorDSyntax with VectorDCoreSyntax

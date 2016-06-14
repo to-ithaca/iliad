@@ -5,23 +5,39 @@ package platform
 import java.nio._
 
 trait GLES30Library {
-  def glBlitFramebuffer(srcX0: Int, srcY0: Int, srcX1: Int, srcY1: Int, destX0: Int, destY0: Int, destX1: Int, destY1: Int, bitMask: Int, filter: Int): Unit
+  def glBlitFramebuffer(srcX0: Int,
+                        srcY0: Int,
+                        srcX1: Int,
+                        srcY1: Int,
+                        destX0: Int,
+                        destY0: Int,
+                        destX1: Int,
+                        destY1: Int,
+                        bitMask: Int,
+                        filter: Int): Unit
   def glViewport(x: Int, y: Int, width: Int, height: Int): Unit
   def glFlush(): Unit
   def glClear(bitMask: Int): Unit
   //def glReadPixels(x: Int, y: Int, width: Int, height: Int, format: Int, `type`: Int, data: Buffer): Unit
   def glClearColor(red: Float, green: Float, blue: Float, alpha: Float): Unit
-  def glColorMask(red: Boolean, green: Boolean, blue: Boolean, alpha: Boolean): Unit
+  def glColorMask(
+      red: Boolean, green: Boolean, blue: Boolean, alpha: Boolean): Unit
   def glEnable(cap: Int): Unit
   def glDisable(cap: Int): Unit
   def glGetError(): Int
   def glCreateShader(`type`: Int): Int
-  def glShaderSource(shader: Int, count: Int, sources: Array[String], lengths: Array[Int]): Unit
+  def glShaderSource(shader: Int,
+                     count: Int,
+                     sources: Array[String],
+                     lengths: Array[Int]): Unit
   def glDeleteShader(shader: Int): Unit
   def glCompileShader(shader: Int): Unit
   def glAttachShader(program: Int, shader: Int): Unit
   def glGetShaderiv(shader: Int, pname: Int, ptr: IntBuffer): Unit
-  def glGetShaderInfoLog(shader: Int, maxLength: Int, length: IntBuffer, infoLog: ByteBuffer): Unit
+  def glGetShaderInfoLog(shader: Int,
+                         maxLength: Int,
+                         length: IntBuffer,
+                         infoLog: ByteBuffer): Unit
   def glCreateProgram(): Int
   def glUseProgram(program: Int): Unit
   def glLinkProgram(program: Int): Unit
@@ -31,19 +47,40 @@ trait GLES30Library {
   def glBufferData(target: Int, size: Int, data: Buffer, usage: Int): Unit
   def glBufferSubData(target: Int, offset: Int, size: Int, data: Buffer): Unit
   def glEnableVertexAttribArray(location: Int): Unit
-  def glVertexAttribPointer(location: Int, size: Int, `type`: Int, normalized: Boolean, stride: Int, offset: Int): Unit
+  def glVertexAttribPointer(location: Int,
+                            size: Int,
+                            `type`: Int,
+                            normalized: Boolean,
+                            stride: Int,
+                            offset: Int): Unit
   def glGenFramebuffers(num: Int, ptr: IntBuffer): Unit
   def glBindFramebuffer(target: Int, framebuffer: Int): Unit
-  def glFramebufferRenderbuffer(target: Int, attachment: Int, renderbufferTarget: Int, renderbuffer: Int): Unit
+  def glFramebufferRenderbuffer(target: Int,
+                                attachment: Int,
+                                renderbufferTarget: Int,
+                                renderbuffer: Int): Unit
   def glCheckFramebufferStatus(target: Int): Int
-  def glFramebufferTexture2D(target: Int, attachment: Int, texTarget: Int, texture: Int, level: Int): Unit
+  def glFramebufferTexture2D(target: Int,
+                             attachment: Int,
+                             texTarget: Int,
+                             texture: Int,
+                             level: Int): Unit
   def glGenRenderbuffers(num: Int, ptr: IntBuffer): Unit
   def glBindRenderbuffer(target: Int, renderbuffer: Int): Unit
-  def glRenderbufferStorage(target: Int, format: Int, width: Int, height: Int): Unit
+  def glRenderbufferStorage(
+      target: Int, format: Int, width: Int, height: Int): Unit
   def glBindTexture(target: Int, texture: Int): Unit
   def glGenTextures(num: Int, ptr: IntBuffer): Unit
   def glTexParameteri(target: Int, name: Int, value: Int): Unit
-  def glTexImage2D(target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, `type`: Int, data: Buffer): Unit
+  def glTexImage2D(target: Int,
+                   level: Int,
+                   internalFormat: Int,
+                   width: Int,
+                   height: Int,
+                   border: Int,
+                   format: Int,
+                   `type`: Int,
+                   data: Buffer): Unit
   def glPixelStorei(name: Int, value: Int): Unit
   def glActiveTexture(texture: Int): Unit
   def glDrawArrays(mode: Int, first: Int, count: Int): Unit
@@ -61,25 +98,36 @@ trait GLES30Library {
   def glUniform3f(location: Int, arg0: Float, arg1: Float, arg2: Float): Unit
   def glUniform3fv(location: Int, count: Int, ptr: Array[Float]): Unit
   def glUniform3iv(location: Int, count: Int, ptr: Array[Int]): Unit
-  def glUniform4i(location: Int, arg0: Int, arg1: Int, arg2: Int, arg3: Int): Unit
-  def glUniform4f(location: Int, arg0: Float, arg1: Float, arg2: Float, arg3: Float): Unit
+  def glUniform4i(
+      location: Int, arg0: Int, arg1: Int, arg2: Int, arg3: Int): Unit
+  def glUniform4f(
+      location: Int, arg0: Float, arg1: Float, arg2: Float, arg3: Float): Unit
   def glUniform4fv(location: Int, count: Int, ptr: Array[Float]): Unit
   def glUniform4iv(location: Int, count: Int, ptr: Array[Int]): Unit
-  def glUniformMatrix2fv(location: Int, count: Int, transpose: Boolean, arg0: Array[Float]): Unit
-  def glUniformMatrix3fv(location: Int, count: Int, transpose: Boolean, arg0: Array[Float]): Unit
-  def glUniformMatrix4fv(location: Int, count: Int, transpose: Boolean, arg0: Array[Float]): Unit
+  def glUniformMatrix2fv(
+      location: Int, count: Int, transpose: Boolean, arg0: Array[Float]): Unit
+  def glUniformMatrix3fv(
+      location: Int, count: Int, transpose: Boolean, arg0: Array[Float]): Unit
+  def glUniformMatrix4fv(
+      location: Int, count: Int, transpose: Boolean, arg0: Array[Float]): Unit
   def glGetAttribLocation(pid: Int, name: String): Int
   def glGetUniformLocation(pid: Int, name: String): Int
   // def glGetIntegerv(name: Int, ptr: IntBuffer): Unit
   def glGenSamplers(num: Int, buffer: IntBuffer): Unit
   def glSamplerParameteri(sid: Int, name: Int, arg0: Int): Unit
   def glBindSampler(tid: Int, sid: Int): Unit
-  def glCopyBufferSubData(readTarget: Int, writeTarget: Int, readOffset: Int, writeOffset: Int, size: Int): Unit
+  def glCopyBufferSubData(readTarget: Int,
+                          writeTarget: Int,
+                          readOffset: Int,
+                          writeOffset: Int,
+                          size: Int): Unit
   def glBindVertexArray(vid: Int): Unit
   def glDrawBuffers(num: Int, buffers: IntBuffer): Unit
   def glReadBuffer(num: Int): Unit
-  def glDrawElementsInstanced(mode: Int, count: Int, `type`: Int, offset: Int, primCount: Int): Unit
-  def glDrawElementsInstanced(mode: Int, count: Int, `type`: Int, ptr: Buffer, primCount: Int): Unit
+  def glDrawElementsInstanced(
+      mode: Int, count: Int, `type`: Int, offset: Int, primCount: Int): Unit
+  def glDrawElementsInstanced(
+      mode: Int, count: Int, `type`: Int, ptr: Buffer, primCount: Int): Unit
   def glBindAttribLocation(program: Int, index: Int, name: String): Unit
   def glBlendColor(red: Float, green: Float, blue: Float, alpha: Float): Unit
   // def glBlendEquation(mode: Int): Unit
@@ -181,7 +229,8 @@ trait GLES30Library {
   // def glBindBufferBase(target: Int, index: Int, buffer: Int): Unit
   // def glBindBufferRange(target: Int, index: Int, buffer: Int, offset: Int, size: Int): Unit
   // def glBindTransformFeedback(target: Int, id: Int): Unit
-  def glClearBufferfi(buffer: Int, drawbuffer: Int, depth: Float, stencil: Int): Unit
+  def glClearBufferfi(
+      buffer: Int, drawbuffer: Int, depth: Float, stencil: Int): Unit
   def glClearBufferfv(buffer: Int, drawbuffer: Int, value: Array[Float]): Unit
   def glClearBufferiv(buffer: Int, drawbuffer: Int, value: Array[Int]): Unit
   def glClearBufferuiv(buffer: Int, drawbuffer: Int, value: Array[Int]): Unit

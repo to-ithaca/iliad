@@ -15,7 +15,6 @@ object EventHandler {
   def zero[A](a: A): Unit = {}
 }
 
-
 import InputEvent._
 import EventHandler._
 

@@ -10,7 +10,6 @@ import iliad.kernel.GL._
 import com.sun.jna.platform.unix.X11._
 import com.sun.jna._
 
-
 import cats._
 import cats.data._
 import cats.implicits._
@@ -27,15 +26,17 @@ trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
 
   private val x = iliad.kernel.platform.unix.X11.INSTANCE
 
-  private def openDisplay(): Error Xor Display = Option(x.XOpenDisplay(null)) match {
-    case Some(d) => d.right
-    case scala.None => new Error("Failed to open display").left
-  }
+  private def openDisplay(): Error Xor Display =
+    Option(x.XOpenDisplay(null)) match {
+      case Some(d) => d.right
+      case scala.None => new Error("Failed to open display").left
+    }
 
-  private def rootWindow(d: Display): Error Xor Window = Option(x.XRootWindow(d, x.XDefaultScreen(d))) match {
-    case Some(w) => w.right
-    case scala.None => new Error("Failed to find root window").left
-  }
+  private def rootWindow(d: Display): Error Xor Window =
+    Option(x.XRootWindow(d, x.XDefaultScreen(d))) match {
+      case Some(w) => w.right
+      case scala.None => new Error("Failed to find root window").left
+    }
 
   private def createSimpleWindow(d: Display, root: Window): Error Xor Window = {
     val xOffset = 0
@@ -43,18 +44,27 @@ trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
     val borderWidth = 1
     val border = 1
     val background = 0
-    log.debug("Creating window with width {} height {}", viewDimensions(0), viewDimensions(1))
+    log.debug("Creating window with width {} height {}",
+              viewDimensions(0),
+              viewDimensions(1))
     try {
       x.XCreateSimpleWindow(
-        d, root,
-        xOffset, yOffset, viewDimensions(0), viewDimensions(1),
-        borderWidth, border, background
-      ).right
+            d,
+            root,
+            xOffset,
+            yOffset,
+            viewDimensions(0),
+            viewDimensions(1),
+            borderWidth,
+            border,
+            background
+        )
+        .right
     } catch {
       case e: Error =>
         new Error(s"Failed to create window: \n ${e.getMessage}").left
-    }    
-}
+    }
+  }
 
   private def addDeletionProtocol(d: Display, w: Window): Error Xor Unit = {
     log.debug("Adding deletion protocol")
@@ -76,15 +86,16 @@ trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
     log.debug("Showing window")
     x.XMapWindow(d, w)
   }
-  
-  private def createWindow : Error Xor (Display, Window) = for {
-    d <- openDisplay()
-    r <- rootWindow(d)
-    w <- createSimpleWindow(d, r)
-    _ <- addDeletionProtocol(d, w)
-    _ = addInputDetection(d, w)
-    _ = showWindow(d, w)
-  } yield (d, w)
+
+  private def createWindow: Error Xor (Display, Window) =
+    for {
+      d <- openDisplay()
+      r <- rootWindow(d)
+      w <- createSimpleWindow(d, r)
+      _ <- addDeletionProtocol(d, w)
+      _ = addInputDetection(d, w)
+      _ = showWindow(d, w)
+    } yield (d, w)
 
   private def destroyWindow(d: Display, w: Window): Unit = {
     x.XDestroyWindow(d, w)
@@ -98,17 +109,28 @@ trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
       case ClientMessage =>
         log.info("Closing window")
         false
-      case other => 
+      case other =>
         handleEvent(e)
         true
     }
   }
 
   //TODO: tidy this code up
-  def setupEGL(d: Display, w: Window): EGL.Session[EGL14.EGLDisplay, EGL14.EGLConfig, EGL14.EGLSurface, EGL14.EGLContext] = {
-    val eglRunner= EGL.debuggingLogging[EGL14.EGLNativeDisplayType, EGL14.EGLNativeWindowType, EGL14.EGLDisplay, EGL14.EGLConfig, EGL14.EGLSurface, EGL14.EGLContext]
+  def setupEGL(d: Display, w: Window): EGL.Session[EGL14.EGLDisplay,
+                                                   EGL14.EGLConfig,
+                                                   EGL14.EGLSurface,
+                                                   EGL14.EGLContext] = {
+    val eglRunner = EGL.debuggingLogging[EGL14.EGLNativeDisplayType,
+                                         EGL14.EGLNativeWindowType,
+                                         EGL14.EGLDisplay,
+                                         EGL14.EGLConfig,
+                                         EGL14.EGLSurface,
+                                         EGL14.EGLContext]
 
-    val writer = eglRunner.setupPrimaryContext(d, w, EGL14.EGL_NO_CONTEXT).run(EGL14).value
+    val writer = eglRunner
+      .setupPrimaryContext(d, w, EGL14.EGL_NO_CONTEXT)
+      .run(EGL14)
+      .value
     writer.written.foreach(s => log.info("EGL log {}", s))
     writer.value match {
       case Xor.Left(err) =>
@@ -122,7 +144,8 @@ trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
 
   def setupGL: Unit = {
     import iliad.kernel._
-    val gl = GL.debugAndLog(GL.DebuggerConfig(Set.empty), GL.LoggerConfig(Set.empty))
+    val gl =
+      GL.debugAndLog(GL.DebuggerConfig(Set.empty), GL.LoggerConfig(Set.empty))
     val cmds = for {
       _ <- gl.clear(GL_COLOR_BUFFER_BIT)
       _ <- gl.clearColor(0f, 1f, 0f, 1f)
@@ -143,7 +166,12 @@ trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
   }
 
   def swapBuffers(display: EGL14.EGLDisplay, surface: EGL14.EGLSurface): Unit = {
-    val eglRunner= EGL.debuggingLogging[EGL14.EGLNativeDisplayType, EGL14.EGLNativeWindowType, EGL14.EGLDisplay, EGL14.EGLConfig, EGL14.EGLSurface, EGL14.EGLContext]
+    val eglRunner = EGL.debuggingLogging[EGL14.EGLNativeDisplayType,
+                                         EGL14.EGLNativeWindowType,
+                                         EGL14.EGLDisplay,
+                                         EGL14.EGLConfig,
+                                         EGL14.EGLSurface,
+                                         EGL14.EGLContext]
 
     val writer = eglRunner.swapBuffers(display, surface).run(EGL14).value
     writer.written.foreach(s => log.info("EGL log {}", s))
@@ -154,10 +182,9 @@ trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
       case Xor.Right(_) =>
         log.info("Successfully swapped EGL buffers")
     }
-
   }
 
-  def main(args: Array[String]): Unit = {   
+  def main(args: Array[String]): Unit = {
     createWindow match {
       case Xor.Right((d, w)) =>
         log.info("Created window")
@@ -166,7 +193,7 @@ trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
         swapBuffers(session.display, session.surface)
         app.run()
         var shouldDraw = true
-        while(shouldDraw) {
+        while (shouldDraw) {
           shouldDraw = handleAllEvents(d)
         }
         destroyWindow(d, w)
@@ -174,6 +201,5 @@ trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
         log.error("Failed to create window - exiting application")
         throw err
     }
-
   }
 }

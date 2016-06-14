@@ -12,14 +12,17 @@ object SealedEnum {
 
 final class SealedEnumMacro(val c: blackbox.Context) {
   import c.universe._
-  def values_impl[A : c.WeakTypeTag]: Tree = {
+  def values_impl[A: c.WeakTypeTag]: Tree = {
     val t = symbolOf[A]
-    if(!(t.isClass && t.asClass.isSealed)) {
-      c.abort(c.enclosingPosition, "cannot get values of types which are not sealed and a class/trait")
+    if (!(t.isClass && t.asClass.isSealed)) {
+      c.abort(
+          c.enclosingPosition,
+          "cannot get values of types which are not sealed and a class/trait")
     }
     val cses = t.asClass.knownDirectSubclasses.toList
-    if(!cses.forall(_.isModuleClass)) {
-      c.abort(c.enclosingPosition, "cannot get values of types which have non-object members")
+    if (!cses.forall(_.isModuleClass)) {
+      c.abort(c.enclosingPosition,
+              "cannot get values of types which have non-object members")
     }
     val all = cses.map(sym => q"""${Ident(sym.name.toTermName)}""")
     q"""Set[$t](..$all)"""

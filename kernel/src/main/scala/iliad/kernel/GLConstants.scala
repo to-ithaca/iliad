@@ -6,47 +6,52 @@ import simulacrum.typeclass
 import java.nio.ByteBuffer
 
 /** Custom constructs */
-
 case class Loaded[A](id: Int, glObject: A)
 
-case class VertexShader(source: String, attributes: List[(String, AttributeType[_])], uniforms: List[(String, UniformType)], textures: List[(String, Sampler)])
+case class VertexShader(source: String,
+                        attributes: List[(String, AttributeType[_])],
+                        uniforms: List[(String, UniformType)],
+                        textures: List[(String, Sampler)])
 
-case class FragmentShader(
-  source: String, 
-  uniforms: List[(String, UniformType)], 
-  textures: List[(String, Sampler)], 
-  outputs: Map[ColorAttachment, ShaderOutputTemplate])
+case class FragmentShader(source: String,
+                          uniforms: List[(String, UniformType)],
+                          textures: List[(String, Sampler)],
+                          outputs: Map[ColorAttachment, ShaderOutputTemplate])
 
 case class Program(vertex: VertexShader, fragment: FragmentShader) {
   val attributes: List[(String, AttributeType[_])] = vertex.attributes
-  val uniforms: List[(String, UniformType)] = vertex.uniforms ++ fragment.uniforms
+  val uniforms: List[(String, UniformType)] =
+    vertex.uniforms ++ fragment.uniforms
   val textures: List[(String, Sampler)] = vertex.textures ++ fragment.textures
   val samplers: List[Sampler] = textures.map(_._2).distinct
 }
 
 case class LoadedProgram(
-  program: Program,
-  id: Int,
-  vertex: Loaded[VertexShader],
-  fragment: Loaded[FragmentShader],
-  attributeLocations: List[((String, AttributeType[_]), Int)],
-  uniformLocations: List[((String, UniformType), Int)],
-  textureLocations: List[((String, Sampler), Int)]
+    program: Program,
+    id: Int,
+    vertex: Loaded[VertexShader],
+    fragment: Loaded[FragmentShader],
+    attributeLocations: List[((String, AttributeType[_]), Int)],
+    uniformLocations: List[((String, UniformType), Int)],
+    textureLocations: List[((String, Sampler), Int)]
 )
 
-@typeclass trait AttributeType[A] {
+@typeclass
+trait AttributeType[A] {
   def baseType: VertexAttribType
   def byteSize: Int
   def elementSize: Int
 }
 
-@typeclass trait IAttributeType[A] {
+@typeclass
+trait IAttributeType[A] {
   def baseType: VertexAttribIType
   def byteSize: Int
   def elementSize: Int
 }
 
-@typeclass trait VertexAttribTypeOf[A] {
+@typeclass
+trait VertexAttribTypeOf[A] {
   def baseType: VertexAttribType
 }
 
@@ -62,16 +67,25 @@ object SamplerType {
 }
 
 case class Sampler(
-  `type`: SamplerType,
-  magFilter: TextureMagFilter,
-  minFilter: TextureMinFilter,
-  wrapS: TextureWrap,
-  wrapT: TextureWrap
+    `type`: SamplerType,
+    magFilter: TextureMagFilter,
+    minFilter: TextureMinFilter,
+    wrapS: TextureWrap,
+    wrapT: TextureWrap
 )
 
 object Sampler {
-  val image = Sampler(SamplerType.IntSampler, GL_LINEAR, GL_LINEAR, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE)
-  val fLookupTable = Sampler(SamplerType.FloatSampler, GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE)
+  val image = Sampler(SamplerType.IntSampler,
+                      GL_LINEAR,
+                      GL_LINEAR,
+                      GL_CLAMP_TO_EDGE,
+                      GL_CLAMP_TO_EDGE)
+
+  val fLookupTable = Sampler(SamplerType.FloatSampler,
+                             GL_NEAREST,
+                             GL_NEAREST,
+                             GL_CLAMP_TO_EDGE,
+                             GL_CLAMP_TO_EDGE)
 }
 
 sealed trait TextureUniform
@@ -93,51 +107,96 @@ object BufferedId {
   case class Double(front: Int, back: Int) extends BufferedId
 }
 
-case class TextureTemplate(name: String, format: TextureFormat, internalFormat: TextureInternalFormat, `type`: TexturePixelType, viewport: Rect[Int], isDouble: Boolean) extends ShaderOutputTemplate with TextureUniform
-case class TextureInstance(name: String, template: TextureTemplate) extends ShaderOutputInstance
+case class TextureTemplate(name: String,
+                           format: TextureFormat,
+                           internalFormat: TextureInternalFormat,
+                           `type`: TexturePixelType,
+                           viewport: Rect[Int],
+                           isDouble: Boolean)
+    extends ShaderOutputTemplate
+    with TextureUniform
+
+case class TextureInstance(name: String, template: TextureTemplate)
+    extends ShaderOutputInstance
+
 case class TextureData(texture: TextureInstance, data: Option[ByteBuffer])
+
 case class LoadedTexture(instance: TextureInstance, id: BufferedId) {
   def frontPage: LoadedTexturePage = LoadedTexturePage(instance, id.front)
   def backPage: LoadedTexturePage = LoadedTexturePage(instance, id.back)
 }
 
-case class LoadedTexturePage(instance: TextureInstance, id: Int) extends LoadedShaderOutput
+case class LoadedTexturePage(instance: TextureInstance, id: Int)
+    extends LoadedShaderOutput
 
-case class RenderbufferTemplate(name: String, internalFormat: RenderbufferInternalFormat, viewport: Rect[Int]) extends ShaderOutputTemplate
-case class RenderbufferInstance(name: String, internalFormat: RenderbufferInternalFormat, viewport: Rect[Int]) extends ShaderOutputInstance
-case class LoadedRenderbuffer(instance: RenderbufferInstance, id: Int) extends LoadedShaderOutput
+case class RenderbufferTemplate(name: String,
+                                internalFormat: RenderbufferInternalFormat,
+                                viewport: Rect[Int])
+    extends ShaderOutputTemplate
 
-case class Framebuffer(outputs: List[(FramebufferAttachment, ShaderOutputInstance)], viewport: Rect[Int]) {
-  private def attachment(i: ShaderOutputInstance): FramebufferAttachment = outputs.find(_._2 == i).get._1
-  def attachments(loadedOutputs: List[LoadedShaderOutput]): List[(FramebufferAttachment, LoadedShaderOutput)] =
-    loadedOutputs map (o => attachment(o.instance) -> o)
-  def drawBuffers: List[ColorOutputTarget] = outputs flatMap { //TODO: add ofType flatMap back in
+case class RenderbufferInstance(name: String,
+                                internalFormat: RenderbufferInternalFormat,
+                                viewport: Rect[Int])
+    extends ShaderOutputInstance
+
+case class LoadedRenderbuffer(instance: RenderbufferInstance, id: Int)
+    extends LoadedShaderOutput
+
+case class Framebuffer(
+    outputs: List[(FramebufferAttachment, ShaderOutputInstance)],
+    viewport: Rect[Int]) {
+
+  private def attachment(i: ShaderOutputInstance): FramebufferAttachment =
+    outputs.find(_._2 == i).get._1
+
+  def attachments(os: List[LoadedShaderOutput])
+    : List[(FramebufferAttachment, LoadedShaderOutput)] =
+    os map (o => attachment(o.instance) -> o)
+
+  def drawBuffers: List[ColorOutputTarget] = outputs flatMap {
+    //TODO: add ofType flatMap back in
     case (o: ColorAttachment, _) => Some(o)
     case _ => None
   }
+
   def isDouble: Boolean = outputs.exists {
     case (_, t: TextureInstance) if (t.template.isDouble) => true
     case _ => false
   }
 }
+
 case class LoadedFramebuffer(framebuffer: Framebuffer, id: BufferedId)
 
-case class BufferInstance(attributes: List[(String, AttributeType[_])], primitiveType: PrimitiveType)
-case class LoadedBuffer(instance: BufferInstance, id: Int, capacity: Int, filled: Int, target: BufferTarget) {
+case class BufferInstance(attributes: List[(String, AttributeType[_])],
+                          primitiveType: PrimitiveType)
+
+case class LoadedBuffer(instance: BufferInstance,
+                        id: Int,
+                        capacity: Int,
+                        filled: Int,
+                        target: BufferTarget) {
   def add(size: Int): LoadedBuffer = copy(filled = filled + size)
   def hasSpace(size: Int): Boolean = filled + size < capacity
 }
 
-case class ColorMask(red: Boolean, blue: Boolean, green: Boolean, alpha: Boolean)
+case class LoadedModel(
+    instance: BufferInstance, target: BufferTarget, range: (Int, Int))
+
+case class ColorMask(red: Boolean,
+                     blue: Boolean,
+                     green: Boolean,
+                     alpha: Boolean)
 
 /** GL Constructs */
-
 abstract class IntConstant(val value: Int)
 abstract class BitmaskConstant(value: Int) extends IntConstant(value)
 abstract class LongConstant(val value: Long)
 
 sealed trait Texture extends IntConstant
-sealed trait ColorAttachment extends IntConstant with ColorBuffer with ColorOutputTarget
+sealed trait ColorAttachment
+    extends IntConstant
+    with ColorBuffer
+    with ColorOutputTarget
 sealed trait DrawBuffer extends IntConstant with Parameter {
   def n: Int = this.value - Bounded[DrawBuffer].MinValue.value
 }
@@ -187,10 +246,11 @@ sealed trait BufferParameter extends IntConstant
 sealed trait ErrorCode extends IntConstant
 
 object DrawBuffer {
-  implicit val drawbufferBounded: Bounded[DrawBuffer] = new Bounded[DrawBuffer] {
-    val MinValue = GL_DRAW_BUFFER0
-    val MaxValue = GL_DRAW_BUFFER15
-  }
+  implicit val drawbufferBounded: Bounded[DrawBuffer] =
+    new Bounded[DrawBuffer] {
+      val MinValue = GL_DRAW_BUFFER0
+      val MaxValue = GL_DRAW_BUFFER15
+    }
 
   implicit val drawbufferEnum: Enum[DrawBuffer] = new Enum[DrawBuffer] {
     def succ(dbuf: DrawBuffer): DrawBuffer = dbuf match {
@@ -406,9 +466,15 @@ object ChannelBitMask {
   }
 }
 
-case object GL_DEPTH_BUFFER_BIT extends BitmaskConstant(0x00000100) with ChannelBit
-case object GL_STENCIL_BUFFER_BIT extends BitmaskConstant(0x00000400) with ChannelBit
-case object GL_COLOR_BUFFER_BIT extends BitmaskConstant(0x00004000) with ChannelBit
+case object GL_DEPTH_BUFFER_BIT
+    extends BitmaskConstant(0x00000100)
+    with ChannelBit
+case object GL_STENCIL_BUFFER_BIT
+    extends BitmaskConstant(0x00000400)
+    with ChannelBit
+case object GL_COLOR_BUFFER_BIT
+    extends BitmaskConstant(0x00004000)
+    with ChannelBit
 
 case object GL_FALSE extends IntConstant(0) with TrueFalse
 case object GL_TRUE extends IntConstant(1) with TrueFalse
@@ -445,9 +511,13 @@ case object GL_CONSTANT_ALPHA extends IntConstant(0x8003)
 case object GL_ONE_MINUS_CONSTANT_ALPHA extends IntConstant(0x8004)
 case object GL_BLEND_COLOR extends IntConstant(0x8005)
 case object GL_ARRAY_BUFFER extends IntConstant(0x8892) with BufferTarget
-case object GL_ELEMENT_ARRAY_BUFFER extends IntConstant(0x8893) with BufferTarget
+case object GL_ELEMENT_ARRAY_BUFFER
+    extends IntConstant(0x8893)
+    with BufferTarget
 case object GL_ARRAY_BUFFER_BINDING extends IntConstant(0x8894) with Parameter
-case object GL_ELEMENT_ARRAY_BUFFER_BINDING extends IntConstant(0x8895) with Parameter
+case object GL_ELEMENT_ARRAY_BUFFER_BINDING
+    extends IntConstant(0x8895)
+    with Parameter
 case object GL_STREAM_DRAW extends IntConstant(0x88E0) with BufferUsage
 case object GL_STATIC_DRAW extends IntConstant(0x88E4) with BufferUsage
 case object GL_DYNAMIC_DRAW extends IntConstant(0x88E8) with BufferUsage
@@ -455,9 +525,16 @@ case object GL_BUFFER_SIZE extends IntConstant(0x8764) with BufferParameter
 case object GL_BUFFER_USAGE extends IntConstant(0x8765) with BufferParameter
 case object GL_CURRENT_VERTEX_ATTRIB extends IntConstant(0x8626)
 case object GL_FRONT extends IntConstant(0x0404) with CullFaceMode
-case object GL_BACK extends IntConstant(0x0405) with ColorOutputTarget with ColorBuffer with CullFaceMode
+case object GL_BACK
+    extends IntConstant(0x0405)
+    with ColorOutputTarget
+    with ColorBuffer
+    with CullFaceMode
 case object GL_FRONT_AND_BACK extends IntConstant(0x0408) with CullFaceMode
-case object GL_TEXTURE_2D extends IntConstant(0x0DE1) with FramebufferTexTarget with TextureTarget
+case object GL_TEXTURE_2D
+    extends IntConstant(0x0DE1)
+    with FramebufferTexTarget
+    with TextureTarget
 case object GL_CULL_FACE extends IntConstant(0x0B44) with Capability
 case object GL_BLEND extends IntConstant(0x0BE2) with Capability
 case object GL_DITHER extends IntConstant(0x0BD0) with Capability
@@ -465,7 +542,9 @@ case object GL_STENCIL_TEST extends IntConstant(0x0B90) with Capability
 case object GL_DEPTH_TEST extends IntConstant(0x0B71) with Capability
 case object GL_SCISSOR_TEST extends IntConstant(0x0C11) with Capability
 case object GL_POLYGON_OFFSET_FILL extends IntConstant(0x8037) with Capability
-case object GL_SAMPLE_ALPHA_TO_COVERAGE extends IntConstant(0x809E) with Capability
+case object GL_SAMPLE_ALPHA_TO_COVERAGE
+    extends IntConstant(0x809E)
+    with Capability
 case object GL_SAMPLE_COVERAGE extends IntConstant(0x80A0) with Capability
 case object GL_NO_ERROR extends IntConstant(0) with ErrorCode
 case object GL_INVALID_ENUM extends IntConstant(0x0500)
@@ -475,8 +554,12 @@ case object GL_OUT_OF_MEMORY extends IntConstant(0x0505)
 case object GL_CW extends IntConstant(0x0900)
 case object GL_CCW extends IntConstant(0x0901)
 case object GL_LINE_WIDTH extends IntConstant(0x0B21) with Parameter
-case object GL_ALIASED_POINT_SIZE_RANGE extends IntConstant(0x846D) with Parameter
-case object GL_ALIASED_LINE_WIDTH_RANGE extends IntConstant(0x846E) with Parameter
+case object GL_ALIASED_POINT_SIZE_RANGE
+    extends IntConstant(0x846D)
+    with Parameter
+case object GL_ALIASED_LINE_WIDTH_RANGE
+    extends IntConstant(0x846E)
+    with Parameter
 case object GL_CULL_FACE_MODE extends IntConstant(0x0B45) with Parameter
 case object GL_FRONT_FACE extends IntConstant(0x0B46) with Parameter
 case object GL_DEPTH_RANGE extends IntConstant(0x0B70) with Parameter
@@ -486,24 +569,40 @@ case object GL_DEPTH_FUNC extends IntConstant(0x0B74) with Parameter
 case object GL_STENCIL_CLEAR_VALUE extends IntConstant(0x0B91)
 case object GL_STENCIL_FUNC extends IntConstant(0x0B92) with Parameter
 case object GL_STENCIL_FAIL extends IntConstant(0x0B94)
-case object GL_STENCIL_PASS_DEPTH_FAIL extends IntConstant(0x0B95) with Parameter
-case object GL_STENCIL_PASS_DEPTH_PASS extends IntConstant(0x0B96) with Parameter
+case object GL_STENCIL_PASS_DEPTH_FAIL
+    extends IntConstant(0x0B95)
+    with Parameter
+case object GL_STENCIL_PASS_DEPTH_PASS
+    extends IntConstant(0x0B96)
+    with Parameter
 case object GL_STENCIL_REF extends IntConstant(0x0B97) with Parameter
 case object GL_STENCIL_VALUE_MASK extends IntConstant(0x0B93) with Parameter
 case object GL_STENCIL_WRITEMASK extends IntConstant(0x0B98) with Parameter
 case object GL_STENCIL_BACK_FUNC extends IntConstant(0x8800) with Parameter
 case object GL_STENCIL_BACK_FAIL extends IntConstant(0x8801) with Parameter
-case object GL_STENCIL_BACK_PASS_DEPTH_FAIL extends IntConstant(0x8802) with Parameter
-case object GL_STENCIL_BACK_PASS_DEPTH_PASS extends IntConstant(0x8803) with Parameter
+case object GL_STENCIL_BACK_PASS_DEPTH_FAIL
+    extends IntConstant(0x8802)
+    with Parameter
+case object GL_STENCIL_BACK_PASS_DEPTH_PASS
+    extends IntConstant(0x8803)
+    with Parameter
 case object GL_STENCIL_BACK_REF extends IntConstant(0x8CA3) with Parameter
-case object GL_STENCIL_BACK_VALUE_MASK extends IntConstant(0x8CA4) with Parameter
-case object GL_STENCIL_BACK_WRITEMASK extends IntConstant(0x8CA5) with Parameter
+case object GL_STENCIL_BACK_VALUE_MASK
+    extends IntConstant(0x8CA4)
+    with Parameter
+case object GL_STENCIL_BACK_WRITEMASK
+    extends IntConstant(0x8CA5)
+    with Parameter
 case object GL_VIEWPORT extends IntConstant(0x0BA2) with Parameter
 case object GL_SCISSOR_BOX extends IntConstant(0x0C10) with Parameter
 case object GL_COLOR_CLEAR_VALUE extends IntConstant(0x0C22) with Parameter
 case object GL_COLOR_WRITEMASK extends IntConstant(0x0C23) with Parameter
-case object GL_UNPACK_ALIGNMENT extends IntConstant(0x0CF5) with PixelStoreParameter
-case object GL_PACK_ALIGNMENT extends IntConstant(0x0D05) with PixelStoreParameter
+case object GL_UNPACK_ALIGNMENT
+    extends IntConstant(0x0CF5)
+    with PixelStoreParameter
+case object GL_PACK_ALIGNMENT
+    extends IntConstant(0x0D05)
+    with PixelStoreParameter
 case object GL_MAX_TEXTURE_SIZE extends IntConstant(0x0D33) with Parameter
 case object GL_MAX_VIEWPORT_DIMS extends IntConstant(0x0D3A) with Parameter
 case object GL_SUBPIXEL_BITS extends IntConstant(0x0D50) with Parameter
@@ -519,39 +618,104 @@ case object GL_TEXTURE_BINDING_2D extends IntConstant(0x8069) with Parameter
 case object GL_SAMPLE_BUFFERS extends IntConstant(0x80A8) with Parameter
 case object GL_SAMPLES extends IntConstant(0x80A9) with Parameter
 case object GL_SAMPLE_COVERAGE_VALUE extends IntConstant(0x80AA) with Parameter
-case object GL_SAMPLE_COVERAGE_INVERT extends IntConstant(0x80AB) with Parameter
-case object GL_NUM_COMPRESSED_TEXTURE_FORMATS extends IntConstant(0x86A2) with Parameter
-case object GL_COMPRESSED_TEXTURE_FORMATS extends IntConstant(0x86A3) with Parameter
+case object GL_SAMPLE_COVERAGE_INVERT
+    extends IntConstant(0x80AB)
+    with Parameter
+case object GL_NUM_COMPRESSED_TEXTURE_FORMATS
+    extends IntConstant(0x86A2)
+    with Parameter
+case object GL_COMPRESSED_TEXTURE_FORMATS
+    extends IntConstant(0x86A3)
+    with Parameter
 case object GL_DONT_CARE extends IntConstant(0x1100)
 case object GL_FASTEST extends IntConstant(0x1101)
 case object GL_NICEST extends IntConstant(0x1102)
 case object GL_GENERATE_MIPMAP_HINT extends IntConstant(0x8192) with Parameter
-case object GL_BYTE extends IntConstant(0x1400) with VertexAttribType with VertexAttribIType with TexturePixelType with IndexType
-case object GL_UNSIGNED_BYTE extends IntConstant(0x1401) with VertexAttribType with VertexAttribIType with TexturePixelType
-case object GL_SHORT extends IntConstant(0x1402) with VertexAttribType with VertexAttribIType with TexturePixelType
-case object GL_UNSIGNED_SHORT extends IntConstant(0x1403) with VertexAttribType with VertexAttribIType with TexturePixelType with IndexType
-case object GL_INT extends IntConstant(0x1404) with VertexAttribType with VertexAttribIType with TexturePixelType
-case object GL_UNSIGNED_INT extends IntConstant(0x1405) with VertexAttribType with VertexAttribIType with TexturePixelType with IndexType
-case object GL_FLOAT extends IntConstant(0x1406) with VertexAttribType with TexturePixelType
+case object GL_BYTE
+    extends IntConstant(0x1400)
+    with VertexAttribType
+    with VertexAttribIType
+    with TexturePixelType
+    with IndexType
+case object GL_UNSIGNED_BYTE
+    extends IntConstant(0x1401)
+    with VertexAttribType
+    with VertexAttribIType
+    with TexturePixelType
+case object GL_SHORT
+    extends IntConstant(0x1402)
+    with VertexAttribType
+    with VertexAttribIType
+    with TexturePixelType
+case object GL_UNSIGNED_SHORT
+    extends IntConstant(0x1403)
+    with VertexAttribType
+    with VertexAttribIType
+    with TexturePixelType
+    with IndexType
+case object GL_INT
+    extends IntConstant(0x1404)
+    with VertexAttribType
+    with VertexAttribIType
+    with TexturePixelType
+case object GL_UNSIGNED_INT
+    extends IntConstant(0x1405)
+    with VertexAttribType
+    with VertexAttribIType
+    with TexturePixelType
+    with IndexType
+case object GL_FLOAT
+    extends IntConstant(0x1406)
+    with VertexAttribType
+    with TexturePixelType
 case object GL_FIXED extends IntConstant(0x140C) with VertexAttribType
 case object GL_DEPTH_COMPONENT extends IntConstant(0x1902) with TextureFormat
-case object GL_ALPHA extends IntConstant(0x1906) with TextureSwizzle with TextureFormat
-case object GL_RGB extends IntConstant(0x1907) with TextureFormat with TextureUnsizedInternalFormat
-case object GL_RGBA extends IntConstant(0x1908) with TextureFormat with TextureUnsizedInternalFormat
-case object GL_LUMINANCE extends IntConstant(0x1909) with TextureFormat with TextureUnsizedInternalFormat
-case object GL_LUMINANCE_ALPHA extends IntConstant(0x190A) with TextureFormat with TextureUnsizedInternalFormat
-case object GL_UNSIGNED_SHORT_4_4_4_4 extends IntConstant(0x8033) with TexturePixelType
-case object GL_UNSIGNED_SHORT_5_5_5_1 extends IntConstant(0x8034) with TexturePixelType
-case object GL_UNSIGNED_SHORT_5_6_5 extends IntConstant(0x8363) with TexturePixelType
+case object GL_ALPHA
+    extends IntConstant(0x1906)
+    with TextureSwizzle
+    with TextureFormat
+case object GL_RGB
+    extends IntConstant(0x1907)
+    with TextureFormat
+    with TextureUnsizedInternalFormat
+case object GL_RGBA
+    extends IntConstant(0x1908)
+    with TextureFormat
+    with TextureUnsizedInternalFormat
+case object GL_LUMINANCE
+    extends IntConstant(0x1909)
+    with TextureFormat
+    with TextureUnsizedInternalFormat
+case object GL_LUMINANCE_ALPHA
+    extends IntConstant(0x190A)
+    with TextureFormat
+    with TextureUnsizedInternalFormat
+case object GL_UNSIGNED_SHORT_4_4_4_4
+    extends IntConstant(0x8033)
+    with TexturePixelType
+case object GL_UNSIGNED_SHORT_5_5_5_1
+    extends IntConstant(0x8034)
+    with TexturePixelType
+case object GL_UNSIGNED_SHORT_5_6_5
+    extends IntConstant(0x8363)
+    with TexturePixelType
 case object GL_FRAGMENT_SHADER extends IntConstant(0x8B30) with ShaderType
 case object GL_VERTEX_SHADER extends IntConstant(0x8B31) with ShaderType
 case object GL_MAX_VERTEX_ATTRIBS extends IntConstant(0x8869) with Parameter
-case object GL_MAX_VERTEX_UNIFORM_VECTORS extends IntConstant(0x8DFB) with Parameter
+case object GL_MAX_VERTEX_UNIFORM_VECTORS
+    extends IntConstant(0x8DFB)
+    with Parameter
 case object GL_MAX_VARYING_VECTORS extends IntConstant(0x8DFC) with Parameter
-case object GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS extends IntConstant(0x8B4D) with Parameter
-case object GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS extends IntConstant(0x8B4C) with Parameter
+case object GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS
+    extends IntConstant(0x8B4D)
+    with Parameter
+case object GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS
+    extends IntConstant(0x8B4C)
+    with Parameter
 case object GL_MAX_TEXTURE_IMAGE_UNITS extends IntConstant(0x8872)
-case object GL_MAX_FRAGMENT_UNIFORM_VECTORS extends IntConstant(0x8DFD) with Parameter
+case object GL_MAX_FRAGMENT_UNIFORM_VECTORS
+    extends IntConstant(0x8DFD)
+    with Parameter
 case object GL_SHADER_TYPE extends IntConstant(0x8B4F) with ShaderParameter
 case object GL_DELETE_STATUS extends IntConstant(0x8B80) with ShaderParameter
 case object GL_LINK_STATUS extends IntConstant(0x8B82)
@@ -563,14 +727,38 @@ case object GL_ACTIVE_ATTRIBUTES extends IntConstant(0x8B89)
 case object GL_ACTIVE_ATTRIBUTE_MAX_LENGTH extends IntConstant(0x8B8A)
 case object GL_SHADING_LANGUAGE_VERSION extends IntConstant(0x8B8C)
 case object GL_CURRENT_PROGRAM extends IntConstant(0x8B8D) with Parameter
-case object GL_NEVER extends IntConstant(0x0200) with TextureCompareFunc with DepthFunc
-case object GL_LESS extends IntConstant(0x0201) with TextureCompareFunc with DepthFunc
-case object GL_EQUAL extends IntConstant(0x0202) with TextureCompareFunc with DepthFunc
-case object GL_LEQUAL extends IntConstant(0x0203) with TextureCompareFunc with DepthFunc
-case object GL_GREATER extends IntConstant(0x0204) with TextureCompareFunc with DepthFunc
-case object GL_NOTEQUAL extends IntConstant(0x0205) with TextureCompareFunc with DepthFunc
-case object GL_GEQUAL extends IntConstant(0x0206) with TextureCompareFunc with DepthFunc
-case object GL_ALWAYS extends IntConstant(0x0207) with TextureCompareFunc with DepthFunc
+case object GL_NEVER
+    extends IntConstant(0x0200)
+    with TextureCompareFunc
+    with DepthFunc
+case object GL_LESS
+    extends IntConstant(0x0201)
+    with TextureCompareFunc
+    with DepthFunc
+case object GL_EQUAL
+    extends IntConstant(0x0202)
+    with TextureCompareFunc
+    with DepthFunc
+case object GL_LEQUAL
+    extends IntConstant(0x0203)
+    with TextureCompareFunc
+    with DepthFunc
+case object GL_GREATER
+    extends IntConstant(0x0204)
+    with TextureCompareFunc
+    with DepthFunc
+case object GL_NOTEQUAL
+    extends IntConstant(0x0205)
+    with TextureCompareFunc
+    with DepthFunc
+case object GL_GEQUAL
+    extends IntConstant(0x0206)
+    with TextureCompareFunc
+    with DepthFunc
+case object GL_ALWAYS
+    extends IntConstant(0x0207)
+    with TextureCompareFunc
+    with DepthFunc
 case object GL_KEEP extends IntConstant(0x1E00)
 case object GL_REPLACE extends IntConstant(0x1E01)
 case object GL_INCR extends IntConstant(0x1E02)
@@ -582,26 +770,70 @@ case object GL_VENDOR extends IntConstant(0x1F00)
 case object GL_RENDERER extends IntConstant(0x1F01)
 case object GL_VERSION extends IntConstant(0x1F02)
 case object GL_EXTENSIONS extends IntConstant(0x1F03)
-case object GL_NEAREST extends IntConstant(0x2600) with BlitFilter with TextureMinFilter with TextureMagFilter
-case object GL_LINEAR extends IntConstant(0x2601) with BlitFilter with TextureMinFilter with TextureMagFilter
-case object GL_NEAREST_MIPMAP_NEAREST extends IntConstant(0x2700) with TextureMinFilter
-case object GL_LINEAR_MIPMAP_NEAREST extends IntConstant(0x2701) with TextureMinFilter
-case object GL_NEAREST_MIPMAP_LINEAR extends IntConstant(0x2702) with TextureMinFilter
-case object GL_LINEAR_MIPMAP_LINEAR extends IntConstant(0x2703) with TextureMinFilter
-case object GL_TEXTURE_MAG_FILTER extends IntConstant(0x2800) with TextureParameter with SamplerParameter
-case object GL_TEXTURE_MIN_FILTER extends IntConstant(0x2801) with TextureParameter with SamplerParameter
-case object GL_TEXTURE_WRAP_S extends IntConstant(0x2802) with TextureParameter with SamplerParameter
-case object GL_TEXTURE_WRAP_T extends IntConstant(0x2803) with TextureParameter with SamplerParameter
+case object GL_NEAREST
+    extends IntConstant(0x2600)
+    with BlitFilter
+    with TextureMinFilter
+    with TextureMagFilter
+case object GL_LINEAR
+    extends IntConstant(0x2601)
+    with BlitFilter
+    with TextureMinFilter
+    with TextureMagFilter
+case object GL_NEAREST_MIPMAP_NEAREST
+    extends IntConstant(0x2700)
+    with TextureMinFilter
+case object GL_LINEAR_MIPMAP_NEAREST
+    extends IntConstant(0x2701)
+    with TextureMinFilter
+case object GL_NEAREST_MIPMAP_LINEAR
+    extends IntConstant(0x2702)
+    with TextureMinFilter
+case object GL_LINEAR_MIPMAP_LINEAR
+    extends IntConstant(0x2703)
+    with TextureMinFilter
+case object GL_TEXTURE_MAG_FILTER
+    extends IntConstant(0x2800)
+    with TextureParameter
+    with SamplerParameter
+case object GL_TEXTURE_MIN_FILTER
+    extends IntConstant(0x2801)
+    with TextureParameter
+    with SamplerParameter
+case object GL_TEXTURE_WRAP_S
+    extends IntConstant(0x2802)
+    with TextureParameter
+    with SamplerParameter
+case object GL_TEXTURE_WRAP_T
+    extends IntConstant(0x2803)
+    with TextureParameter
+    with SamplerParameter
 case object GL_TEXTURE extends IntConstant(0x1702)
 case object GL_TEXTURE_CUBE_MAP extends IntConstant(0x8513) with TextureTarget
-case object GL_TEXTURE_BINDING_CUBE_MAP extends IntConstant(0x8514) with Parameter
-case object GL_TEXTURE_CUBE_MAP_POSITIVE_X extends IntConstant(0x8515) with FramebufferTexTarget
-case object GL_TEXTURE_CUBE_MAP_NEGATIVE_X extends IntConstant(0x8516) with FramebufferTexTarget
-case object GL_TEXTURE_CUBE_MAP_POSITIVE_Y extends IntConstant(0x8517) with FramebufferTexTarget
-case object GL_TEXTURE_CUBE_MAP_NEGATIVE_Y extends IntConstant(0x8518) with FramebufferTexTarget
-case object GL_TEXTURE_CUBE_MAP_POSITIVE_Z extends IntConstant(0x8519) with FramebufferTexTarget
-case object GL_TEXTURE_CUBE_MAP_NEGATIVE_Z extends IntConstant(0x851A) with FramebufferTarget
-case object GL_MAX_CUBE_MAP_TEXTURE_SIZE extends IntConstant(0x851C) with Parameter
+case object GL_TEXTURE_BINDING_CUBE_MAP
+    extends IntConstant(0x8514)
+    with Parameter
+case object GL_TEXTURE_CUBE_MAP_POSITIVE_X
+    extends IntConstant(0x8515)
+    with FramebufferTexTarget
+case object GL_TEXTURE_CUBE_MAP_NEGATIVE_X
+    extends IntConstant(0x8516)
+    with FramebufferTexTarget
+case object GL_TEXTURE_CUBE_MAP_POSITIVE_Y
+    extends IntConstant(0x8517)
+    with FramebufferTexTarget
+case object GL_TEXTURE_CUBE_MAP_NEGATIVE_Y
+    extends IntConstant(0x8518)
+    with FramebufferTexTarget
+case object GL_TEXTURE_CUBE_MAP_POSITIVE_Z
+    extends IntConstant(0x8519)
+    with FramebufferTexTarget
+case object GL_TEXTURE_CUBE_MAP_NEGATIVE_Z
+    extends IntConstant(0x851A)
+    with FramebufferTarget
+case object GL_MAX_CUBE_MAP_TEXTURE_SIZE
+    extends IntConstant(0x851C)
+    with Parameter
 case object GL_TEXTURE0 extends IntConstant(0x84C0) with Texture
 case object GL_TEXTURE1 extends IntConstant(0x84C1) with Texture
 case object GL_TEXTURE2 extends IntConstant(0x84C2) with Texture
@@ -660,14 +892,22 @@ case object GL_VERTEX_ATTRIB_ARRAY_TYPE extends IntConstant(0x8625)
 case object GL_VERTEX_ATTRIB_ARRAY_NORMALIZED extends IntConstant(0x886A)
 case object GL_VERTEX_ATTRIB_ARRAY_POINTER extends IntConstant(0x8645)
 case object GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING extends IntConstant(0x889F)
-case object GL_IMPLEMENTATION_COLOR_READ_TYPE extends IntConstant(0x8B9A) with Parameter
-case object GL_IMPLEMENTATION_COLOR_READ_FORMAT extends IntConstant(0x8B9B) with Parameter
+case object GL_IMPLEMENTATION_COLOR_READ_TYPE
+    extends IntConstant(0x8B9A)
+    with Parameter
+case object GL_IMPLEMENTATION_COLOR_READ_FORMAT
+    extends IntConstant(0x8B9B)
+    with Parameter
 case object GL_COMPILE_STATUS extends IntConstant(0x8B81) with ShaderParameter
 case object GL_INFO_LOG_LENGTH extends IntConstant(0x8B84) with ShaderParameter
-case object GL_SHADER_SOURCE_LENGTH extends IntConstant(0x8B88) with ShaderParameter
+case object GL_SHADER_SOURCE_LENGTH
+    extends IntConstant(0x8B88)
+    with ShaderParameter
 case object GL_SHADER_COMPILER extends IntConstant(0x8DFA) with Parameter
 case object GL_SHADER_BINARY_FORMATS extends IntConstant(0x8DF8) with Parameter
-case object GL_NUM_SHADER_BINARY_FORMATS extends IntConstant(0x8DF9) with Parameter
+case object GL_NUM_SHADER_BINARY_FORMATS
+    extends IntConstant(0x8DF9)
+    with Parameter
 case object GL_LOW_FLOAT extends IntConstant(0x8DF0)
 case object GL_MEDIUM_FLOAT extends IntConstant(0x8DF1)
 case object GL_HIGH_FLOAT extends IntConstant(0x8DF2)
@@ -676,11 +916,25 @@ case object GL_MEDIUM_INT extends IntConstant(0x8DF4)
 case object GL_HIGH_INT extends IntConstant(0x8DF5)
 case object GL_FRAMEBUFFER extends IntConstant(0x8D40) with FramebufferTarget
 case object GL_RENDERBUFFER extends IntConstant(0x8D41)
-case object GL_RGBA4 extends IntConstant(0x8056) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_RGB5_A1 extends IntConstant(0x8057) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_RGB565 extends IntConstant(0x8D62) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_DEPTH_COMPONENT16 extends IntConstant(0x81A5) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_STENCIL_INDEX8 extends IntConstant(0x8D48) with RenderbufferInternalFormat
+case object GL_RGBA4
+    extends IntConstant(0x8056)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_RGB5_A1
+    extends IntConstant(0x8057)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_RGB565
+    extends IntConstant(0x8D62)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_DEPTH_COMPONENT16
+    extends IntConstant(0x81A5)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_STENCIL_INDEX8
+    extends IntConstant(0x8D48)
+    with RenderbufferInternalFormat
 case object GL_RENDERBUFFER_WIDTH extends IntConstant(0x8D42)
 case object GL_RENDERBUFFER_HEIGHT extends IntConstant(0x8D43)
 case object GL_RENDERBUFFER_INTERNAL_FORMAT extends IntConstant(0x8D44)
@@ -693,53 +947,128 @@ case object GL_RENDERBUFFER_STENCIL_SIZE extends IntConstant(0x8D55)
 case object GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE extends IntConstant(0x8CD0)
 case object GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME extends IntConstant(0x8CD1)
 case object GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL extends IntConstant(0x8CD2)
-case object GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE extends IntConstant(0x8CD3)
-case object GL_COLOR_ATTACHMENT0 extends IntConstant(0x8CE0) with ColorAttachment with FramebufferAttachment
-case object GL_DEPTH_ATTACHMENT extends IntConstant(0x8D00) with FramebufferAttachment
-case object GL_STENCIL_ATTACHMENT extends IntConstant(0x8D20) with FramebufferAttachment
-case object GL_NONE extends IntConstant(0) with TextureCompareMode with ColorOutputTarget with ColorBuffer
-case object GL_FRAMEBUFFER_COMPLETE extends IntConstant(0x8CD5) with FramebufferStatus
-case object GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT extends IntConstant(0x8CD6) with FramebufferStatus
-case object GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT extends IntConstant(0x8CD7) with FramebufferStatus
-case object GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS extends IntConstant(0x8CD9) with FramebufferStatus
-case object GL_FRAMEBUFFER_UNSUPPORTED extends IntConstant(0x8CDD) with FramebufferStatus
+case object GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE
+    extends IntConstant(0x8CD3)
+case object GL_COLOR_ATTACHMENT0
+    extends IntConstant(0x8CE0)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_DEPTH_ATTACHMENT
+    extends IntConstant(0x8D00)
+    with FramebufferAttachment
+case object GL_STENCIL_ATTACHMENT
+    extends IntConstant(0x8D20)
+    with FramebufferAttachment
+case object GL_NONE
+    extends IntConstant(0)
+    with TextureCompareMode
+    with ColorOutputTarget
+    with ColorBuffer
+case object GL_FRAMEBUFFER_COMPLETE
+    extends IntConstant(0x8CD5)
+    with FramebufferStatus
+case object GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT
+    extends IntConstant(0x8CD6)
+    with FramebufferStatus
+case object GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT
+    extends IntConstant(0x8CD7)
+    with FramebufferStatus
+case object GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS
+    extends IntConstant(0x8CD9)
+    with FramebufferStatus
+case object GL_FRAMEBUFFER_UNSUPPORTED
+    extends IntConstant(0x8CDD)
+    with FramebufferStatus
 case object GL_FRAMEBUFFER_BINDING extends IntConstant(0x8CA6)
 case object GL_RENDERBUFFER_BINDING extends IntConstant(0x8CA7) with Parameter
 case object GL_MAX_RENDERBUFFER_SIZE extends IntConstant(0x84E8) with Parameter
 case object GL_INVALID_FRAMEBUFFER_OPERATION extends IntConstant(0x0506)
 case object GL_READ_BUFFER extends IntConstant(0x0C02) with Parameter
-case object GL_UNPACK_ROW_LENGTH extends IntConstant(0x0CF2) with PixelStoreParameter
-case object GL_UNPACK_SKIP_ROWS extends IntConstant(0x0CF3) with PixelStoreParameter
-case object GL_UNPACK_SKIP_PIXELS extends IntConstant(0x0CF4) with PixelStoreParameter
-case object GL_PACK_ROW_LENGTH extends IntConstant(0x0D02) with PixelStoreParameter
-case object GL_PACK_SKIP_ROWS extends IntConstant(0x0D03) with PixelStoreParameter
-case object GL_PACK_SKIP_PIXELS extends IntConstant(0x0D04) with PixelStoreParameter
+case object GL_UNPACK_ROW_LENGTH
+    extends IntConstant(0x0CF2)
+    with PixelStoreParameter
+case object GL_UNPACK_SKIP_ROWS
+    extends IntConstant(0x0CF3)
+    with PixelStoreParameter
+case object GL_UNPACK_SKIP_PIXELS
+    extends IntConstant(0x0CF4)
+    with PixelStoreParameter
+case object GL_PACK_ROW_LENGTH
+    extends IntConstant(0x0D02)
+    with PixelStoreParameter
+case object GL_PACK_SKIP_ROWS
+    extends IntConstant(0x0D03)
+    with PixelStoreParameter
+case object GL_PACK_SKIP_PIXELS
+    extends IntConstant(0x0D04)
+    with PixelStoreParameter
 case object GL_COLOR extends IntConstant(0x1800) with Channel
 case object GL_DEPTH extends IntConstant(0x1801) with Channel
 case object GL_STENCIL extends IntConstant(0x1802) with Channel
-case object GL_RED extends IntConstant(0x1903) with TextureSwizzle with TextureFormat
-case object GL_RGB8 extends IntConstant(0x8051) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_RGBA8 extends IntConstant(0x8058) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_RGB10_A2 extends IntConstant(0x8059) with RenderbufferInternalFormat with TextureSizedInternalFormat
+case object GL_RED
+    extends IntConstant(0x1903)
+    with TextureSwizzle
+    with TextureFormat
+case object GL_RGB8
+    extends IntConstant(0x8051)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_RGBA8
+    extends IntConstant(0x8058)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_RGB10_A2
+    extends IntConstant(0x8059)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
 case object GL_TEXTURE_BINDING_3D extends IntConstant(0x806A) with Parameter
-case object GL_UNPACK_SKIP_IMAGES extends IntConstant(0x806D) with PixelStoreParameter
-case object GL_UNPACK_IMAGE_HEIGHT extends IntConstant(0x806E) with PixelStoreParameter
+case object GL_UNPACK_SKIP_IMAGES
+    extends IntConstant(0x806D)
+    with PixelStoreParameter
+case object GL_UNPACK_IMAGE_HEIGHT
+    extends IntConstant(0x806E)
+    with PixelStoreParameter
 case object GL_TEXTURE_3D extends IntConstant(0x806F) with TextureTarget
-case object GL_TEXTURE_WRAP_R extends IntConstant(0x8072) with TextureParameter with SamplerParameter
+case object GL_TEXTURE_WRAP_R
+    extends IntConstant(0x8072)
+    with TextureParameter
+    with SamplerParameter
 case object GL_MAX_3D_TEXTURE_SIZE extends IntConstant(0x8073) with Parameter
-case object GL_UNSIGNED_INT_2_10_10_10_REV extends IntConstant(0x8368) with VertexAttribType with TexturePixelType
+case object GL_UNSIGNED_INT_2_10_10_10_REV
+    extends IntConstant(0x8368)
+    with VertexAttribType
+    with TexturePixelType
 case object GL_MAX_ELEMENTS_VERTICES extends IntConstant(0x80E8) with Parameter
 case object GL_MAX_ELEMENTS_INDICES extends IntConstant(0x80E9) with Parameter
-case object GL_TEXTURE_MIN_LOD extends IntConstant(0x813A) with TextureParameter with SamplerParameter
-case object GL_TEXTURE_MAX_LOD extends IntConstant(0x813B) with TextureParameter with SamplerParameter
-case object GL_TEXTURE_BASE_LEVEL extends IntConstant(0x813C) with TextureParameter
-case object GL_TEXTURE_MAX_LEVEL extends IntConstant(0x813D) with TextureParameter
+case object GL_TEXTURE_MIN_LOD
+    extends IntConstant(0x813A)
+    with TextureParameter
+    with SamplerParameter
+case object GL_TEXTURE_MAX_LOD
+    extends IntConstant(0x813B)
+    with TextureParameter
+    with SamplerParameter
+case object GL_TEXTURE_BASE_LEVEL
+    extends IntConstant(0x813C)
+    with TextureParameter
+case object GL_TEXTURE_MAX_LEVEL
+    extends IntConstant(0x813D)
+    with TextureParameter
 case object GL_MIN extends IntConstant(0x8007) with BlendMode
 case object GL_MAX extends IntConstant(0x8008) with BlendMode
-case object GL_DEPTH_COMPONENT24 extends IntConstant(0x81A6) with RenderbufferInternalFormat with TextureSizedInternalFormat
+case object GL_DEPTH_COMPONENT24
+    extends IntConstant(0x81A6)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
 case object GL_MAX_TEXTURE_LOD_BIAS extends IntConstant(0x84FD) with Parameter
-case object GL_TEXTURE_COMPARE_MODE extends IntConstant(0x884C) with TextureParameter with SamplerParameter
-case object GL_TEXTURE_COMPARE_FUNC extends IntConstant(0x884D) with TextureParameter with SamplerParameter
+case object GL_TEXTURE_COMPARE_MODE
+    extends IntConstant(0x884C)
+    with TextureParameter
+    with SamplerParameter
+case object GL_TEXTURE_COMPARE_FUNC
+    extends IntConstant(0x884D)
+    with TextureParameter
+    with SamplerParameter
 case object GL_CURRENT_QUERY extends IntConstant(0x8865)
 case object GL_QUERY_RESULT extends IntConstant(0x8866)
 case object GL_QUERY_RESULT_AVAILABLE extends IntConstant(0x8867)
@@ -768,15 +1097,27 @@ case object GL_DRAW_BUFFER12 extends IntConstant(0x8831) with DrawBuffer
 case object GL_DRAW_BUFFER13 extends IntConstant(0x8832) with DrawBuffer
 case object GL_DRAW_BUFFER14 extends IntConstant(0x8833) with DrawBuffer
 case object GL_DRAW_BUFFER15 extends IntConstant(0x8834) with DrawBuffer
-case object GL_MAX_FRAGMENT_UNIFORM_COMPONENTS extends IntConstant(0x8B49) with Parameter
-case object GL_MAX_VERTEX_UNIFORM_COMPONENTS extends IntConstant(0x8B4A) with Parameter
+case object GL_MAX_FRAGMENT_UNIFORM_COMPONENTS
+    extends IntConstant(0x8B49)
+    with Parameter
+case object GL_MAX_VERTEX_UNIFORM_COMPONENTS
+    extends IntConstant(0x8B4A)
+    with Parameter
 case object GL_SAMPLER_3D extends IntConstant(0x8B5F)
 case object GL_SAMPLER_2D_SHADOW extends IntConstant(0x8B62)
-case object GL_FRAGMENT_SHADER_DERIVATIVE_HINT extends IntConstant(0x8B8B) with Parameter
+case object GL_FRAGMENT_SHADER_DERIVATIVE_HINT
+    extends IntConstant(0x8B8B)
+    with Parameter
 case object GL_PIXEL_PACK_BUFFER extends IntConstant(0x88EB) with BufferTarget
-case object GL_PIXEL_UNPACK_BUFFER extends IntConstant(0x88EC) with BufferTarget
-case object GL_PIXEL_PACK_BUFFER_BINDING extends IntConstant(0x88ED) with Parameter
-case object GL_PIXEL_UNPACK_BUFFER_BINDING extends IntConstant(0x88EF) with Parameter
+case object GL_PIXEL_UNPACK_BUFFER
+    extends IntConstant(0x88EC)
+    with BufferTarget
+case object GL_PIXEL_PACK_BUFFER_BINDING
+    extends IntConstant(0x88ED)
+    with Parameter
+case object GL_PIXEL_UNPACK_BUFFER_BINDING
+    extends IntConstant(0x88EF)
+    with Parameter
 case object GL_FLOAT_MAT2x3 extends IntConstant(0x8B65)
 case object GL_FLOAT_MAT2x4 extends IntConstant(0x8B66)
 case object GL_FLOAT_MAT3x2 extends IntConstant(0x8B67)
@@ -785,52 +1126,129 @@ case object GL_FLOAT_MAT4x2 extends IntConstant(0x8B69)
 case object GL_FLOAT_MAT4x3 extends IntConstant(0x8B6A)
 case object GL_SRGB extends IntConstant(0x8C40) with TextureSizedInternalFormat
 case object GL_SRGB8 extends IntConstant(0x8C41)
-case object GL_SRGB8_ALPHA8 extends IntConstant(0x8C43) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_COMPARE_REF_TO_TEXTURE extends IntConstant(0x884E) with TextureCompareMode
+case object GL_SRGB8_ALPHA8
+    extends IntConstant(0x8C43)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_COMPARE_REF_TO_TEXTURE
+    extends IntConstant(0x884E)
+    with TextureCompareMode
 case object GL_MAJOR_VERSION extends IntConstant(0x821B) with Parameter
 case object GL_MINOR_VERSION extends IntConstant(0x821C) with Parameter
 case object GL_NUM_EXTENSIONS extends IntConstant(0x821D) with Parameter
-case object GL_RGBA32F extends IntConstant(0x8814) with TextureSizedInternalFormat
-case object GL_RGB32F extends IntConstant(0x8815) with TextureSizedInternalFormat
-case object GL_RGBA16F extends IntConstant(0x881A) with TextureSizedInternalFormat
-case object GL_RGB16F extends IntConstant(0x881B) with TextureSizedInternalFormat
+case object GL_RGBA32F
+    extends IntConstant(0x8814)
+    with TextureSizedInternalFormat
+case object GL_RGB32F
+    extends IntConstant(0x8815)
+    with TextureSizedInternalFormat
+case object GL_RGBA16F
+    extends IntConstant(0x881A)
+    with TextureSizedInternalFormat
+case object GL_RGB16F
+    extends IntConstant(0x881B)
+    with TextureSizedInternalFormat
 case object GL_VERTEX_ATTRIB_ARRAY_INTEGER extends IntConstant(0x88FD)
-case object GL_MAX_ARRAY_TEXTURE_LAYERS extends IntConstant(0x88FF) with Parameter
-case object GL_MIN_PROGRAM_TEXEL_OFFSET extends IntConstant(0x8904) with Parameter
-case object GL_MAX_PROGRAM_TEXEL_OFFSET extends IntConstant(0x8905) with Parameter
-case object GL_MAX_VARYING_COMPONENTS extends IntConstant(0x8B4B) with Parameter
+case object GL_MAX_ARRAY_TEXTURE_LAYERS
+    extends IntConstant(0x88FF)
+    with Parameter
+case object GL_MIN_PROGRAM_TEXEL_OFFSET
+    extends IntConstant(0x8904)
+    with Parameter
+case object GL_MAX_PROGRAM_TEXEL_OFFSET
+    extends IntConstant(0x8905)
+    with Parameter
+case object GL_MAX_VARYING_COMPONENTS
+    extends IntConstant(0x8B4B)
+    with Parameter
 case object GL_TEXTURE_2D_ARRAY extends IntConstant(0x8C1A) with TextureTarget
-case object GL_TEXTURE_BINDING_2D_ARRAY extends IntConstant(0x8C1D) with Parameter
-case object GL_R11F_G11F_B10F extends IntConstant(0x8C3A) with TextureSizedInternalFormat
-case object GL_UNSIGNED_INT_10F_11F_11F_REV extends IntConstant(0x8C3B) with TexturePixelType
-case object GL_RGB9_E5 extends IntConstant(0x8C3D) with TextureSizedInternalFormat
-case object GL_UNSIGNED_INT_5_9_9_9_REV extends IntConstant(0x8C3E) with TexturePixelType
-case object GL_TRANSFORM_FEEDBACK_VARYING_MAX_LENGTH extends IntConstant(0x8C76)
+case object GL_TEXTURE_BINDING_2D_ARRAY
+    extends IntConstant(0x8C1D)
+    with Parameter
+case object GL_R11F_G11F_B10F
+    extends IntConstant(0x8C3A)
+    with TextureSizedInternalFormat
+case object GL_UNSIGNED_INT_10F_11F_11F_REV
+    extends IntConstant(0x8C3B)
+    with TexturePixelType
+case object GL_RGB9_E5
+    extends IntConstant(0x8C3D)
+    with TextureSizedInternalFormat
+case object GL_UNSIGNED_INT_5_9_9_9_REV
+    extends IntConstant(0x8C3E)
+    with TexturePixelType
+case object GL_TRANSFORM_FEEDBACK_VARYING_MAX_LENGTH
+    extends IntConstant(0x8C76)
 case object GL_TRANSFORM_FEEDBACK_BUFFER_MODE extends IntConstant(0x8C7F)
-case object GL_MAX_TRANSFORM_FEEDBACK_SEPARATE_COMPONENTS extends IntConstant(0x8C80) with Parameter
+case object GL_MAX_TRANSFORM_FEEDBACK_SEPARATE_COMPONENTS
+    extends IntConstant(0x8C80)
+    with Parameter
 case object GL_TRANSFORM_FEEDBACK_VARYINGS extends IntConstant(0x8C83)
-case object GL_TRANSFORM_FEEDBACK_BUFFER_START extends IntConstant(0x8C84) with Parameter
-case object GL_TRANSFORM_FEEDBACK_BUFFER_SIZE extends IntConstant(0x8C85) with Parameter
-case object GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN extends IntConstant(0x8C88)
+case object GL_TRANSFORM_FEEDBACK_BUFFER_START
+    extends IntConstant(0x8C84)
+    with Parameter
+case object GL_TRANSFORM_FEEDBACK_BUFFER_SIZE
+    extends IntConstant(0x8C85)
+    with Parameter
+case object GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN
+    extends IntConstant(0x8C88)
 case object GL_RASTERIZER_DISCARD extends IntConstant(0x8C89) with Capability
-case object GL_MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS extends IntConstant(0x8C8A) with Parameter
-case object GL_MAX_TRANSFORM_FEEDBACK_SEPARATE_ATTRIBS extends IntConstant(0x8C8B) with Parameter
+case object GL_MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS
+    extends IntConstant(0x8C8A)
+    with Parameter
+case object GL_MAX_TRANSFORM_FEEDBACK_SEPARATE_ATTRIBS
+    extends IntConstant(0x8C8B)
+    with Parameter
 case object GL_INTERLEAVED_ATTRIBS extends IntConstant(0x8C8C)
 case object GL_SEPARATE_ATTRIBS extends IntConstant(0x8C8D)
-case object GL_TRANSFORM_FEEDBACK_BUFFER extends IntConstant(0x8C8E) with BufferTarget
-case object GL_TRANSFORM_FEEDBACK_BUFFER_BINDING extends IntConstant(0x8C8F) with Parameter
-case object GL_RGBA32UI extends IntConstant(0x8D70) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_RGB32UI extends IntConstant(0x8D71) with TextureSizedInternalFormat
-case object GL_RGBA16UI extends IntConstant(0x8D76) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_RGB16UI extends IntConstant(0x8D77) with TextureSizedInternalFormat
-case object GL_RGBA8UI extends IntConstant(0x8D7C) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_RGB8UI extends IntConstant(0x8D7D) with TextureSizedInternalFormat
-case object GL_RGBA32I extends IntConstant(0x8D82) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_RGB32I extends IntConstant(0x8D83) with TextureSizedInternalFormat
-case object GL_RGBA16I extends IntConstant(0x8D88) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_RGB16I extends IntConstant(0x8D89) with TextureSizedInternalFormat
-case object GL_RGBA8I extends IntConstant(0x8D8E) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_RGB8I extends IntConstant(0x8D8F) with TextureSizedInternalFormat
+case object GL_TRANSFORM_FEEDBACK_BUFFER
+    extends IntConstant(0x8C8E)
+    with BufferTarget
+case object GL_TRANSFORM_FEEDBACK_BUFFER_BINDING
+    extends IntConstant(0x8C8F)
+    with Parameter
+case object GL_RGBA32UI
+    extends IntConstant(0x8D70)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_RGB32UI
+    extends IntConstant(0x8D71)
+    with TextureSizedInternalFormat
+case object GL_RGBA16UI
+    extends IntConstant(0x8D76)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_RGB16UI
+    extends IntConstant(0x8D77)
+    with TextureSizedInternalFormat
+case object GL_RGBA8UI
+    extends IntConstant(0x8D7C)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_RGB8UI
+    extends IntConstant(0x8D7D)
+    with TextureSizedInternalFormat
+case object GL_RGBA32I
+    extends IntConstant(0x8D82)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_RGB32I
+    extends IntConstant(0x8D83)
+    with TextureSizedInternalFormat
+case object GL_RGBA16I
+    extends IntConstant(0x8D88)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_RGB16I
+    extends IntConstant(0x8D89)
+    with TextureSizedInternalFormat
+case object GL_RGBA8I
+    extends IntConstant(0x8D8E)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_RGB8I
+    extends IntConstant(0x8D8F)
+    with TextureSizedInternalFormat
 case object GL_RED_INTEGER extends IntConstant(0x8D94) with TextureFormat
 case object GL_RGB_INTEGER extends IntConstant(0x8D98) with TextureFormat
 case object GL_RGBA_INTEGER extends IntConstant(0x8D99) with TextureFormat
@@ -848,14 +1266,29 @@ case object GL_UNSIGNED_INT_SAMPLER_2D extends IntConstant(0x8DD2)
 case object GL_UNSIGNED_INT_SAMPLER_3D extends IntConstant(0x8DD3)
 case object GL_UNSIGNED_INT_SAMPLER_CUBE extends IntConstant(0x8DD4)
 case object GL_UNSIGNED_INT_SAMPLER_2D_ARRAY extends IntConstant(0x8DD7)
-case object GL_BUFFER_ACCESS_FLAGS extends IntConstant(0x911F) with BufferParameter
-case object GL_BUFFER_MAP_LENGTH extends IntConstant(0x9120) with BufferParameter
-case object GL_BUFFER_MAP_OFFSET extends IntConstant(0x9121) with BufferParameter
-case object GL_DEPTH_COMPONENT32F extends IntConstant(0x8CAC) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_DEPTH32F_STENCIL8 extends IntConstant(0x8CAD) with TextureSizedInternalFormat
-case object GL_FLOAT_32_UNSIGNED_INT_24_8_REV extends IntConstant(0x8DAD) with TextureInternalFormat
-case object GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING extends IntConstant(0x8210)
-case object GL_FRAMEBUFFER_ATTACHMENT_COMPONENT_TYPE extends IntConstant(0x8211)
+case object GL_BUFFER_ACCESS_FLAGS
+    extends IntConstant(0x911F)
+    with BufferParameter
+case object GL_BUFFER_MAP_LENGTH
+    extends IntConstant(0x9120)
+    with BufferParameter
+case object GL_BUFFER_MAP_OFFSET
+    extends IntConstant(0x9121)
+    with BufferParameter
+case object GL_DEPTH_COMPONENT32F
+    extends IntConstant(0x8CAC)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_DEPTH32F_STENCIL8
+    extends IntConstant(0x8CAD)
+    with TextureSizedInternalFormat
+case object GL_FLOAT_32_UNSIGNED_INT_24_8_REV
+    extends IntConstant(0x8DAD)
+    with TextureInternalFormat
+case object GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING
+    extends IntConstant(0x8210)
+case object GL_FRAMEBUFFER_ATTACHMENT_COMPONENT_TYPE
+    extends IntConstant(0x8211)
 case object GL_FRAMEBUFFER_ATTACHMENT_RED_SIZE extends IntConstant(0x8212)
 case object GL_FRAMEBUFFER_ATTACHMENT_GREEN_SIZE extends IntConstant(0x8213)
 case object GL_FRAMEBUFFER_ATTACHMENT_BLUE_SIZE extends IntConstant(0x8214)
@@ -863,53 +1296,169 @@ case object GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE extends IntConstant(0x8215)
 case object GL_FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE extends IntConstant(0x8216)
 case object GL_FRAMEBUFFER_ATTACHMENT_STENCIL_SIZE extends IntConstant(0x8217)
 case object GL_FRAMEBUFFER_DEFAULT extends IntConstant(0x8218)
-case object GL_FRAMEBUFFER_UNDEFINED extends IntConstant(0x8219) with FramebufferStatus
-case object GL_DEPTH_STENCIL_ATTACHMENT extends IntConstant(0x821A) with FramebufferAttachment
-case object GL_DEPTH_STENCIL extends IntConstant(0x84F9) with TextureFormat with Channel
-case object GL_UNSIGNED_INT_24_8 extends IntConstant(0x84FA) with TextureInternalFormat
-case object GL_DEPTH24_STENCIL8 extends IntConstant(0x88F0) with RenderbufferInternalFormat with TextureInternalFormat
+case object GL_FRAMEBUFFER_UNDEFINED
+    extends IntConstant(0x8219)
+    with FramebufferStatus
+case object GL_DEPTH_STENCIL_ATTACHMENT
+    extends IntConstant(0x821A)
+    with FramebufferAttachment
+case object GL_DEPTH_STENCIL
+    extends IntConstant(0x84F9)
+    with TextureFormat
+    with Channel
+case object GL_UNSIGNED_INT_24_8
+    extends IntConstant(0x84FA)
+    with TextureInternalFormat
+case object GL_DEPTH24_STENCIL8
+    extends IntConstant(0x88F0)
+    with RenderbufferInternalFormat
+    with TextureInternalFormat
 case object GL_UNSIGNED_NORMALIZED extends IntConstant(0x8C17) with Parameter
 case object GL_DRAW_FRAMEBUFFER_BINDING extends IntConstant(0x8CA6)
-case object GL_READ_FRAMEBUFFER extends IntConstant(0x8CA8) with FramebufferTarget
-case object GL_DRAW_FRAMEBUFFER extends IntConstant(0x8CA9) with FramebufferTarget
-case object GL_READ_FRAMEBUFFER_BINDING extends IntConstant(0x8CAA) with Parameter
+case object GL_READ_FRAMEBUFFER
+    extends IntConstant(0x8CA8)
+    with FramebufferTarget
+case object GL_DRAW_FRAMEBUFFER
+    extends IntConstant(0x8CA9)
+    with FramebufferTarget
+case object GL_READ_FRAMEBUFFER_BINDING
+    extends IntConstant(0x8CAA)
+    with Parameter
 case object GL_RENDERBUFFER_SAMPLES extends IntConstant(0x8CAB)
 case object GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER extends IntConstant(0x8CD4)
 case object GL_MAX_COLOR_ATTACHMENTS extends IntConstant(0x8CDF) with Parameter
-case object GL_COLOR_ATTACHMENT1 extends IntConstant(0x8CE1) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT2 extends IntConstant(0x8CE2) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT3 extends IntConstant(0x8CE3) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT4 extends IntConstant(0x8CE4) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT5 extends IntConstant(0x8CE5) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT6 extends IntConstant(0x8CE6) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT7 extends IntConstant(0x8CE7) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT8 extends IntConstant(0x8CE8) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT9 extends IntConstant(0x8CE9) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT10 extends IntConstant(0x8CEA) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT11 extends IntConstant(0x8CEB) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT12 extends IntConstant(0x8CEC) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT13 extends IntConstant(0x8CED) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT14 extends IntConstant(0x8CEE) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT15 extends IntConstant(0x8CEF) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT16 extends IntConstant(0x8CF0) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT17 extends IntConstant(0x8CF1) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT18 extends IntConstant(0x8CF2) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT19 extends IntConstant(0x8CF3) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT20 extends IntConstant(0x8CF4) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT21 extends IntConstant(0x8CF5) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT22 extends IntConstant(0x8CF6) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT23 extends IntConstant(0x8CF7) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT24 extends IntConstant(0x8CF8) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT25 extends IntConstant(0x8CF9) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT26 extends IntConstant(0x8CFA) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT27 extends IntConstant(0x8CFB) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT28 extends IntConstant(0x8CFC) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT29 extends IntConstant(0x8CFD) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT30 extends IntConstant(0x8CFE) with ColorAttachment with FramebufferAttachment
-case object GL_COLOR_ATTACHMENT31 extends IntConstant(0x8CFF) with ColorAttachment with FramebufferAttachment
-case object GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE extends IntConstant(0x8D56) with FramebufferStatus
+case object GL_COLOR_ATTACHMENT1
+    extends IntConstant(0x8CE1)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT2
+    extends IntConstant(0x8CE2)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT3
+    extends IntConstant(0x8CE3)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT4
+    extends IntConstant(0x8CE4)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT5
+    extends IntConstant(0x8CE5)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT6
+    extends IntConstant(0x8CE6)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT7
+    extends IntConstant(0x8CE7)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT8
+    extends IntConstant(0x8CE8)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT9
+    extends IntConstant(0x8CE9)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT10
+    extends IntConstant(0x8CEA)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT11
+    extends IntConstant(0x8CEB)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT12
+    extends IntConstant(0x8CEC)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT13
+    extends IntConstant(0x8CED)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT14
+    extends IntConstant(0x8CEE)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT15
+    extends IntConstant(0x8CEF)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT16
+    extends IntConstant(0x8CF0)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT17
+    extends IntConstant(0x8CF1)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT18
+    extends IntConstant(0x8CF2)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT19
+    extends IntConstant(0x8CF3)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT20
+    extends IntConstant(0x8CF4)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT21
+    extends IntConstant(0x8CF5)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT22
+    extends IntConstant(0x8CF6)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT23
+    extends IntConstant(0x8CF7)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT24
+    extends IntConstant(0x8CF8)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT25
+    extends IntConstant(0x8CF9)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT26
+    extends IntConstant(0x8CFA)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT27
+    extends IntConstant(0x8CFB)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT28
+    extends IntConstant(0x8CFC)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT29
+    extends IntConstant(0x8CFD)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT30
+    extends IntConstant(0x8CFE)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_COLOR_ATTACHMENT31
+    extends IntConstant(0x8CFF)
+    with ColorAttachment
+    with FramebufferAttachment
+case object GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE
+    extends IntConstant(0x8D56)
+    with FramebufferStatus
 case object GL_MAX_SAMPLES extends IntConstant(0x8D57) with Parameter
-case object GL_HALF_FLOAT extends IntConstant(0x140B) with VertexAttribType with TexturePixelType
+case object GL_HALF_FLOAT
+    extends IntConstant(0x140B)
+    with VertexAttribType
+    with TexturePixelType
 case object GL_MAP_READ_BIT extends IntConstant(0x0001)
 case object GL_MAP_WRITE_BIT extends IntConstant(0x0002)
 case object GL_MAP_INVALIDATE_RANGE_BIT extends IntConstant(0x0004)
@@ -918,47 +1467,120 @@ case object GL_MAP_FLUSH_EXPLICIT_BIT extends IntConstant(0x0010)
 case object GL_MAP_UNSYNCHRONIZED_BIT extends IntConstant(0x0020)
 case object GL_RG extends IntConstant(0x8227) with TextureFormat
 case object GL_RG_INTEGER extends IntConstant(0x8228) with TextureFormat
-case object GL_R8 extends IntConstant(0x8229) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_RG8 extends IntConstant(0x822B) with RenderbufferInternalFormat with TextureSizedInternalFormat
+case object GL_R8
+    extends IntConstant(0x8229)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_RG8
+    extends IntConstant(0x822B)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
 case object GL_R16F extends IntConstant(0x822D) with TextureSizedInternalFormat
 case object GL_R32F extends IntConstant(0x822E) with TextureSizedInternalFormat
-case object GL_RG16F extends IntConstant(0x822F) with TextureSizedInternalFormat
-case object GL_RG32F extends IntConstant(0x8230) with TextureSizedInternalFormat
-case object GL_R8I extends IntConstant(0x8231) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_R8UI extends IntConstant(0x8232) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_R16I extends IntConstant(0x8233) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_R16UI extends IntConstant(0x8234) with RenderbufferInternalFormat with TextureSizedInternalFormat
+case object GL_RG16F
+    extends IntConstant(0x822F)
+    with TextureSizedInternalFormat
+case object GL_RG32F
+    extends IntConstant(0x8230)
+    with TextureSizedInternalFormat
+case object GL_R8I
+    extends IntConstant(0x8231)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_R8UI
+    extends IntConstant(0x8232)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_R16I
+    extends IntConstant(0x8233)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_R16UI
+    extends IntConstant(0x8234)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
 case object GL_R32I extends IntConstant(0x8235) with RenderbufferInternalFormat
-case object GL_R32UI extends IntConstant(0x8236) with RenderbufferInternalFormat
-case object GL_RG8I extends IntConstant(0x8237) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_RG8UI extends IntConstant(0x8238) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_RG16I extends IntConstant(0x8239) with RenderbufferInternalFormat
-case object GL_RG16UI extends IntConstant(0x823A) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_RG32I extends IntConstant(0x823B) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_RG32UI extends IntConstant(0x823C) with RenderbufferInternalFormat with TextureSizedInternalFormat
+case object GL_R32UI
+    extends IntConstant(0x8236)
+    with RenderbufferInternalFormat
+case object GL_RG8I
+    extends IntConstant(0x8237)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_RG8UI
+    extends IntConstant(0x8238)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_RG16I
+    extends IntConstant(0x8239)
+    with RenderbufferInternalFormat
+case object GL_RG16UI
+    extends IntConstant(0x823A)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_RG32I
+    extends IntConstant(0x823B)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_RG32UI
+    extends IntConstant(0x823C)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
 case object GL_VERTEX_ARRAY_BINDING extends IntConstant(0x85B5) with Parameter
-case object GL_R8_SNORM extends IntConstant(0x8F94) with TextureSizedInternalFormat
-case object GL_RG8_SNORM extends IntConstant(0x8F95) with TextureSizedInternalFormat
-case object GL_RGB8_SNORM extends IntConstant(0x8F96) with TextureSizedInternalFormat
-case object GL_RGBA8_SNORM extends IntConstant(0x8F97) with TextureSizedInternalFormat
+case object GL_R8_SNORM
+    extends IntConstant(0x8F94)
+    with TextureSizedInternalFormat
+case object GL_RG8_SNORM
+    extends IntConstant(0x8F95)
+    with TextureSizedInternalFormat
+case object GL_RGB8_SNORM
+    extends IntConstant(0x8F96)
+    with TextureSizedInternalFormat
+case object GL_RGBA8_SNORM
+    extends IntConstant(0x8F97)
+    with TextureSizedInternalFormat
 case object GL_SIGNED_NORMALIZED extends IntConstant(0x8F9C)
-case object GL_PRIMITIVE_RESTART_FIXED_INDEX extends IntConstant(0x8D69) with Capability
+case object GL_PRIMITIVE_RESTART_FIXED_INDEX
+    extends IntConstant(0x8D69)
+    with Capability
 case object GL_COPY_READ_BUFFER extends IntConstant(0x8F36) with BufferTarget
 case object GL_COPY_WRITE_BUFFER extends IntConstant(0x8F37) with BufferTarget
-case object GL_COPY_READ_BUFFER_BINDING extends IntConstant(0x8F36) with Parameter
-case object GL_COPY_WRITE_BUFFER_BINDING extends IntConstant(0x8F37) with Parameter
+case object GL_COPY_READ_BUFFER_BINDING
+    extends IntConstant(0x8F36)
+    with Parameter
+case object GL_COPY_WRITE_BUFFER_BINDING
+    extends IntConstant(0x8F37)
+    with Parameter
 case object GL_UNIFORM_BUFFER extends IntConstant(0x8A11) with BufferTarget
-case object GL_UNIFORM_BUFFER_BINDING extends IntConstant(0x8A28) with Parameter
+case object GL_UNIFORM_BUFFER_BINDING
+    extends IntConstant(0x8A28)
+    with Parameter
 case object GL_UNIFORM_BUFFER_START extends IntConstant(0x8A29) with Parameter
 case object GL_UNIFORM_BUFFER_SIZE extends IntConstant(0x8A2A) with Parameter
-case object GL_MAX_VERTEX_UNIFORM_BLOCKS extends IntConstant(0x8A2B) with Parameter
-case object GL_MAX_FRAGMENT_UNIFORM_BLOCKS extends IntConstant(0x8A2D) with Parameter
-case object GL_MAX_COMBINED_UNIFORM_BLOCKS extends IntConstant(0x8A2E) with Parameter
-case object GL_MAX_UNIFORM_BUFFER_BINDINGS extends IntConstant(0x8A2F) with Parameter
-case object GL_MAX_UNIFORM_BLOCK_SIZE extends IntConstant(0x8A30) with Parameter
-case object GL_MAX_COMBINED_VERTEX_UNIFORM_COMPONENTS extends IntConstant(0x8A31) with Parameter
-case object GL_MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS extends IntConstant(0x8A33) with Parameter
-case object GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT extends IntConstant(0x8A34) with Parameter
+case object GL_MAX_VERTEX_UNIFORM_BLOCKS
+    extends IntConstant(0x8A2B)
+    with Parameter
+case object GL_MAX_FRAGMENT_UNIFORM_BLOCKS
+    extends IntConstant(0x8A2D)
+    with Parameter
+case object GL_MAX_COMBINED_UNIFORM_BLOCKS
+    extends IntConstant(0x8A2E)
+    with Parameter
+case object GL_MAX_UNIFORM_BUFFER_BINDINGS
+    extends IntConstant(0x8A2F)
+    with Parameter
+case object GL_MAX_UNIFORM_BLOCK_SIZE
+    extends IntConstant(0x8A30)
+    with Parameter
+case object GL_MAX_COMBINED_VERTEX_UNIFORM_COMPONENTS
+    extends IntConstant(0x8A31)
+    with Parameter
+case object GL_MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS
+    extends IntConstant(0x8A33)
+    with Parameter
+case object GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT
+    extends IntConstant(0x8A34)
+    with Parameter
 case object GL_ACTIVE_UNIFORM_BLOCK_MAX_NAME_LENGTH extends IntConstant(0x8A35)
 case object GL_ACTIVE_UNIFORM_BLOCKS extends IntConstant(0x8A36)
 case object GL_UNIFORM_TYPE extends IntConstant(0x8A37)
@@ -974,12 +1596,20 @@ case object GL_UNIFORM_BLOCK_DATA_SIZE extends IntConstant(0x8A40)
 case object GL_UNIFORM_BLOCK_NAME_LENGTH extends IntConstant(0x8A41)
 case object GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS extends IntConstant(0x8A42)
 case object GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES extends IntConstant(0x8A43)
-case object GL_UNIFORM_BLOCK_REFERENCED_BY_VERTEX_SHADER extends IntConstant(0x8A44)
-case object GL_UNIFORM_BLOCK_REFERENCED_BY_FRAGMENT_SHADER extends IntConstant(0x8A46)
+case object GL_UNIFORM_BLOCK_REFERENCED_BY_VERTEX_SHADER
+    extends IntConstant(0x8A44)
+case object GL_UNIFORM_BLOCK_REFERENCED_BY_FRAGMENT_SHADER
+    extends IntConstant(0x8A46)
 case object GL_INVALID_INDEX extends IntConstant(0xFFFFFFFF)
-case object GL_MAX_VERTEX_OUTPUT_COMPONENTS extends IntConstant(0x9122) with Parameter
-case object GL_MAX_FRAGMENT_INPUT_COMPONENTS extends IntConstant(0x9125) with Parameter
-case object GL_MAX_SERVER_WAIT_TIMEOUT extends IntConstant(0x9111) with Parameter
+case object GL_MAX_VERTEX_OUTPUT_COMPONENTS
+    extends IntConstant(0x9122)
+    with Parameter
+case object GL_MAX_FRAGMENT_INPUT_COMPONENTS
+    extends IntConstant(0x9125)
+    with Parameter
+case object GL_MAX_SERVER_WAIT_TIMEOUT
+    extends IntConstant(0x9111)
+    with Parameter
 case object GL_OBJECT_TYPE extends IntConstant(0x9112)
 case object GL_SYNC_CONDITION extends IntConstant(0x9113)
 case object GL_SYNC_STATUS extends IntConstant(0x9114)
@@ -998,32 +1628,75 @@ case object GL_VERTEX_ATTRIB_ARRAY_DIVISOR extends IntConstant(0x88FE)
 case object GL_ANY_SAMPLES_PASSED extends IntConstant(0x8C2F)
 case object GL_ANY_SAMPLES_PASSED_CONSERVATIVE extends IntConstant(0x8D6A)
 case object GL_SAMPLER_BINDING extends IntConstant(0x8919) with Parameter
-case object GL_RGB10_A2UI extends IntConstant(0x906F) with RenderbufferInternalFormat with TextureSizedInternalFormat
-case object GL_TEXTURE_SWIZZLE_R extends IntConstant(0x8E42) with TextureParameter
-case object GL_TEXTURE_SWIZZLE_G extends IntConstant(0x8E43) with TextureParameter
-case object GL_TEXTURE_SWIZZLE_B extends IntConstant(0x8E44) with TextureParameter
-case object GL_TEXTURE_SWIZZLE_A extends IntConstant(0x8E45) with TextureParameter
+case object GL_RGB10_A2UI
+    extends IntConstant(0x906F)
+    with RenderbufferInternalFormat
+    with TextureSizedInternalFormat
+case object GL_TEXTURE_SWIZZLE_R
+    extends IntConstant(0x8E42)
+    with TextureParameter
+case object GL_TEXTURE_SWIZZLE_G
+    extends IntConstant(0x8E43)
+    with TextureParameter
+case object GL_TEXTURE_SWIZZLE_B
+    extends IntConstant(0x8E44)
+    with TextureParameter
+case object GL_TEXTURE_SWIZZLE_A
+    extends IntConstant(0x8E45)
+    with TextureParameter
 case object GL_GREEN extends IntConstant(0x1904) with TextureSwizzle
 case object GL_BLUE extends IntConstant(0x1905) with TextureSwizzle
-case object GL_INT_2_10_10_10_REV extends IntConstant(0x8D9F) with VertexAttribType
+case object GL_INT_2_10_10_10_REV
+    extends IntConstant(0x8D9F)
+    with VertexAttribType
 case object GL_TRANSFORM_FEEDBACK extends IntConstant(0x8E22)
-case object GL_TRANSFORM_FEEDBACK_PAUSED extends IntConstant(0x8E23) with Parameter
-case object GL_TRANSFORM_FEEDBACK_ACTIVE extends IntConstant(0x8E24) with Parameter
-case object GL_TRANSFORM_FEEDBACK_BINDING extends IntConstant(0x8E25) with Parameter
+case object GL_TRANSFORM_FEEDBACK_PAUSED
+    extends IntConstant(0x8E23)
+    with Parameter
+case object GL_TRANSFORM_FEEDBACK_ACTIVE
+    extends IntConstant(0x8E24)
+    with Parameter
+case object GL_TRANSFORM_FEEDBACK_BINDING
+    extends IntConstant(0x8E25)
+    with Parameter
 case object GL_PROGRAM_BINARY_RETRIEVABLE_HINT extends IntConstant(0x8257)
 case object GL_PROGRAM_BINARY_LENGTH extends IntConstant(0x8741)
-case object GL_NUM_PROGRAM_BINARY_FORMATS extends IntConstant(0x87FE) with Parameter
-case object GL_PROGRAM_BINARY_FORMATS extends IntConstant(0x87FF) with Parameter
-case object GL_COMPRESSED_R11_EAC extends IntConstant(0x9270) with TextureCompressedFormat
-case object GL_COMPRESSED_SIGNED_R11_EAC extends IntConstant(0x9271) with TextureCompressedFormat
-case object GL_COMPRESSED_RG11_EAC extends IntConstant(0x9272) with TextureCompressedFormat
-case object GL_COMPRESSED_SIGNED_RG11_EAC extends IntConstant(0x9273) with TextureCompressedFormat
-case object GL_COMPRESSED_RGB8_ETC2 extends IntConstant(0x9274) with TextureCompressedFormat
-case object GL_COMPRESSED_SRGB8_ETC2 extends IntConstant(0x9275) with TextureCompressedFormat
-case object GL_COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2 extends IntConstant(0x9276) with TextureCompressedFormat
-case object GL_COMPRESSED_SRGB8_PUNCHTHROUGH_ALPHA1_ETC2 extends IntConstant(0x9277) with TextureCompressedFormat
-case object GL_COMPRESSED_RGBA8_ETC2_EAC extends IntConstant(0x9278) with TextureCompressedFormat
-case object GL_COMPRESSED_SRGB8_ALPHA8_ETC2_EAC extends IntConstant(0x9279) with TextureCompressedFormat
+case object GL_NUM_PROGRAM_BINARY_FORMATS
+    extends IntConstant(0x87FE)
+    with Parameter
+case object GL_PROGRAM_BINARY_FORMATS
+    extends IntConstant(0x87FF)
+    with Parameter
+case object GL_COMPRESSED_R11_EAC
+    extends IntConstant(0x9270)
+    with TextureCompressedFormat
+case object GL_COMPRESSED_SIGNED_R11_EAC
+    extends IntConstant(0x9271)
+    with TextureCompressedFormat
+case object GL_COMPRESSED_RG11_EAC
+    extends IntConstant(0x9272)
+    with TextureCompressedFormat
+case object GL_COMPRESSED_SIGNED_RG11_EAC
+    extends IntConstant(0x9273)
+    with TextureCompressedFormat
+case object GL_COMPRESSED_RGB8_ETC2
+    extends IntConstant(0x9274)
+    with TextureCompressedFormat
+case object GL_COMPRESSED_SRGB8_ETC2
+    extends IntConstant(0x9275)
+    with TextureCompressedFormat
+case object GL_COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2
+    extends IntConstant(0x9276)
+    with TextureCompressedFormat
+case object GL_COMPRESSED_SRGB8_PUNCHTHROUGH_ALPHA1_ETC2
+    extends IntConstant(0x9277)
+    with TextureCompressedFormat
+case object GL_COMPRESSED_RGBA8_ETC2_EAC
+    extends IntConstant(0x9278)
+    with TextureCompressedFormat
+case object GL_COMPRESSED_SRGB8_ALPHA8_ETC2_EAC
+    extends IntConstant(0x9279)
+    with TextureCompressedFormat
 case object GL_TEXTURE_IMMUTABLE_FORMAT extends IntConstant(0x912F)
 case object GL_MAX_ELEMENT_INDEX extends IntConstant(0x8D6B) with Parameter
 case object GL_NUM_SAMPLE_COUNTS extends IntConstant(0x9380)

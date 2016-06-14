@@ -6,5 +6,3 @@ trait VectorContextSyntax {
     def v(args: A*): Any = macro VectorContextMacro.apply_impl[A]
   }
 }
-
-

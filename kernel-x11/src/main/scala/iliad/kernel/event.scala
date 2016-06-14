@@ -26,8 +26,10 @@ trait X11EventHandler extends EventHandler {
     case ButtonPress =>
       log.debug("received tap")
       e.readField("xbutton")
-      val xFraction = (e.xbutton.x - e.xbutton.x_root).toFloat / viewDimensions(0).toFloat
-      val yFraction = (e.xbutton.y - e.xbutton.y_root).toFloat / viewDimensions(1).toFloat
+      val xFraction =
+        (e.xbutton.x - e.xbutton.x_root).toFloat / viewDimensions(0).toFloat
+      val yFraction =
+        (e.xbutton.y - e.xbutton.y_root).toFloat / viewDimensions(1).toFloat
       tapCallback(Tap(e.xbutton.time.longValue, v"$xFraction $yFraction"))
     case other =>
       log.warn("Unhandled event of type {}", other)

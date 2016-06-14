@@ -1,4 +1,4 @@
 package iliad
 package std
 
-trait AllInstances extends VectorInstances
+trait AllInstances extends VectorInstances with FloatInstances

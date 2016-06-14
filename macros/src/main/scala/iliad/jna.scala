@@ -20,7 +20,8 @@ trait SymbolMacro {
   lazy val objectMethods: Set[Symbol] = weakTypeOf[Object].members.toSet
 
   def methodSymbolParamTree(m: MethodSymbol): List[Tree] = {
-    m.paramLists.flatMap(_.map(t => q"""val ${t.asTerm.name}: ${t.asTerm.info}"""))
+    m.paramLists.flatMap(_.map(t =>
+              q"""val ${t.asTerm.name}: ${t.asTerm.info}"""))
   }
 
   def annotatedType: Type = {
@@ -43,9 +44,11 @@ final class BridgeInstanceMacro(val c: whitebox.Context) extends SymbolMacro {
   }
 
   def instanceTerm(instance: Type, companion: Type): TermSymbol = {
-    companion.members.find(m => m.isPublic && m.isTerm && m.asTerm.typeSignature == instance) match {
+    companion.members.find(m =>
+          m.isPublic && m.isTerm && m.asTerm.typeSignature == instance) match {
       case Some(term) => term.asTerm
-      case None => c.abort(c.enclosingPosition, "cannot find instance value to bind to")
+      case None =>
+        c.abort(c.enclosingPosition, "cannot find instance value to bind to")
     }
   }
 
@@ -53,10 +56,12 @@ final class BridgeInstanceMacro(val c: whitebox.Context) extends SymbolMacro {
     instance match {
       case TypeRef(_, ClassSymbolTag(cls), _) =>
         val split = cls.fullName.split("\\.")
-        split.tail.foldLeft(Xor.left[TermName, Select](TermName(split.head))) { (b, a) => b match {
-          case Xor.Right(sel) => Xor.Right(Select(sel, TermName(a)))
-          case Xor.Left(tm) => Xor.Right(Select(Ident(tm), TermName(a)))
-        }
+        split.tail.foldLeft(Xor.left[TermName, Select](TermName(split.head))) {
+          (b, a) =>
+            b match {
+              case Xor.Right(sel) => Xor.Right(Select(sel, TermName(a)))
+              case Xor.Left(tm) => Xor.Right(Select(Ident(tm), TermName(a)))
+            }
         } match {
           case Xor.Left(tm) => q"""$tm.$term"""
           case Xor.Right(sel) => q"""$sel.$term"""
@@ -70,14 +75,20 @@ final class BridgeInstanceMacro(val c: whitebox.Context) extends SymbolMacro {
     val t = asTermSymbol(instance, term)
 
     mkTrees(instance)(
-      m => m.isMethod && m.isPublic && !m.isConstructor && !deprecated(m) && !objectMethods.contains(m),
-      s => mkMethod(t)(s.asMethod)
+        m =>
+          m.isMethod && m.isPublic &&
+          !m.isConstructor && !deprecated(m) && !objectMethods.contains(m),
+        s => mkMethod(t)(s.asMethod)
     )
   }
 
-  def mkTrees(companion: Type)(f: Symbol => Boolean, g: Symbol => Tree): Tree = q"""..${companion.members.filter(f).map(g)}"""
-  def deprecated(s: Symbol): Boolean = s.annotations exists { a => c.typecheck(a.tree).tpe.typeSymbol == symbolOf[Deprecated] }
-  def errorMsg(s: TypeName): String = s"Cannot find Static for interface to bind to for ${s.decodedName}"
+  def mkTrees(companion: Type)(f: Symbol => Boolean, g: Symbol => Tree): Tree =
+    q"""..${companion.members.filter(f).map(g)}"""
+  def deprecated(s: Symbol): Boolean = s.annotations exists { a =>
+    c.typecheck(a.tree).tpe.typeSymbol == symbolOf[Deprecated]
+  }
+  def errorMsg(s: TypeName): String =
+    s"Cannot find Static for interface to bind to for ${s.decodedName}"
 
   def addMethods(name: TypeName)(newTpeGen: Tree => Tree): Tree = {
     val tpe = annotatedType
@@ -88,9 +99,11 @@ final class BridgeInstanceMacro(val c: whitebox.Context) extends SymbolMacro {
   def mkTpe(annottees: Expr[Any]*): Tree = {
     annottees.map(_.tree) match {
       case List(q"""abstract trait $name extends $parent with ..$traits""") =>
-        addMethods(name)(methods => q"""trait $name extends $parent with ..$traits { ..$methods }""")
+        addMethods(name)(methods =>
+              q"""trait $name extends $parent with ..$traits { ..$methods }""")
       case List(q"""abstract trait $name extends $parent""") =>
-        addMethods(name)(methods => q"""trait $name extends $parent { ..$methods }""")
+        addMethods(name)(methods =>
+              q"""trait $name extends $parent { ..$methods }""")
       case _ =>
         c.abort(c.enclosingPosition, "Can only bind to empty trait")
     }
