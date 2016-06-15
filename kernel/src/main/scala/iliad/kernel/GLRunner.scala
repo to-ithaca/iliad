@@ -144,8 +144,7 @@ private[kernel] object GLRunner extends GL[Id] {
     lift(
         _.glGetError() match {
       case v if v == GL_NO_ERROR.value => None
-      case v =>
-        Some(SealedEnum.values[ErrorCode].find(_.value == v).toRightXor(v))
+      case v => Some(SealedEnum.values[ErrorCode].find(_.value == v).toRightXor(v))
     })
 
   //nasty but the signature of gen means the alternatives are worse!

@@ -53,7 +53,8 @@ trait GLES30Library {
                             normalized: Boolean,
                             stride: Int,
                             offset: Int): Unit
-  def glVertexAttribIPointer(index: Int, size: Int, `type`: Int, stride: Int, offset: Int): Unit
+  def glVertexAttribIPointer(
+      index: Int, size: Int, `type`: Int, stride: Int, offset: Int): Unit
 
   def glGenFramebuffers(num: Int, ptr: IntBuffer): Unit
   def glBindFramebuffer(target: Int, framebuffer: Int): Unit
@@ -248,8 +249,8 @@ trait GLES30Library {
   // def glBindBufferBase(target: Int, index: Int, buffer: Int): Unit
   // def glBindBufferRange(target: Int, index: Int, buffer: Int, offset: Int, size: Int): Unit
   // def glBindTransformFeedback(target: Int, id: Int): Unit
- // def glClearBufferfi(
- //     buffer: Int, drawbuffer: Int, depth: Float, stencil: Int): Unit
+  // def glClearBufferfi(
+  //     buffer: Int, drawbuffer: Int, depth: Float, stencil: Int): Unit
   // def glClientWaitSync(sync: Long, flags: Int, timeout: Long): Int
   // def glCompressedTexImage3D(target: Int, level: Int, internalformat: Int, width: Int, height: Int, depth: Int, border: Int, imageSize: Int, data: Buffer): Unit
   // def glCompressedTexSubImage3D(target: Int, level: Int, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, format: Int, imageSize: Int, data: Buffer): Unit
