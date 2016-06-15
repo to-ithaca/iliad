@@ -32,7 +32,6 @@ lazy val compilerOptions = Seq(
 
 lazy val monocleVersion = "1.2.1"
 lazy val catsVersion = "0.6.0"
-lazy val emmVersion = "0.2.1"
 
 lazy val commonSettings = Seq(
   resolvers ++= Seq(
@@ -53,8 +52,6 @@ lazy val commonSettings = Seq(
     "org.typelevel" %% "cats-laws" % catsVersion % "test",
     "com.github.julien-truffaut" %% "monocle-core" % monocleVersion,
     "com.github.julien-truffaut"  %%  "monocle-macro" % monocleVersion,
-    "com.codecommit" %% "emm-core" % emmVersion,
-    "com.codecommit" %% "emm-cats" % emmVersion,
     "com.projectseptember" %% "freek" % "0.3.0",
     "org.slf4j" % "slf4j-api" % "1.7.13"
   )

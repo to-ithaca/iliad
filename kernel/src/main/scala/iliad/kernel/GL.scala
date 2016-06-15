@@ -195,7 +195,6 @@ abstract class GL[F[_]: Monad] {
       shader: Int, pname: ShaderParameter, expected: Set[A]): IO[F, A] =
     getShaderiv(shader, pname).map(code => expected.find(_.value == code).get)
 
-
   def getShaderiv(shader: Int, pname: GL_INFO_LOG_LENGTH.type): IO[F, Int] =
     getShaderiv(shader, pname: ShaderParameter)
 
@@ -690,22 +689,22 @@ abstract class GL[F[_]: Monad] {
       .sequence
 
   def draw(d: Draw): IO[F, String Xor Unit] = fromXorT(
-    for {
-      fid <- toXorT(existingFramebufferId(d.framebuffer))
-      _ <- liftXorT(bindFramebufferState(fid))
-      _ <- liftXorT(bindCapabilities(d.capabilities))
-      _ <- liftXorT(bindColorMask(d.colorMask))
-      p <- toXorT(loadedProgram(d.program))
-      _ <- liftXorT(bindProgram(p))
-      vb <- toXorT(existingBuffer(d.model.buffer, GL_ARRAY_BUFFER))
-      _ <- liftXorT(bindBufferState(GL_ARRAY_BUFFER, vb.id))
-      eb <- toXorT(existingBuffer(d.model.buffer, GL_ELEMENT_ARRAY_BUFFER))
-      _ <- liftXorT(bindBufferState(GL_ELEMENT_ARRAY_BUFFER, eb.id))
-      m <- toXorT(existingModel(d.model))
-      _ <- toXorT(bindAttributes(p, vb, m))
-      _ <- liftXorT(drawElements(m))
-    } yield ()
-)
+      for {
+        fid <- toXorT(existingFramebufferId(d.framebuffer))
+        _ <- liftXorT(bindFramebufferState(fid))
+        _ <- liftXorT(bindCapabilities(d.capabilities))
+        _ <- liftXorT(bindColorMask(d.colorMask))
+        p <- toXorT(loadedProgram(d.program))
+        _ <- liftXorT(bindProgram(p))
+        vb <- toXorT(existingBuffer(d.model.buffer, GL_ARRAY_BUFFER))
+        _ <- liftXorT(bindBufferState(GL_ARRAY_BUFFER, vb.id))
+        eb <- toXorT(existingBuffer(d.model.buffer, GL_ELEMENT_ARRAY_BUFFER))
+        _ <- liftXorT(bindBufferState(GL_ELEMENT_ARRAY_BUFFER, eb.id))
+        m <- toXorT(existingModel(d.model))
+        _ <- toXorT(bindAttributes(p, vb, m))
+        _ <- liftXorT(drawElements(m))
+      } yield ()
+  )
 }
 
 @scala.annotation.implicitNotFound("Cannot find update of type $A")
