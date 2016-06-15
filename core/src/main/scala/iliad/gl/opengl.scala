@@ -2,7 +2,7 @@ package iliad
 package gl
 
 import iliad.kernel.platform.GLES30Library
-import iliad.CatsExtras._
+import iliad.CatsExtra._
 
 import cats._
 import cats.data._
@@ -103,33 +103,60 @@ sealed trait GLFunctions {
       _ <- GLBufferData(target, capacity, null, GL_STATIC_DRAW).free
     } yield id
 
-  def makeNewBuffer(
+  private def makeNewBuffer(
       target: BufferTarget, data: Buffer, size: Int, capacity: Int): DSL[Int] =
     for {
       id <- makeEmptyBuffer(target, capacity)
       _ <- GLBufferSubData(target, 0, size, data).free
     } yield id
 
-  def insertInBuffer(id: Int,
-                     target: BufferTarget,
-                     offset: Int,
-                     size: Int,
-                     data: Buffer): DSL[Unit] =
+  def makeNewVertexBuffer(data: Buffer, size: Int, capacity: Int): DSL[Int] =
+    makeNewBuffer(GL_ARRAY_BUFFER, data, size, capacity)
+
+  def makeNewElementBuffer(data: Buffer, size: Int, capacity: Int): DSL[Int] =
+    makeNewBuffer(GL_ELEMENT_ARRAY_BUFFER, data, size, capacity)
+
+  private def insertInBuffer(target: BufferTarget,
+                             buffer: Int,
+                             offset: Int,
+                             size: Int,
+                             data: Buffer): DSL[Unit] =
     for {
-      _ <- GLBindBuffer(target, id).free
+      _ <- GLBindBuffer(target, buffer).free
       _ <- GLBufferSubData(target, offset, size, data).free
     } yield ()
 
-  def copyToNewBuffer(oldId: Int,
-                      target: BufferTarget,
-                      offset: Int,
-                      size: Int,
-                      data: Buffer,
-                      capacity: Int): DSL[Int] =
+  def insertVertices(buffer: Int, offset: Int, size: Int, data: Buffer) =
+    insertInBuffer(GL_ARRAY_BUFFER, buffer, offset, size, data)
+
+  def insertElements(buffer: Int, offset: Int, size: Int, data: Buffer) =
+    insertInBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer, offset, size, data)
+
+  private def copyToNewBuffer(oldId: Int,
+                              target: BufferTarget,
+                              offset: Int,
+                              size: Int,
+                              data: Buffer,
+                              capacity: Int): DSL[Int] =
     for {
       id <- makeEmptyBuffer(target, capacity)
       _ <- GLBindBuffer(GL_COPY_READ_BUFFER, oldId).free
       _ <- GLCopyBufferSubData(GL_COPY_READ_BUFFER, target, 0, 0, offset).free
       _ <- GLBufferSubData(target, offset, size, data).free
     } yield id
+
+  def copyVertices(oldId: Int,
+                   offset: Int,
+                   size: Int,
+                   data: Buffer,
+                   capacity: Int): DSL[Int] =
+    copyToNewBuffer(oldId, GL_ARRAY_BUFFER, offset, size, data, capacity)
+
+  def copyElements(oldId: Int,
+                   offset: Int,
+                   size: Int,
+                   data: Buffer,
+                   capacity: Int): DSL[Int] =
+    copyToNewBuffer(
+        oldId, GL_ELEMENT_ARRAY_BUFFER, offset, size, data, capacity)
 }

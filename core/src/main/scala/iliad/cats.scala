@@ -2,7 +2,7 @@ package iliad
 
 import cats.free._
 
-object CatsExtras {
+object CatsExtra {
   implicit def freeOps[F[_], A](f: F[A]): FreeOps[F, A] = new FreeOps(f)
 }
 

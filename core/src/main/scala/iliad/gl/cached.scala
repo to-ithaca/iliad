@@ -37,3 +37,7 @@ case class FragmentShaderPut(fs: FragmentShader.Compiled) extends Cached[Unit]
 case class ProgramGet(p: Program.Unlinked)
     extends Cached[Option[Program.Linked]]
 case class ProgramPut(p: Program.Linked) extends Cached[Unit]
+
+private object CachedParser extends (Cached ~> State[Cached.CachedState, ?]) {
+  def apply[A](cached: Cached[A]): State[Cached.CachedState, A] = ???
+}
