@@ -55,6 +55,7 @@ lazy val commonSettings = Seq(
     "com.github.julien-truffaut"  %%  "monocle-macro" % monocleVersion,
     "com.codecommit" %% "emm-core" % emmVersion,
     "com.codecommit" %% "emm-cats" % emmVersion,
+    "com.projectseptember" %% "freek" % "0.3.0",
     "org.slf4j" % "slf4j-api" % "1.7.13"
   )
 ) ++ compilerOptions
