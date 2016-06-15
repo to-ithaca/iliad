@@ -22,8 +22,9 @@ object CachedLoad extends CachedLoadFunctions {
 
   private def load[F[_]: Monad](
       gl: GL ~> ReaderT[F, GLES30Library, ?]): Load ~> PRG[F, ?] =
-    Load.parse(gl).andThen(
-      new (ReaderT[F, GLES30Library, ?] ~> PRG[F, ?]) {
+    Load
+      .parse(gl)
+      .andThen(new (ReaderT[F, GLES30Library, ?] ~> PRG[F, ?]) {
         def apply[A](r: ReaderT[F, GLES30Library, A]): PRG[F, A] =
           r.mapF(fa => StateT(s => fa.map(s -> _)))
       })

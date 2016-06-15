@@ -2,17 +2,21 @@ package iliad
 package gl
 
 import iliad.kernel.platform.GLES30Library
+import iliad.CatsExtras._
 
 import cats._
 import cats.data._
 import cats.free._, Free._
 
+import java.nio.Buffer
+
 object GL extends GLFunctions {
 
   type DSL[A] = Free[GL, A]
-  
+
   type LogEffect[A] = ReaderT[Writer[List[String], ?], GLES30Library, A]
-  type DebugEffect[A] = ReaderT[XorT[Writer[List[String], ?], String, ?], GLES30Library, A]
+  type DebugEffect[A] =
+    ReaderT[XorT[Writer[List[String], ?], String, ?], GLES30Library, A]
 
   val run: GL ~> ReaderT[Id, GLES30Library, ?] = GLInterpreter
   val log: GL ~> LogEffect = GLLogInterpreter
@@ -32,52 +36,100 @@ case object GLCreateProgram extends GL[Int]
 case class GLAttachShader(program: Int, shader: Int) extends GL[Unit]
 case class GLLinkProgram(program: Int) extends GL[Unit]
 
+case class GLGenBuffers(number: Int) extends GL[List[Int]]
+case class GLBindBuffer(target: BufferTarget, buffer: Int) extends GL[Unit]
+case class GLBufferData(
+    target: BufferTarget, size: Int, data: Buffer, usage: BufferUsage)
+    extends GL[Unit]
+case class GLBufferSubData(
+    target: BufferTarget, offset: Int, size: Int, data: Buffer)
+    extends GL[Unit]
+case class GLCopyBufferSubData(red: BufferTarget,
+                               write: BufferTarget,
+                               readOffset: Int,
+                               writeOffset: Int,
+                               size: Int)
+    extends GL[Unit]
+
 sealed trait GLFunctions {
 
   import GL.DSL
 
-  val getError: DSL[Int] = liftF(GLGetError)
+  val getError: DSL[Int] = GLGetError.free
 
-  private def getShaderiv(shader: Int, pname: ShaderParameter): DSL[Int] = liftF(GLGetShaderiv(shader, pname))
-  private def getShaderLogLength(shader: Int): DSL[Int] = getShaderiv(shader, GL_INFO_LOG_LENGTH)
+  private def getShaderLogLength(shader: Int): DSL[Int] =
+    GLGetShaderiv(shader, GL_INFO_LOG_LENGTH).free
+  private def getCompileStatus(shader: Int): DSL[Int] =
+    GLGetShaderiv(shader, GL_COMPILE_STATUS).free
 
-  //TODO: string ops with whiteSpaceOption 
-  def getShaderInfoLog(shader: Int): DSL[Option[String]] = for {
-    l <- getShaderLogLength(shader)
-    s <- liftF(GLGetShaderInfoLog(shader, l)).map(s => if(s.isEmpty()) None else Some(s))
-  } yield s
-
-  private val createProgram: DSL[Int] = liftF(GLCreateProgram)
-  private val createVertexShader: DSL[Int] = liftF(GLCreateShader(GL_VERTEX_SHADER))
-  private val createFragmentShader: DSL[Int] = liftF(GLCreateShader(GL_FRAGMENT_SHADER))
-  private def shaderSource(shader: Int, sources: List[String]): DSL[Unit] =
-    liftF(GLShaderSource(shader, sources))
-  private def compileShader(shader: Int): DSL[Unit] =
-    liftF(GLCompileShader(shader))
-  private def attachShader(program: Int, shader: Int): DSL[Unit] =
-    liftF(GLAttachShader(program, shader))
-  private def linkProgram(program: Int): DSL[Unit] = liftF(GLLinkProgram(program))
+  def getCompileError(shader: Int): DSL[Option[String]] =
+    getCompileStatus(shader) flatMap { status =>
+      if (status == GL_TRUE.value) Free.pure(None)
+      else
+        for {
+          l <- getShaderLogLength(shader)
+          s <- liftF(GLGetShaderInfoLog(shader, l))
+        } yield Some(s)
+    }
 
   def makeVertexShader(source: String): DSL[Int] =
     for {
-      id <- createVertexShader
-      _ <- shaderSource(id, List(source))
-      _ <- compileShader(id)
+      id <- GLCreateShader(GL_VERTEX_SHADER).free
+      _ <- GLShaderSource(id, List(source)).free
+      _ <- GLCompileShader(id).free
     } yield id
 
   def makeFragmentShader(source: String): DSL[Int] =
     for {
-      id <- createFragmentShader
-      _ <- shaderSource(id, List(source))
-      _ <- compileShader(id)
+      id <- GLCreateShader(GL_FRAGMENT_SHADER).free
+      _ <- GLShaderSource(id, List(source)).free
+      _ <- GLCompileShader(id).free
     } yield id
 
-  def makeProgram(vertexId: Int, fragmentId: Int): DSL[Int] = for {
-    id <- createProgram
-    _ <- attachShader(id, vertexId)
-    _ <- attachShader(id, fragmentId)
-    _ <- linkProgram(id)
-  } yield id
-}
+  def makeProgram(vertexId: Int, fragmentId: Int): DSL[Int] =
+    for {
+      id <- GLCreateProgram.free
+      _ <- GLAttachShader(id, vertexId).free
+      _ <- GLAttachShader(id, fragmentId).free
+      _ <- GLLinkProgram(id).free
+    } yield id
 
-//TODO: add a debugger which checks for the program as well
+  private val genBuffer: DSL[Int] = GLGenBuffers(1).free.map(_.head)
+
+  private def makeEmptyBuffer(target: BufferTarget, capacity: Int): DSL[Int] =
+    for {
+      id <- genBuffer
+      _ <- GLBindBuffer(target, id).free
+      _ <- GLBufferData(target, capacity, null, GL_STATIC_DRAW).free
+    } yield id
+
+  def makeNewBuffer(
+      target: BufferTarget, data: Buffer, size: Int, capacity: Int): DSL[Int] =
+    for {
+      id <- makeEmptyBuffer(target, capacity)
+      _ <- GLBufferSubData(target, 0, size, data).free
+    } yield id
+
+  def insertInBuffer(id: Int,
+                     target: BufferTarget,
+                     offset: Int,
+                     size: Int,
+                     data: Buffer): DSL[Unit] =
+    for {
+      _ <- GLBindBuffer(target, id).free
+      _ <- GLBufferSubData(target, offset, size, data).free
+    } yield ()
+
+  def copyToNewBuffer(oldId: Int,
+                      target: BufferTarget,
+                      offset: Int,
+                      size: Int,
+                      data: Buffer,
+                      capacity: Int): DSL[Int] =
+    for {
+      id <- makeEmptyBuffer(target, capacity)
+      _ <- GLBindBuffer(GL_COPY_READ_BUFFER, oldId).free
+      _ <- GLCopyBufferSubData(GL_COPY_READ_BUFFER, target, 0, 0, offset).free
+      _ <- GLBufferSubData(target, offset, size, data).free
+    } yield id
+}

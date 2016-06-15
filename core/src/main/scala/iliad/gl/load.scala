@@ -4,15 +4,6 @@ package gl
 import cats._
 import cats.free._, Free._
 
-sealed trait Load[A]
-
-case class LoadVertexShader(s: VertexShader.Source)
-    extends Load[VertexShader.Compiled]
-case class LoadFragmentShader(s: FragmentShader.Source)
-    extends Load[FragmentShader.Compiled]
-case class LoadProgram(vs: VertexShader.Compiled, fs: FragmentShader.Compiled)
-    extends Load[Program.Linked]
-
 object Load {
   type DSL[A] = Free[Load, A]
 
@@ -35,11 +26,23 @@ object Load {
   }
 }
 
+sealed trait Load[A]
+
+case class LoadVertexShader(s: VertexShader.Source)
+    extends Load[VertexShader.Compiled]
+case class LoadFragmentShader(s: FragmentShader.Source)
+    extends Load[FragmentShader.Compiled]
+case class LoadProgram(vs: VertexShader.Compiled, fs: FragmentShader.Compiled)
+    extends Load[Program.Linked]
+
 private object LoadParser extends (Load ~> GL.DSL) {
   def apply[A](load: Load[A]): GL.DSL[A] = load match {
     case LoadVertexShader(s) =>
       GL.makeVertexShader(s.s).map(VertexShader.Compiled(_, s))
-    case LoadFragmentShader(s) => GL.makeFragmentShader(s.s).map(FragmentShader.Compiled(_, s))
-    case LoadProgram(vs, fs) => GL.makeProgram(vs.id, fs.id).map(Program.Linked(_, Program.Unlinked(vs.s, fs.s)))
+    case LoadFragmentShader(s) =>
+      GL.makeFragmentShader(s.s).map(FragmentShader.Compiled(_, s))
+    case LoadProgram(vs, fs) =>
+      GL.makeProgram(vs.id, fs.id)
+        .map(Program.Linked(_, Program.Unlinked(vs.s, fs.s)))
   }
 }
