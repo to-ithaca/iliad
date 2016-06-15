@@ -7,6 +7,7 @@ import iliad.CatsExtra._
 import cats._
 import cats.data._
 import cats.free._, Free._
+import cats.implicits._
 
 import java.nio.Buffer
 
@@ -35,6 +36,7 @@ case class GLCompileShader(shader: Int) extends GL[Unit]
 case object GLCreateProgram extends GL[Int]
 case class GLAttachShader(program: Int, shader: Int) extends GL[Unit]
 case class GLLinkProgram(program: Int) extends GL[Unit]
+case class GLGetAttribLocation(program: Int, name: String) extends GL[Int]
 
 case class GLGenBuffers(number: Int) extends GL[List[Int]]
 case class GLBindBuffer(target: BufferTarget, buffer: Int) extends GL[Unit]
@@ -44,7 +46,7 @@ case class GLBufferData(
 case class GLBufferSubData(
     target: BufferTarget, offset: Int, size: Int, data: Buffer)
     extends GL[Unit]
-case class GLCopyBufferSubData(red: BufferTarget,
+case class GLCopyBufferSubData(read: BufferTarget,
                                write: BufferTarget,
                                readOffset: Int,
                                writeOffset: Int,
@@ -93,6 +95,12 @@ sealed trait GLFunctions {
       _ <- GLAttachShader(id, fragmentId).free
       _ <- GLLinkProgram(id).free
     } yield id
+
+  private def traverse[A, B, G[_]: Traverse](keys: G[A])(f: A => DSL[B]): DSL[G[(A, B)]] =
+    keys.traverse[DSL, (A, B)](s => f(s).map(s -> _))
+
+  def getAttributeLocations(program: Int, attributes: List[String]): DSL[List[(String, Int)]] = 
+    traverse(attributes)(a => GLGetAttribLocation(program, a).free)
 
   private val genBuffer: DSL[Int] = GLGenBuffers(1).free.map(_.head)
 

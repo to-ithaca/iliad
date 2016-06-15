@@ -53,6 +53,67 @@ sealed trait CachedLoadFunctions {
           _ <- Cached.put(v).freekF[CLoad]
         } yield v
     }
+
+  def apply(s: FragmentShader.Source): DSL[FragmentShader.Compiled] =
+    Cached.get(s).freekF[CLoad] flatMap {
+      case Some(v) => Free.pure(v)
+      case None =>
+        for {
+          v <- Load(s).freekF[CLoad]
+          _ <- Cached.put(v).freekF[CLoad]
+        } yield v
+    }
+
+  def apply(p: Program.Unlinked): DSL[Program.Linked] = Cached.get(p).freekF[CLoad] flatMap {
+    case Some(p) => Free.pure(p)
+    case None => for {
+      v <- CachedLoad(p.vs)
+      f <- CachedLoad(p.fs)
+      pl <- Load(v, f).freekF[CLoad]
+      _ <- Cached.put(pl).freekF[CLoad]
+    } yield pl
+  }
+
+  def apply(vb: VertexBuffer.Base, m: Model.VertexData, pageSize: Int): DSL[Model.VertexLoaded] = 
+    Cached.getVertex(vb).freekF[CLoad] flatMap {
+      case Some(prev) => if(prev.fits(m.size)) for {
+        next <- Load.insert(m, pageSize, prev).freekF[CLoad]
+        _ <- Cached.update(prev, next).freekF[CLoad]
+      } yield Model.VertexLoaded(next, (prev.filled, prev.filled + m.size))
+      else for {
+        next <- Load.copy(m, pageSize, prev).freekF[CLoad]
+        _ <- Cached.update(prev, next).freekF[CLoad]
+      } yield Model.VertexLoaded(next, (prev.filled, prev.filled + m.size))
+      case None => for {
+        b <- Load.newBuffer(m, pageSize, vb).freekF[CLoad]
+        _ <- Cached.put(b).freekF[CLoad]
+      } yield Model.VertexLoaded(b, (0, m.size))
+    }
+
+  def apply(vb: VertexBuffer.Base, m: Model.ElementData, pageSize: Int): DSL[Model.ElementLoaded] = 
+    Cached.getElement(vb).freekF[CLoad] flatMap {
+      case Some(prev) => if(prev.fits(m.size)) for {
+        next <- Load.insert(m, pageSize, prev).freekF[CLoad]
+        _ <- Cached.update(prev, next).freekF[CLoad]
+      } yield Model.ElementLoaded(next, (prev.filled, prev.filled + m.size))
+      else for {
+        next <- Load.copy(m, pageSize, prev).freekF[CLoad]
+        _ <- Cached.update(prev, next).freekF[CLoad]
+      } yield Model.ElementLoaded(next, (prev.filled, prev.filled + m.size))
+      case None => for {
+        b <- Load.newBuffer(m, pageSize, vb).freekF[CLoad]
+        _ <- Cached.put(b).freekF[CLoad]
+      } yield Model.ElementLoaded(b, (0, m.size))
+    }
+
+  def apply(m: Model.Base, pageSize: Int): DSL[Model.Loaded] = for {
+    v <- CachedLoad(m.b, m.v, pageSize)
+    e <- CachedLoad(m.b, m.e, pageSize)
+    l = Model.Loaded(v, e, m)
+    _ <- Cached.put(l).freekF[CLoad]
+  } yield l
+
+  
 }
 
 /*
