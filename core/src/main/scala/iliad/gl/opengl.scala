@@ -53,6 +53,17 @@ case class GLCopyBufferSubData(read: BufferTarget,
                                size: Int)
     extends GL[Unit]
 
+
+case class GLBindFramebuffer(target: FramebufferTarget, framebuffer: Int) extends GL[Unit]
+case class GLEnable(capability: Capability) extends GL[Unit]
+case class GLDisable(capability: Capability) extends GL[Unit]
+case class GLColorMask(red: Boolean, green: Boolean, blue: Boolean, alpha: Boolean) extends GL[Unit]
+case class GLUseProgram(program: Int) extends GL[Unit]
+case class GLEnableVertexAttribArray(location: Int) extends GL[Unit]
+case class GLVertexAttribPointer(location: Int, size: Int, `type`: VertexAttribType, normalized: Boolean, stride: Int, offset: Int) extends GL[Unit]
+case class GLDrawElements(mode: PrimitiveType, count: Int, `type`: IndexType, offset: Int) extends GL[Unit]
+case class GLClear(bitmask: ChannelBitMask) extends GL[Unit]
+
 sealed trait GLFunctions {
 
   import GL.DSL
@@ -96,10 +107,12 @@ sealed trait GLFunctions {
       _ <- GLLinkProgram(id).free
     } yield id
 
-  private def traverse[A, B, G[_]: Traverse](keys: G[A])(f: A => DSL[B]): DSL[G[(A, B)]] =
+  private def traverse[A, B, G[_]: Traverse](keys: G[A])(
+      f: A => DSL[B]): DSL[G[(A, B)]] =
     keys.traverse[DSL, (A, B)](s => f(s).map(s -> _))
 
-  def getAttributeLocations(program: Int, attributes: List[String]): DSL[List[(String, Int)]] = 
+  def getAttributeLocations(
+      program: Int, attributes: List[String]): DSL[List[(String, Int)]] =
     traverse(attributes)(a => GLGetAttribLocation(program, a).free)
 
   private val genBuffer: DSL[Int] = GLGenBuffers(1).free.map(_.head)

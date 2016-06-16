@@ -25,8 +25,10 @@ object Cached {
   def getElement(b: VertexBuffer.Base): DSL[Option[ElementBuffer.Loaded]] = ???
   def put(b: VertexBuffer.Loaded): DSL[Unit] = ???
   def put(b: ElementBuffer.Loaded): DSL[Unit] = ???
-  def update(prev: VertexBuffer.Loaded, next: VertexBuffer.Loaded): DSL[Unit] = ???
-  def update(prev: ElementBuffer.Loaded, next: ElementBuffer.Loaded): DSL[Unit] = ???
+  def update(prev: VertexBuffer.Loaded, next: VertexBuffer.Loaded): DSL[Unit] =
+    ???
+  def update(
+      prev: ElementBuffer.Loaded, next: ElementBuffer.Loaded): DSL[Unit] = ???
   def put(m: Model.Loaded): DSL[Unit] = ???
 
   type CachedState = String

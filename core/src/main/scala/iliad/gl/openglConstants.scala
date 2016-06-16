@@ -5,6 +5,23 @@ abstract class IntConstant(val value: Int)
 abstract class BitmaskConstant(value: Int) extends IntConstant(value)
 abstract class LongConstant(val value: Long)
 
+sealed trait ChannelBitMask { self =>
+  def value: Int = self match {
+    case ChannelBitMask.BitMask(each) => each.foldLeft(0)(_.toInt | _.value)
+    case ChannelBitMask.Empty => 0
+  }
+}
+
+//TODO: move this somewhere else
+object ChannelBitMask {
+  implicit def bitToMask(bit: ChannelBit): ChannelBitMask = BitMask(Set(bit))
+
+  case object Empty extends ChannelBitMask
+  case class BitMask(each: Set[ChannelBit]) extends ChannelBitMask {
+    override def toString: String = s"(${each.mkString("|")})"
+  }
+}
+
 sealed trait Texture extends IntConstant
 sealed trait ColorAttachment
     extends IntConstant

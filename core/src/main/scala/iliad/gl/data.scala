@@ -19,7 +19,8 @@ object FragmentShader {
 
 object Program {
   case class Unlinked(vs: VertexShader.Source, fs: FragmentShader.Source)
-  case class Linked(id: Int, unlinked: Unlinked, attributes: List[(String, Int)])
+  case class Linked(
+      id: Int, unlinked: Unlinked, attributes: List[(String, Int)])
 }
 
 @typeclass trait AttributeType[A]
@@ -43,6 +44,7 @@ object ElementBuffer {
 }
 
 object Model {
+  case class Key(name: String)
   case class VertexData(data: Buffer, size: Int)
   case class ElementData(data: Buffer, size: Int)
 
@@ -51,6 +53,23 @@ object Model {
   case class VertexLoaded(v: VertexBuffer.Loaded, range: (Int, Int))
   case class ElementLoaded(e: ElementBuffer.Loaded, range: (Int, Int))
 
-  case class Base(v: VertexData, e: ElementData, b: VertexBuffer.Base)
+  case class Base(v: VertexData, e: ElementData, b: VertexBuffer.Base, k: Key)
   case class Loaded(v: VertexLoaded, e: ElementLoaded, b: Base)
 }
+
+
+sealed trait Framebuffer
+
+object Framebuffer {
+  object Default extends Framebuffer
+}
+
+
+//TODO: should these be messages?
+case class Draw(f: Framebuffer,
+    p: Program.Unlinked,
+    m: Model.Key)
+
+case class Clear(bitMask: ChannelBitMask)
+
+case object Refresh

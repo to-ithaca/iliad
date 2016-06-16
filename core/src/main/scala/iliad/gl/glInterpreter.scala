@@ -14,14 +14,14 @@ object GLInterpreter extends (GL ~> Reader[GLES30Library, ?]) {
 
   //nasty but the signature of gen means the alternatives are worse!
   private def genObject(f: GLES30Library => (Int, IntBuffer) => Unit,
-                        num: Int): Reader[GLES30Library, List[Int]] = Reader { lib =>
-    val ptr = Buffer.capacity[Int](num)
-    f(lib)(num, ptr)
-    val arr = new Array[Int](num)
-    ptr.get(arr, 0, num)
-    arr.toList
+                        num: Int): Reader[GLES30Library, List[Int]] = Reader {
+    lib =>
+      val ptr = Buffer.capacity[Int](num)
+      f(lib)(num, ptr)
+      val arr = new Array[Int](num)
+      ptr.get(arr, 0, num)
+      arr.toList
   }
-
 
   def apply[A](gl: GL[A]): Reader[GLES30Library, A] = gl match {
 
@@ -57,13 +57,29 @@ object GLInterpreter extends (GL ~> Reader[GLES30Library, ?]) {
     case GLAttachShader(program, shader) =>
       Reader(_.glAttachShader(program, shader))
     case GLLinkProgram(program) => Reader(_.glLinkProgram(program))
-    case GLGetAttribLocation(program, name) => Reader(_.glGetAttribLocation(program, name))
+    case GLGetAttribLocation(program, name) =>
+      Reader(_.glGetAttribLocation(program, name))
 
     case GLGenBuffers(number) => genObject(_.glGenBuffers, number)
-    case GLBindBuffer(target, buffer) => Reader(_.glBindBuffer(target.value, buffer))
-    case GLBufferData(target, size, data, usage) => Reader(_.glBufferData(target.value, size, data, usage.value))
-    case GLBufferSubData(target, offset, size, data) => Reader(_.glBufferSubData(target.value, offset, size, data))
-    case GLCopyBufferSubData(read, write, readOffset, writeOffset, size) => Reader(_.glCopyBufferSubData(read.value, write.value, readOffset, writeOffset, size))
+    case GLBindBuffer(target, buffer) =>
+      Reader(_.glBindBuffer(target.value, buffer))
+    case GLBufferData(target, size, data, usage) =>
+      Reader(_.glBufferData(target.value, size, data, usage.value))
+    case GLBufferSubData(target, offset, size, data) =>
+      Reader(_.glBufferSubData(target.value, offset, size, data))
+    case GLCopyBufferSubData(read, write, readOffset, writeOffset, size) =>
+      Reader(_.glCopyBufferSubData(
+              read.value, write.value, readOffset, writeOffset, size))
+
+    case GLBindFramebuffer(target, framebuffer) => Reader(_.glBindFramebuffer(target.value, framebuffer))
+    case GLEnable(cap) => Reader(_.glEnable(cap.value))
+    case GLDisable(cap) => Reader(_.glDisable(cap.value))
+    case GLColorMask(r, g, b, a) => Reader(_.glColorMask(r, g, b, a))
+    case GLUseProgram(program) => Reader(_.glUseProgram(program))
+    case GLEnableVertexAttribArray(location) => Reader(_.glEnableVertexAttribArray(location))
+    case GLVertexAttribPointer(location, size, t, normalized, stride, offset) => Reader(_.glVertexAttribPointer(location, size, t.value, normalized, stride, offset))
+    case GLDrawElements(mode, count, t, offset) => Reader(_.glDrawElements(mode.value, count, t.value, offset))
+    case GLClear(bitMask) => Reader(_.glClear(bitMask.value))
   }
 }
 
