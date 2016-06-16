@@ -71,14 +71,21 @@ object GLInterpreter extends (GL ~> Reader[GLES30Library, ?]) {
       Reader(_.glCopyBufferSubData(
               read.value, write.value, readOffset, writeOffset, size))
 
-    case GLBindFramebuffer(target, framebuffer) => Reader(_.glBindFramebuffer(target.value, framebuffer))
+    case GLBindFramebuffer(target, framebuffer) =>
+      Reader(_.glBindFramebuffer(target.value, framebuffer))
     case GLEnable(cap) => Reader(_.glEnable(cap.value))
     case GLDisable(cap) => Reader(_.glDisable(cap.value))
     case GLColorMask(r, g, b, a) => Reader(_.glColorMask(r, g, b, a))
     case GLUseProgram(program) => Reader(_.glUseProgram(program))
-    case GLEnableVertexAttribArray(location) => Reader(_.glEnableVertexAttribArray(location))
-    case GLVertexAttribPointer(location, size, t, normalized, stride, offset) => Reader(_.glVertexAttribPointer(location, size, t.value, normalized, stride, offset))
-    case GLDrawElements(mode, count, t, offset) => Reader(_.glDrawElements(mode.value, count, t.value, offset))
+    case GLEnableVertexAttribArray(location) =>
+      Reader(_.glEnableVertexAttribArray(location))
+    case GLVertexAttribPointer(
+        location, size, t, normalized, stride, offset) =>
+      Reader(
+          _.glVertexAttribPointer(
+              location, size, t.value, normalized, stride, offset))
+    case GLDrawElements(mode, count, t, offset) =>
+      Reader(_.glDrawElements(mode.value, count, t.value, offset))
     case GLClear(bitMask) => Reader(_.glClear(bitMask.value))
   }
 }

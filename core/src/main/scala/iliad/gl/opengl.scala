@@ -53,15 +53,25 @@ case class GLCopyBufferSubData(read: BufferTarget,
                                size: Int)
     extends GL[Unit]
 
-
-case class GLBindFramebuffer(target: FramebufferTarget, framebuffer: Int) extends GL[Unit]
+case class GLBindFramebuffer(target: FramebufferTarget, framebuffer: Int)
+    extends GL[Unit]
 case class GLEnable(capability: Capability) extends GL[Unit]
 case class GLDisable(capability: Capability) extends GL[Unit]
-case class GLColorMask(red: Boolean, green: Boolean, blue: Boolean, alpha: Boolean) extends GL[Unit]
+case class GLColorMask(
+    red: Boolean, green: Boolean, blue: Boolean, alpha: Boolean)
+    extends GL[Unit]
 case class GLUseProgram(program: Int) extends GL[Unit]
 case class GLEnableVertexAttribArray(location: Int) extends GL[Unit]
-case class GLVertexAttribPointer(location: Int, size: Int, `type`: VertexAttribType, normalized: Boolean, stride: Int, offset: Int) extends GL[Unit]
-case class GLDrawElements(mode: PrimitiveType, count: Int, `type`: IndexType, offset: Int) extends GL[Unit]
+case class GLVertexAttribPointer(location: Int,
+                                 size: Int,
+                                 `type`: VertexAttribType,
+                                 normalized: Boolean,
+                                 stride: Int,
+                                 offset: Int)
+    extends GL[Unit]
+case class GLDrawElements(
+    mode: PrimitiveType, count: Int, `type`: IndexType, offset: Int)
+    extends GL[Unit]
 case class GLClear(bitmask: ChannelBitMask) extends GL[Unit]
 
 sealed trait GLFunctions {

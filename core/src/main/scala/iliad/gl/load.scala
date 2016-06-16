@@ -17,30 +17,36 @@ object Load {
             fs: FragmentShader.Compiled): DSL[Program.Linked] =
     LoadProgram(vs, fs).free
 
-  def newBuffer(v: Model.VertexData,
+  def newBuffer(ref: VertexData.Ref,
+                data: VertexData.Data,
                 pageSize: Int,
-                b: VertexBuffer.Base): DSL[VertexBuffer.Loaded] =
-    LoadNewVertexBuffer(v, pageSize, b).free
-  def newBuffer(e: Model.ElementData,
+                b: VertexBuffer.Constructor): DSL[VertexBuffer.Update] =
+    LoadNewVertexBuffer(ref, data, pageSize, b).free
+  def newBuffer(ref: ElementData.Ref,
+                data: ElementData.Data,
                 pageSize: Int,
-                b: VertexBuffer.Base): DSL[ElementBuffer.Loaded] =
-    LoadNewElementBuffer(e, pageSize, b).free
-  def insert(v: Model.VertexData,
+                b: ElementBuffer.Constructor): DSL[ElementBuffer.Update] =
+    LoadNewElementBuffer(ref, data, pageSize, b).free
+  def insert(ref: VertexData.Ref,
+             data: VertexData.Data,
              pageSize: Int,
-             b: VertexBuffer.Loaded): DSL[VertexBuffer.Loaded] =
-    LoadInsertVertexBuffer(v, pageSize, b).free
-  def insert(e: Model.ElementData,
+             b: VertexBuffer.Loaded): DSL[VertexBuffer.Update] =
+    LoadInsertVertexBuffer(ref, data, pageSize, b).free
+  def insert(ref: ElementData.Ref,
+             data: ElementData.Data,
              pageSize: Int,
-             b: ElementBuffer.Loaded): DSL[ElementBuffer.Loaded] =
-    LoadInsertElementBuffer(e, pageSize, b).free
-  def copy(v: Model.VertexData,
+             b: ElementBuffer.Loaded): DSL[ElementBuffer.Update] =
+    LoadInsertElementBuffer(ref, data, pageSize, b).free
+  def copy(ref: VertexData.Ref,
+           data: VertexData.Data,
            pageSize: Int,
-           b: VertexBuffer.Loaded): DSL[VertexBuffer.Loaded] =
-    LoadCopyVertexBuffer(v, pageSize, b).free
-  def copy(e: Model.ElementData,
+           b: VertexBuffer.Loaded): DSL[VertexBuffer.Update] =
+    LoadCopyVertexBuffer(ref, data, pageSize, b).free
+  def copy(ref: ElementData.Ref,
+           data: ElementData.Data,
            pageSize: Int,
-           b: ElementBuffer.Loaded): DSL[ElementBuffer.Loaded] =
-    LoadCopyElementBuffer(e, pageSize, b).free
+           b: ElementBuffer.Loaded): DSL[ElementBuffer.Update] =
+    LoadCopyElementBuffer(ref, data, pageSize, b).free
 
   def parse[F[_]: Monad](f: GL ~> F): Load ~> F = new (Load ~> F) {
     def apply[A](load: Load[A]): F[A] = LoadParser(load).foldMap(f)
@@ -56,24 +62,36 @@ case class LoadFragmentShader(s: FragmentShader.Source)
 case class LoadProgram(vs: VertexShader.Compiled, fs: FragmentShader.Compiled)
     extends Load[Program.Linked]
 
-case class LoadNewVertexBuffer(
-    v: Model.VertexData, pageSize: Int, b: VertexBuffer.Base)
-    extends Load[VertexBuffer.Loaded]
-case class LoadNewElementBuffer(
-    e: Model.ElementData, pageSize: Int, b: VertexBuffer.Base)
-    extends Load[ElementBuffer.Loaded]
-case class LoadInsertVertexBuffer(
-    v: Model.VertexData, pageSize: Int, b: VertexBuffer.Loaded)
-    extends Load[VertexBuffer.Loaded]
-case class LoadInsertElementBuffer(
-    e: Model.ElementData, pageSize: Int, b: ElementBuffer.Loaded)
-    extends Load[ElementBuffer.Loaded]
-case class LoadCopyVertexBuffer(
-    v: Model.VertexData, pageSize: Int, b: VertexBuffer.Loaded)
-    extends Load[VertexBuffer.Loaded]
-case class LoadCopyElementBuffer(
-    e: Model.ElementData, pageSize: Int, b: ElementBuffer.Loaded)
-    extends Load[ElementBuffer.Loaded]
+case class LoadNewVertexBuffer(ref: VertexData.Ref,
+                               data: VertexData.Data,
+                               pageSize: Int,
+                               b: VertexBuffer.Constructor)
+    extends Load[VertexBuffer.Update]
+case class LoadNewElementBuffer(ref: ElementData.Ref,
+                                data: ElementData.Data,
+                                pageSize: Int,
+                                b: ElementBuffer.Constructor)
+    extends Load[ElementBuffer.Update]
+case class LoadInsertVertexBuffer(ref: VertexData.Ref,
+                                  data: VertexData.Data,
+                                  pageSize: Int,
+                                  b: VertexBuffer.Loaded)
+    extends Load[VertexBuffer.Update]
+case class LoadInsertElementBuffer(ref: ElementData.Ref,
+                                   data: ElementData.Data,
+                                   pageSize: Int,
+                                   b: ElementBuffer.Loaded)
+    extends Load[ElementBuffer.Update]
+case class LoadCopyVertexBuffer(ref: VertexData.Ref,
+                                data: VertexData.Data,
+                                pageSize: Int,
+                                b: VertexBuffer.Loaded)
+    extends Load[VertexBuffer.Update]
+case class LoadCopyElementBuffer(ref: ElementData.Ref,
+                                 data: ElementData.Data,
+                                 pageSize: Int,
+                                 b: ElementBuffer.Loaded)
+    extends Load[ElementBuffer.Update]
 
 private object LoadParser extends (Load ~> GL.DSL) {
 
@@ -91,27 +109,33 @@ private object LoadParser extends (Load ~> GL.DSL) {
         as <- GL.getAttributeLocations(id, vs.s.attributeNames)
       } yield Program.Linked(id, Program.Unlinked(vs.s, fs.s), as)
 
-    case LoadNewVertexBuffer(v, pageSize, b) =>
-      val capacity = roundUp(v.size, pageSize)
-      GL.makeNewVertexBuffer(v.data, v.size, capacity)
-        .map(VertexBuffer.Loaded(_, v.size, capacity, b))
-    case LoadNewElementBuffer(e, pageSize, b) =>
-      val capacity = roundUp(e.size, pageSize)
-      GL.makeNewElementBuffer(e.data, e.size, capacity)
-        .map(ElementBuffer.Loaded(_, e.size, capacity, b))
-
-    case LoadInsertVertexBuffer(v, pageSize, b) =>
-      GL.insertVertices(b.id, b.filled, v.size, v.data).map(_ => b.inc(v.size))
-    case LoadInsertElementBuffer(e, pageSize, b) =>
-      GL.insertElements(b.id, b.filled, e.size, e.data).map(_ => b.inc(e.size))
-
-    case LoadCopyVertexBuffer(v, pageSize, b) =>
-      val capacity = roundUp(v.size, pageSize)
-      GL.copyVertices(b.id, b.filled, v.size, v.data, capacity)
-        .map(VertexBuffer.Loaded(_, b.filled + v.size, capacity, b.b))
-    case LoadCopyElementBuffer(e, pageSize, b) =>
-      val capacity = roundUp(e.size, pageSize)
-      GL.copyElements(b.id, b.filled, e.size, e.data, capacity)
-        .map(ElementBuffer.Loaded(_, b.filled + e.size, capacity, b.b))
+    case LoadNewVertexBuffer(r, d, pageSize, b) =>
+      val capacity = roundUp(d.size, pageSize)
+      GL.makeNewVertexBuffer(d.data, d.size, capacity)
+        .map(
+            VertexBuffer.loadNew(_, b, r, d.size, capacity)
+        )
+    case LoadNewElementBuffer(r, d, pageSize, b) =>
+      val capacity = roundUp(d.size, pageSize)
+      GL.makeNewElementBuffer(d.data, d.size, capacity)
+        .map(
+            ElementBuffer.loadNew(_, b, r, d.size, capacity)
+        )
+    case LoadInsertVertexBuffer(r, d, pageSize, b) =>
+      GL.insertVertices(b.id, b.filled, d.size, d.data)
+        .map(_ => VertexBuffer.insert(b, r, d.size))
+    case LoadInsertElementBuffer(r, d, pageSize, b) =>
+      GL.insertElements(b.id, b.filled, d.size, d.data)
+        .map(_ => ElementBuffer.insert(b, r, d.size))
+    case LoadCopyVertexBuffer(r, d, pageSize, b) =>
+      val capacity = roundUp(d.size, pageSize)
+      GL.copyVertices(b.id, b.filled, d.size, d.data, capacity)
+        .map(VertexBuffer.copy(_, b, r, d.size, capacity))
+    case LoadCopyElementBuffer(r, d, pageSize, b) =>
+      val capacity = roundUp(d.size, pageSize)
+      GL.copyElements(b.id, b.filled, d.size, d.data, capacity)
+        .map(
+            ElementBuffer.copy(_, b, r, d.size, capacity)
+        )
   }
 }

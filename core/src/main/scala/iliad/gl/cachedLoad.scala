@@ -76,59 +76,51 @@ sealed trait CachedLoadFunctions {
         } yield pl
     }
 
-  def apply(vb: VertexBuffer.Base,
-            m: Model.VertexData,
-            pageSize: Int): DSL[Model.VertexLoaded] =
+  def apply(r: VertexData.Ref,
+            d: VertexData.Data,
+            pageSize: Int,
+            vb: VertexBuffer.Constructor): DSL[Unit] =
     Cached.getVertex(vb).freekF[CLoad] flatMap {
       case Some(prev) =>
-        if (prev.fits(m.size))
+        if (prev.fits(d.size))
           for {
-            next <- Load.insert(m, pageSize, prev).freekF[CLoad]
+            next <- Load.insert(r, d, pageSize, prev).freekF[CLoad]
             _ <- Cached.update(prev, next).freekF[CLoad]
-          } yield Model.VertexLoaded(next, (prev.filled, prev.filled + m.size))
+          } yield ()
         else
           for {
-            next <- Load.copy(m, pageSize, prev).freekF[CLoad]
+            next <- Load.copy(r, d, pageSize, prev).freekF[CLoad]
             _ <- Cached.update(prev, next).freekF[CLoad]
-          } yield Model.VertexLoaded(next, (prev.filled, prev.filled + m.size))
+          } yield ()
       case None =>
         for {
-          b <- Load.newBuffer(m, pageSize, vb).freekF[CLoad]
+          b <- Load.newBuffer(r, d, pageSize, vb).freekF[CLoad]
           _ <- Cached.put(b).freekF[CLoad]
-        } yield Model.VertexLoaded(b, (0, m.size))
+        } yield ()
     }
 
-  def apply(vb: VertexBuffer.Base,
-            m: Model.ElementData,
-            pageSize: Int): DSL[Model.ElementLoaded] =
-    Cached.getElement(vb).freekF[CLoad] flatMap {
+  def apply(r: ElementData.Ref,
+            d: ElementData.Data,
+            pageSize: Int,
+            eb: ElementBuffer.Constructor): DSL[Unit] =
+    Cached.getElement(eb).freekF[CLoad] flatMap {
       case Some(prev) =>
-        if (prev.fits(m.size))
+        if (prev.fits(d.size))
           for {
-            next <- Load.insert(m, pageSize, prev).freekF[CLoad]
+            next <- Load.insert(r, d, pageSize, prev).freekF[CLoad]
             _ <- Cached.update(prev, next).freekF[CLoad]
-          } yield
-            Model.ElementLoaded(next, (prev.filled, prev.filled + m.size))
+          } yield ()
         else
           for {
-            next <- Load.copy(m, pageSize, prev).freekF[CLoad]
+            next <- Load.copy(r, d, pageSize, prev).freekF[CLoad]
             _ <- Cached.update(prev, next).freekF[CLoad]
-          } yield
-            Model.ElementLoaded(next, (prev.filled, prev.filled + m.size))
+          } yield ()
       case None =>
         for {
-          b <- Load.newBuffer(m, pageSize, vb).freekF[CLoad]
+          b <- Load.newBuffer(r, d, pageSize, eb).freekF[CLoad]
           _ <- Cached.put(b).freekF[CLoad]
-        } yield Model.ElementLoaded(b, (0, m.size))
+        } yield ()
     }
-
-  def apply(m: Model.Base, pageSize: Int): DSL[Model.Loaded] =
-    for {
-      v <- CachedLoad(m.b, m.v, pageSize)
-      e <- CachedLoad(m.b, m.e, pageSize)
-      l = Model.Loaded(v, e, m)
-      _ <- Cached.put(l).freekF[CLoad]
-    } yield l
 }
 
 /*

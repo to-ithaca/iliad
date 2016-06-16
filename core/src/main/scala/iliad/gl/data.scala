@@ -26,50 +26,89 @@ object Program {
 @typeclass trait AttributeType[A]
 
 object VertexBuffer {
-
-  //TODO: should this be in the Model object?
-  case class Base(attributes: List[(String, AttributeType[_])])
-  case class Loaded(id: Int, filled: Int, capacity: Int, b: Base) {
+  case class Constructor(attributes: List[(String, AttributeType[_])])
+  case class Loaded(id: Int, filled: Int, capacity: Int, c: Constructor) {
     def inc(size: Int): Loaded = copy(filled = filled + size)
     def fits(size: Int): Boolean = capacity - filled > size
   }
+
+  case class Update(l: Loaded, d: VertexData.Loaded)
+
+  def loadNew(id: Int,
+              c: VertexBuffer.Constructor,
+              d: VertexData.Ref,
+              size: Int,
+              capacity: Int): Update =
+    Update(Loaded(id, size, capacity, c),
+           VertexData.Loaded(DataRange(0, size), d))
+
+  def insert(old: Loaded, d: VertexData.Ref, size: Int): Update =
+    Update(old.inc(size),
+           VertexData.Loaded(DataRange(old.filled, old.filled + size), d))
+
+  def copy(id: Int,
+           old: Loaded,
+           d: VertexData.Ref,
+           size: Int,
+           capacity: Int): Update =
+    Update(Loaded(id, old.filled + size, capacity, old.c),
+           VertexData.Loaded(DataRange(old.filled, old.filled + size), d))
 }
 
 object ElementBuffer {
-  //TODO: if we tie this to the vertex buffer, we can't optimise point buffer storage
-  case class Loaded(id: Int, filled: Int, capacity: Int, b: VertexBuffer.Base) {
+  case class Constructor(name: String)
+  case class Loaded(id: Int, filled: Int, capacity: Int, c: Constructor) {
     def inc(size: Int): Loaded = copy(filled = filled + size)
     def fits(size: Int): Boolean = capacity - filled > size
   }
+
+  case class Update(l: Loaded, d: ElementData.Loaded)
+
+  def loadNew(id: Int,
+              c: ElementBuffer.Constructor,
+              d: ElementData.Ref,
+              size: Int,
+              capacity: Int): Update =
+    Update(Loaded(id, size, capacity, c),
+           ElementData.Loaded(DataRange(0, size), d))
+
+  def insert(old: Loaded, d: ElementData.Ref, size: Int): Update =
+    Update(old.inc(size),
+           ElementData.Loaded(DataRange(old.filled, old.filled + size), d))
+
+  def copy(id: Int,
+           old: Loaded,
+           d: ElementData.Ref,
+           size: Int,
+           capacity: Int): Update =
+    Update(Loaded(id, old.filled + size, capacity, old.c),
+           ElementData.Loaded(DataRange(old.filled, old.filled + size), d))
 }
 
-object Model {
-  case class Key(name: String)
-  case class VertexData(data: Buffer, size: Int)
-  case class ElementData(data: Buffer, size: Int)
-
-  //TODO: if we assume that models which have the same VertexBuffer.Base are loaded into the same buffer, then we can derive the vertex and element instances
-  //That said, if we continue this, we'll probably end up with too big buffers - perhaps we should have a max size
-  case class VertexLoaded(v: VertexBuffer.Loaded, range: (Int, Int))
-  case class ElementLoaded(e: ElementBuffer.Loaded, range: (Int, Int))
-
-  case class Base(v: VertexData, e: ElementData, b: VertexBuffer.Base, k: Key)
-  case class Loaded(v: VertexLoaded, e: ElementLoaded, b: Base)
+case class DataRange(start: Int, end: Int) {
+  def plus(i: Int): DataRange = DataRange(start + i, end + i)
 }
 
+object VertexData {
+  case class Data(data: Buffer, size: Int)
+  case class Ref(name: String, b: VertexBuffer.Constructor)
+  case class Loaded(range: DataRange, ref: Ref)
+
+  case class SubRef(v: VertexData.Ref, range: DataRange)
+}
+
+object ElementData {
+  case class Data(data: Buffer, size: Int)
+  case class Ref(name: String, b: ElementBuffer.Constructor)
+  case class Loaded(range: DataRange, ref: Ref)
+
+  case class SubRef(v: VertexData.Ref, range: DataRange)
+}
+
+case class Model(v: VertexData.SubRef, e: ElementData.SubRef)
 
 sealed trait Framebuffer
 
 object Framebuffer {
   object Default extends Framebuffer
 }
-
-
-//TODO: should these be messages?
-case class Draw(f: Framebuffer,
-    p: Program.Unlinked,
-    m: Model.Key)
-
-case class Clear(bitMask: ChannelBitMask)
-
-case object Refresh

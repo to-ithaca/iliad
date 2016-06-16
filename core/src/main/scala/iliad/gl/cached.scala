@@ -21,15 +21,16 @@ object Cached {
     liftF(ProgramGet(p))
   def put(p: Program.Linked): DSL[Unit] = liftF(ProgramPut(p))
 
-  def getVertex(b: VertexBuffer.Base): DSL[Option[VertexBuffer.Loaded]] = ???
-  def getElement(b: VertexBuffer.Base): DSL[Option[ElementBuffer.Loaded]] = ???
-  def put(b: VertexBuffer.Loaded): DSL[Unit] = ???
-  def put(b: ElementBuffer.Loaded): DSL[Unit] = ???
-  def update(prev: VertexBuffer.Loaded, next: VertexBuffer.Loaded): DSL[Unit] =
+  def getVertex(
+      b: VertexBuffer.Constructor): DSL[Option[VertexBuffer.Loaded]] = ???
+  def getElement(
+      b: ElementBuffer.Constructor): DSL[Option[ElementBuffer.Loaded]] = ???
+  def put(b: VertexBuffer.Update): DSL[Unit] = ???
+  def put(b: ElementBuffer.Update): DSL[Unit] = ???
+  def update(prev: VertexBuffer.Loaded, next: VertexBuffer.Update): DSL[Unit] =
     ???
   def update(
-      prev: ElementBuffer.Loaded, next: ElementBuffer.Loaded): DSL[Unit] = ???
-  def put(m: Model.Loaded): DSL[Unit] = ???
+      prev: ElementBuffer.Loaded, next: ElementBuffer.Update): DSL[Unit] = ???
 
   type CachedState = String
 
