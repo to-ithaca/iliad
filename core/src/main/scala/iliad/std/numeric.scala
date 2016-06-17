@@ -11,3 +11,9 @@ trait FloatInstances {
       def baseType: iliad.kernel.VertexAttribType = iliad.kernel.GL_FLOAT
     }
 }
+
+trait IntInstances {
+  implicit val sizeOfInt: SizeOf[Int] = new SizeOf[Int] {
+    def byteSize: Int = 4
+  }
+}

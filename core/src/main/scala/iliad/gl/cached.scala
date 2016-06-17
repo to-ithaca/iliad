@@ -1,36 +1,43 @@
 package iliad
 package gl
 
+import iliad.CatsExtra._
+
 import cats._
-import cats.arrow._
 import cats.data._
-import cats.free._, Free._
+import cats.free._
 import cats.implicits._
 
 object Cached {
   type DSL[A] = Free[Cached, A]
 
   def get(vs: VertexShader.Source): DSL[Option[VertexShader.Compiled]] =
-    liftF(VertexShaderGet(vs))
-  def put(vs: VertexShader.Compiled): DSL[Unit] = liftF(VertexShaderPut(vs))
+    VertexShaderGet(vs).free
+  def put(vs: VertexShader.Compiled): DSL[Unit] = VertexShaderPut(vs).free
   def get(fs: FragmentShader.Source): DSL[Option[FragmentShader.Compiled]] =
-    liftF(FragmentShaderGet(fs))
+    FragmentShaderGet(fs).free
   def put(fs: FragmentShader.Compiled): DSL[Unit] =
-    liftF(FragmentShaderPut(fs))
+    FragmentShaderPut(fs).free
   def get(p: Program.Unlinked): DSL[Option[Program.Linked]] =
-    liftF(ProgramGet(p))
-  def put(p: Program.Linked): DSL[Unit] = liftF(ProgramPut(p))
+    ProgramGet(p).free
 
-  def getVertex(
-      b: VertexBuffer.Constructor): DSL[Option[VertexBuffer.Loaded]] = ???
-  def getElement(
-      b: ElementBuffer.Constructor): DSL[Option[ElementBuffer.Loaded]] = ???
+  def get(v: VertexData.Ref): DSL[Option[VertexData.Loaded]] = ???
+  def get(v: ElementData.Ref): DSL[Option[ElementData.Loaded]] = ???
+
+  def ensure[A, L](dsl: DSL[Option[A]], l: => L): DSL[L Xor A] = dsl.map(_.toRightXor(l))
+
+  def put(p: Program.Linked): DSL[Unit] = ProgramPut(p).free
+
+  def get(b: VertexBuffer.Constructor): DSL[Option[VertexBuffer.Loaded]] = ???
+  def get(b: ElementBuffer.Constructor): DSL[Option[ElementBuffer.Loaded]] = ???
   def put(b: VertexBuffer.Update): DSL[Unit] = ???
   def put(b: ElementBuffer.Update): DSL[Unit] = ???
   def update(prev: VertexBuffer.Loaded, next: VertexBuffer.Update): DSL[Unit] =
     ???
   def update(
       prev: ElementBuffer.Loaded, next: ElementBuffer.Update): DSL[Unit] = ???
+
+
 
   type CachedState = String
 

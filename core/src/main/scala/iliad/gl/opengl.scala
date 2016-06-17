@@ -3,6 +3,7 @@ package gl
 
 import iliad.kernel.platform.GLES30Library
 import iliad.CatsExtra._
+import iliad.std.int._
 
 import cats._
 import cats.data._
@@ -190,4 +191,19 @@ sealed trait GLFunctions {
                    capacity: Int): DSL[Int] =
     copyToNewBuffer(
         oldId, GL_ELEMENT_ARRAY_BUFFER, offset, size, data, capacity)
+
+
+  def bindFramebuffer(framebuffer: Int): DSL[Unit] = GLBindFramebuffer(GL_FRAMEBUFFER, framebuffer).free
+  def clear(mask: ChannelBitMask): DSL[Unit] = GLClear(mask).free
+  def useProgram(program: Int): DSL[Unit] = GLUseProgram(program).free
+  def bindVertexBuffer(buffer: Int): DSL[Unit] = GLBindBuffer(GL_ARRAY_BUFFER, buffer).free
+  def bindElementBuffer(buffer: Int): DSL[Unit] = GLBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer).free
+
+
+  def enableAttribute(location: Int, numElements: Int, `type`: VertexAttribType, stride: Int, offset: Int): DSL[Unit] =  for {
+    _ <- GLEnableVertexAttribArray(location).free
+    _ <- GLVertexAttribPointer(location, numElements, `type`, false, stride, offset).free 
+  } yield ()
+
+  def drawTriangles(start: Int, end: Int): DSL[Unit] = GLDrawElements(GL_TRIANGLES, end / SizeOf[Int].byteSize - start / SizeOf[Int].byteSize, GL_UNSIGNED_INT, start * SizeOf[Int].byteSize).free
 }
