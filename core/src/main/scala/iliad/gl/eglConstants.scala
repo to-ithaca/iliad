@@ -4,9 +4,8 @@ package gl
 sealed trait ConfigAttrib extends IntConstant
 sealed trait ConfigAttribValue extends IntConstant
 
-sealed trait FixedConfigAttrib extends IntConstant
-sealed trait EnumConfigAttrib extends FixedConfigAttrib
-sealed trait IntConfigAttrib extends FixedConfigAttrib
+sealed trait EnumConfigAttrib extends ConfigAttrib
+sealed trait IntConfigAttrib extends ConfigAttrib
 
 sealed trait ContextAttrib extends IntConstant
 sealed trait ContextAttribValue extends IntConstant
@@ -26,7 +25,6 @@ sealed trait EGLError extends IntConstant
 case object EGL_ALPHA_SIZE
     extends IntConstant(0x3021)
     with ConfigAttrib
-    with IntConfigAttrib
 case object EGL_BAD_ACCESS extends IntConstant(0x3002) with EGLError
 case object EGL_BAD_ALLOC extends IntConstant(0x3003) with EGLError
 case object EGL_BAD_ATTRIBUTE extends IntConstant(0x3004) with EGLError
@@ -41,24 +39,19 @@ case object EGL_BAD_PARAMETER extends IntConstant(0x300C) with EGLError
 case object EGL_BAD_SURFACE extends IntConstant(0x300D) with EGLError
 case object EGL_BLUE_SIZE
     extends IntConstant(0x3022)
-    with ConfigAttrib
     with IntConfigAttrib
 case object EGL_BUFFER_SIZE
     extends IntConstant(0x3020)
-    with ConfigAttrib
     with IntConfigAttrib
 case object EGL_CONFIG_CAVEAT
     extends IntConstant(0x3027)
-    with ConfigAttrib
     with EnumConfigAttrib
 case object EGL_CONFIG_ID
     extends IntConstant(0x3028)
-    with ConfigAttrib
     with IntConfigAttrib
 case object EGL_CORE_NATIVE_ENGINE extends IntConstant(0x305B)
 case object EGL_DEPTH_SIZE
     extends IntConstant(0x3025)
-    with ConfigAttrib
     with IntConfigAttrib
 case object EGL_DONT_CARE extends IntConstant(-1) with ConfigAttribValue
 case object EGL_DRAW extends IntConstant(0x3059)
@@ -66,13 +59,11 @@ case object EGL_EXTENSIONS extends IntConstant(0x3055)
 case object EGL_FALSE extends IntConstant(0) with ConfigAttribValue
 case object EGL_GREEN_SIZE
     extends IntConstant(0x3023)
-    with ConfigAttrib
     with IntConfigAttrib
 case object EGL_HEIGHT extends IntConstant(0x3056) with PBufferAttrib
 case object EGL_LARGEST_PBUFFER extends IntConstant(0x3058)
 case object EGL_LEVEL
     extends IntConstant(0x3029)
-    with ConfigAttrib
     with IntConfigAttrib
 case object EGL_MAX_PBUFFER_HEIGHT
     extends IntConstant(0x302A)
@@ -85,7 +76,6 @@ case object EGL_MAX_PBUFFER_WIDTH
     with IntConfigAttrib
 case object EGL_NATIVE_RENDERABLE
     extends IntConstant(0x302D)
-    with ConfigAttrib
     with EnumConfigAttrib
 case object EGL_NATIVE_VISUAL_ID extends IntConstant(0x302E)
 case object EGL_NATIVE_VISUAL_TYPE extends IntConstant(0x302F)
@@ -93,7 +83,6 @@ case object EGL_NON_CONFORMANT_CONFIG
     extends IntConstant(0x3051)
     with ConfigAttribValue
 case object EGL_NOT_INITIALIZED extends IntConstant(0x3001) with EGLError
-case object EGL_NO_SURFACE extends IntConstant(0)
 case object EGL_PBUFFER_BIT
     extends IntConstant(0x0001)
     with ConfigAttribValue
@@ -101,43 +90,35 @@ case object EGL_PIXMAP_BIT extends IntConstant(0x0002)
 case object EGL_READ extends IntConstant(0x305A)
 case object EGL_RED_SIZE
     extends IntConstant(0x3024)
-    with ConfigAttrib
     with IntConfigAttrib
 case object EGL_SAMPLES
     extends IntConstant(0x3031)
-    with ConfigAttrib
     with IntConfigAttrib
 case object EGL_SAMPLE_BUFFERS
     extends IntConstant(0x3032)
-    with ConfigAttrib
     with IntConfigAttrib
 case object EGL_SLOW_CONFIG
     extends IntConstant(0x3050)
     with ConfigAttribValue
 case object EGL_STENCIL_SIZE
     extends IntConstant(0x3026)
-    with ConfigAttrib
     with IntConfigAttrib
 case object EGL_SUCCESS extends IntConstant(0x3000)
 case object EGL_SURFACE_TYPE extends IntConstant(0x3033) with ConfigAttrib
 case object EGL_TRANSPARENT_BLUE_VALUE
     extends IntConstant(0x3035)
-    with ConfigAttrib
     with IntConfigAttrib
 case object EGL_TRANSPARENT_GREEN_VALUE
     extends IntConstant(0x3036)
-    with ConfigAttrib
     with IntConfigAttrib
 case object EGL_TRANSPARENT_RED_VALUE
     extends IntConstant(0x3037)
-    with ConfigAttrib
     with IntConfigAttrib
 case object EGL_TRANSPARENT_RGB
     extends IntConstant(0x3052)
     with ConfigAttribValue
 case object EGL_TRANSPARENT_TYPE
     extends IntConstant(0x3034)
-    with ConfigAttrib
     with EnumConfigAttrib
 case object EGL_TRUE extends IntConstant(1) with ConfigAttribValue
 case object EGL_VENDOR extends IntConstant(0x3053) with DisplayProperty
@@ -149,20 +130,16 @@ case object EGL_WINDOW_BIT extends IntConstant(0x0004) with ConfigAttribValue
 case object EGL_BACK_BUFFER extends IntConstant(0x3084)
 case object EGL_BIND_TO_TEXTURE_RGB
     extends IntConstant(0x3039)
-    with ConfigAttrib
     with EnumConfigAttrib
 case object EGL_BIND_TO_TEXTURE_RGBA
     extends IntConstant(0x303A)
-    with ConfigAttrib
     with EnumConfigAttrib
 case object EGL_CONTEXT_LOST extends IntConstant(0x300E)
 case object EGL_MIN_SWAP_INTERVAL
     extends IntConstant(0x303B)
-    with ConfigAttrib
     with IntConfigAttrib
 case object EGL_MAX_SWAP_INTERVAL
     extends IntConstant(0x303C)
-    with ConfigAttrib
     with IntConfigAttrib
 case object EGL_MIPMAP_TEXTURE extends IntConstant(0x3082)
 case object EGL_MIPMAP_LEVEL extends IntConstant(0x3083)
@@ -183,7 +160,6 @@ case object EGL_ALPHA_FORMAT_NONPRE extends IntConstant(0x308B)
 case object EGL_ALPHA_FORMAT_PRE extends IntConstant(0x308C)
 case object EGL_ALPHA_MASK_SIZE
     extends IntConstant(0x303E)
-    with ConfigAttrib
     with IntConfigAttrib
 case object EGL_BUFFER_PRESERVED extends IntConstant(0x3094)
 case object EGL_BUFFER_DESTROYED extends IntConstant(0x3095)
@@ -203,7 +179,6 @@ case object EGL_LUMINANCE_BUFFER
     with ConfigAttribValue
 case object EGL_LUMINANCE_SIZE
     extends IntConstant(0x303D)
-    with ConfigAttrib
     with IntConfigAttrib
 case object EGL_OPENGL_ES_BIT extends IntConstant(0x0001)
 case object EGL_OPENVG_BIT extends IntConstant(0x0002)
@@ -211,7 +186,7 @@ case object EGL_OPENGL_ES_API extends IntConstant(0x30A0) with EGLAPI
 case object EGL_OPENVG_API extends IntConstant(0x30A1) with EGLAPI
 case object EGL_OPENVG_IMAGE extends IntConstant(0x3096)
 case object EGL_PIXEL_ASPECT_RATIO extends IntConstant(0x3092)
-case object EGL_RENDERABLE_TYPE extends IntConstant(0x3040) with ConfigAttrib //CHECK
+case object EGL_RENDERABLE_TYPE extends IntConstant(0x3040) with ConfigAttrib //TODO: Add bitmask support
 case object EGL_RENDER_BUFFER extends IntConstant(0x3086)
 case object EGL_RGB_BUFFER extends IntConstant(0x308E) with ConfigAttribValue
 case object EGL_SINGLE_BUFFER extends IntConstant(0x3085)
