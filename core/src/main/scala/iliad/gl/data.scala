@@ -26,28 +26,34 @@ object Program {
   case class Linked(
       id: Int, unlinked: Unlinked, attributes: List[(String, Int)]) {
 
-    private def loaded(a: Attribute.Constructor): Option[Attribute.Loaded] = 
+    private def loaded(a: Attribute.Constructor): Option[Attribute.Loaded] =
       attributes.find(_._1 == a.name).map {
         case (_, location) => Attribute.Loaded(a, location)
       }
 
-    def loaded(as: List[Attribute.Constructor]): String Xor Attribute.LoadedAttributes = 
-      as.traverse(a => loaded(a).toRightXor(s"Location for attribute is undefined: $a")
-      ).map(Attribute.LoadedAttributes)
-    }
+    def loaded(as: List[Attribute.Constructor])
+      : String Xor Attribute.LoadedAttributes =
+      as.traverse(a =>
+              loaded(a).toRightXor(s"Location for attribute is undefined: $a"))
+        .map(Attribute.LoadedAttributes)
+  }
 }
 
 object Attribute {
-  case class Constructor(name: String, byteSize: Int, elementSize: Int, `type`: VertexAttribType)
+  case class Constructor(
+      name: String, byteSize: Int, elementSize: Int, `type`: VertexAttribType)
   case class Loaded(c: Constructor, location: Int)
 
   case class Offset(l: Loaded, offset: Int)
 
   case class LoadedAttributes(ls: List[Loaded]) {
     val stride: Int = ls.map(_.c.byteSize).sum
-    def offsets(base: Int): List[Offset] = ls.foldLeft(base -> List.empty[Offset])({
-      case ((offset, acc), a) => (offset + a.c.byteSize, (Offset(a, offset) :: acc))
-    })._2
+    def offsets(base: Int): List[Offset] =
+      ls.foldLeft(base -> List.empty[Offset])({
+          case ((offset, acc), a) =>
+            (offset + a.c.byteSize, (Offset(a, offset) :: acc))
+        })
+        ._2
   }
 }
 
@@ -55,8 +61,8 @@ object VertexBuffer {
   case class Constructor(attributes: List[Attribute.Constructor])
   case class Loaded(id: Int, filled: Int, capacity: Int, c: Constructor) {
     def inc(size: Int): Loaded = copy(filled = filled + size)
-    def fits(size: Int): Boolean = capacity - filled > size    
- }
+    def fits(size: Int): Boolean = capacity - filled > size
+  }
 
   case class Update(l: Loaded, d: VertexData.Loaded)
 
@@ -131,7 +137,7 @@ object ElementData {
   case class Ref(name: String, b: ElementBuffer.Constructor)
   case class Loaded(range: DataRange, ref: Ref) {
     def offset(ref: Model.ElementRef): DataRange = {
-      ref.range plus(range.start)
+      ref.range plus (range.start)
     }
   }
 }

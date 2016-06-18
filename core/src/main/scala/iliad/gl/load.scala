@@ -9,6 +9,11 @@ import cats.free._, Free._
 object Load {
   type DSL[A] = Free[Load, A]
 
+  def parse[F[_]: Monad](i: GL.Interpreter[F]): Load ~> F = 
+    LoadParser.andThen(GL.interpret(i))
+
+
+
   def apply(s: VertexShader.Source): DSL[VertexShader.Compiled] =
     LoadVertexShader(s).free
   def apply(s: FragmentShader.Source): DSL[FragmentShader.Compiled] =
@@ -47,10 +52,6 @@ object Load {
            pageSize: Int,
            b: ElementBuffer.Loaded): DSL[ElementBuffer.Update] =
     LoadCopyElementBuffer(ref, data, pageSize, b).free
-
-  def parse[F[_]: Monad](f: GL ~> F): Load ~> F = new (Load ~> F) {
-    def apply[A](load: Load[A]): F[A] = LoadParser(load).foldMap(f)
-  }
 }
 
 sealed trait Load[A]

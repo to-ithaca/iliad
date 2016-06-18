@@ -10,7 +10,7 @@ import cats.implicits._
 
 import java.nio.IntBuffer
 
-object GLInterpreter extends (GL ~> Reader[GLES30Library, ?]) {
+object GLInterpreter extends (GL.Interpreter[GL.NoEffect]) {
 
   //nasty but the signature of gen means the alternatives are worse!
   private def genObject(f: GLES30Library => (Int, IntBuffer) => Unit,
@@ -90,7 +90,7 @@ object GLInterpreter extends (GL ~> Reader[GLES30Library, ?]) {
   }
 }
 
-object GLLogInterpreter extends (GL ~> GL.LogEffect) {
+object GLLogInterpreter extends (GL.Interpreter[GL.LogEffect]) {
 
   private val logAfter: Id ~> Writer[List[String], ?] =
     new (Id ~> Writer[List[String], ?]) {
@@ -104,7 +104,7 @@ object GLLogInterpreter extends (GL ~> GL.LogEffect) {
   }
 }
 
-object GLDebugInterpreter extends (GL ~> GL.DebugEffect) {
+object GLDebugInterpreter extends (GL.Interpreter[GL.DebugEffect]) {
 
   private val lift: Writer[List[String], ?] ~> XorT[
       Writer[List[String], ?], String, ?] =
