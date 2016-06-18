@@ -31,8 +31,6 @@ object GL {
     def apply[A](gl: DSL[A]): F[A] = gl.foldMap(f)
   }
 
-
-
   val getError: DSL[Int] = GLGetError.free
 
   private def getShaderLogLength(shader: Int): DSL[Int] =
@@ -173,7 +171,6 @@ object GL {
                    start * SizeOf[Int].byteSize).free
 }
 
-
 sealed trait GL[A]
 
 case object GLGetError extends GL[Int]
@@ -224,4 +221,3 @@ case class GLDrawElements(
     mode: PrimitiveType, count: Int, `type`: IndexType, offset: Int)
     extends GL[Unit]
 case class GLClear(bitmask: ChannelBitMask) extends GL[Unit]
-

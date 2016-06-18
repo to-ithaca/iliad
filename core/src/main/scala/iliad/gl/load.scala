@@ -9,10 +9,8 @@ import cats.free._, Free._
 object Load {
   type DSL[A] = Free[Load, A]
 
-  def parse[F[_]: Monad](i: GL.Interpreter[F]): Load ~> F = 
+  def parse[F[_]: Monad](i: GL.Interpreter[F]): Load ~> F =
     LoadParser.andThen(GL.interpret(i))
-
-
 
   def apply(s: VertexShader.Source): DSL[VertexShader.Compiled] =
     LoadVertexShader(s).free
