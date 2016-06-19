@@ -83,12 +83,12 @@ final class EGLPRG[NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
 
   def context(dpy: Disp, cfg: Cfg, attrs: Attributes[ContextAttrib, ContextAttribValue]): DSL[String Xor Ctx] = (for {
     nc <- XorT.right(noContext)
-    ctx <- ensure(fix(EGLCreateContext(dpy, cfg, nc, attrs)))(_ != nc, "could not create EGLContext")
+    ctx <- ensure(fix(EGLCreateContext(dpy, cfg, nc, attrs)))(_ != nc, s"could not create EGLContext with $attrs")
   } yield ctx).value
 
   def windowSurface(dpy: Disp, cfg: Cfg, nw: NWin, attribs: Attributes[WindowAttrib, WindowAttribValue]): DSL[String Xor Sfc] = (for {
     ns <- XorT.right(noSurface)
-    sfc <- ensure(fix[Sfc](EGLCreateWindowSurface(dpy, cfg, nw, attribs)))(_ != ns, "could not create EGLSurface")
+    sfc <- ensure(fix[Sfc](EGLCreateWindowSurface(dpy, cfg, nw, attribs)))(_ != ns, s"could not create EGLSurface with $attribs")
   } yield sfc).value
 
   def swapBuffers(dpy: Disp, sfc: Sfc): DSL[String Xor Boolean] = ensure(fix(EGLSwapBuffers(dpy, sfc)))(identity, "could not eglSwapBuffers").value
