@@ -20,16 +20,16 @@ object Load {
             fs: FragmentShader.Compiled): DSL[Program.Linked] =
     LoadProgram(vs, fs).free
 
-  def newBuffer(ref: VertexData.Ref,
+  def create(ref: VertexData.Ref,
                 data: VertexData.Data,
                 pageSize: Int,
                 b: VertexBuffer.Constructor): DSL[VertexBuffer.Update] =
-    LoadNewVertexBuffer(ref, data, pageSize, b).free
-  def newBuffer(ref: ElementData.Ref,
+    LoadCreateVertexBuffer(ref, data, pageSize, b).free
+  def create(ref: ElementData.Ref,
                 data: ElementData.Data,
                 pageSize: Int,
                 b: ElementBuffer.Constructor): DSL[ElementBuffer.Update] =
-    LoadNewElementBuffer(ref, data, pageSize, b).free
+    LoadCreateElementBuffer(ref, data, pageSize, b).free
   def insert(ref: VertexData.Ref,
              data: VertexData.Data,
              pageSize: Int,
@@ -61,12 +61,12 @@ case class LoadFragmentShader(s: FragmentShader.Source)
 case class LoadProgram(vs: VertexShader.Compiled, fs: FragmentShader.Compiled)
     extends Load[Program.Linked]
 
-case class LoadNewVertexBuffer(ref: VertexData.Ref,
+case class LoadCreateVertexBuffer(ref: VertexData.Ref,
                                data: VertexData.Data,
                                pageSize: Int,
                                b: VertexBuffer.Constructor)
     extends Load[VertexBuffer.Update]
-case class LoadNewElementBuffer(ref: ElementData.Ref,
+case class LoadCreateElementBuffer(ref: ElementData.Ref,
                                 data: ElementData.Data,
                                 pageSize: Int,
                                 b: ElementBuffer.Constructor)
@@ -108,15 +108,15 @@ private object LoadParser extends (Load ~> GL.DSL) {
         as <- GL.getAttributeLocations(id, vs.source.attributeNames)
       } yield Program.Linked(id, Program.Unlinked(vs.source, fs.source), as)
 
-    case LoadNewVertexBuffer(r, d, pageSize, b) =>
+    case LoadCreateVertexBuffer(r, d, pageSize, b) =>
       val capacity = roundUp(d.size, pageSize)
-      GL.makeNewVertexBuffer(d.data, d.size, capacity)
+      GL.makeVertexBuffer(d.data, d.size, capacity)
         .map(
             VertexBuffer.loadNew(_, b, r, d.size, capacity)
         )
-    case LoadNewElementBuffer(r, d, pageSize, b) =>
+    case LoadCreateElementBuffer(r, d, pageSize, b) =>
       val capacity = roundUp(d.size, pageSize)
-      GL.makeNewElementBuffer(d.data, d.size, capacity)
+      GL.makeElementBuffer(d.data, d.size, capacity)
         .map(
             ElementBuffer.loadNew(_, b, r, d.size, capacity)
         )

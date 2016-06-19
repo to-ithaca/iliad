@@ -94,7 +94,7 @@ object LoadDraw {
            vb: VertexBuffer.Constructor): DSL[Unit] =
     Cached.get(vb).freekF[LoadDraw] flatMap {
       case Some(prev) =>
-        if (prev.fits(d.size))
+        if (VertexBuffer.fits(prev, d.size))
           for {
             next <- Load.insert(r, d, pageSize, prev).freekF[LoadDraw]
             _ <- Cached.put(next).freekF[LoadDraw]
@@ -106,7 +106,7 @@ object LoadDraw {
           } yield ()
       case None =>
         for {
-          b <- Load.newBuffer(r, d, pageSize, vb).freekF[LoadDraw]
+          b <- Load.create(r, d, pageSize, vb).freekF[LoadDraw]
           _ <- Cached.put(b).freekF[LoadDraw]
         } yield ()
     }
@@ -117,7 +117,7 @@ object LoadDraw {
            eb: ElementBuffer.Constructor): DSL[Unit] =
     Cached.get(eb).freekF[LoadDraw] flatMap {
       case Some(prev) =>
-        if (prev.fits(d.size))
+        if (ElementBuffer.fits(prev, d.size))
           for {
             next <- Load.insert(r, d, pageSize, prev).freekF[LoadDraw]
             _ <- Cached.put(next).freekF[LoadDraw]
@@ -129,7 +129,7 @@ object LoadDraw {
           } yield ()
       case None =>
         for {
-          b <- Load.newBuffer(r, d, pageSize, eb).freekF[LoadDraw]
+          b <- Load.create(r, d, pageSize, eb).freekF[LoadDraw]
           _ <- Cached.put(b).freekF[LoadDraw]
         } yield ()
     }
@@ -138,10 +138,7 @@ object LoadDraw {
     Draw.clear(bitMask).freekF[LoadDraw]
 
   private def doIfNot(f: Current.DSL[Boolean])(g: DSL[Unit]): DSL[Unit] =
-    f.freekF[LoadDraw] flatMap {
-      case false => g
-      case true => Free.pure(())
-    }
+    f.freekF[LoadDraw] flatMap(b => if(b) Free.pure(()) else g)
 
   private def setFramebuffer(framebuffer: Int): DSL[Unit] =
     doIfNot(Current.contains(framebuffer))(

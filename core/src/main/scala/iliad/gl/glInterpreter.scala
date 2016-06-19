@@ -12,16 +12,14 @@ import java.nio.IntBuffer
 
 object GLInterpreter extends (GL.Interpreter[GL.NoEffect]) {
 
-  //nasty but the signature of gen means the alternatives are worse!
-  private def genObject(f: GLES30Library => (Int, IntBuffer) => Unit,
-                        num: Int): Reader[GLES30Library, List[Int]] = Reader {
-    lib =>
-      val ptr = Buffer.capacity[Int](num)
-      f(lib)(num, ptr)
-      val arr = new Array[Int](num)
-      ptr.get(arr, 0, num)
-      arr.toList
-  }
+  private def genObject(r: Reader[GLES30Library, (Int, IntBuffer) => Unit],
+                        num: Int): Reader[GLES30Library, List[Int]] = r map { f => 
+    val ptr = Buffer.capacity[Int](num)
+    f(num, ptr)
+    val arr = new Array[Int](num)
+    ptr.get(arr, 0, num)
+    arr.toList
+  } 
 
   def apply[A](gl: GL[A]): Reader[GLES30Library, A] = gl match {
 
@@ -60,7 +58,7 @@ object GLInterpreter extends (GL.Interpreter[GL.NoEffect]) {
     case GLGetAttribLocation(program, name) =>
       Reader(_.glGetAttribLocation(program, name))
 
-    case GLGenBuffers(number) => genObject(_.glGenBuffers, number)
+    case GLGenBuffers(number) => genObject(Reader(_.glGenBuffers), number)
     case GLBindBuffer(target, buffer) =>
       Reader(_.glBindBuffer(target.value, buffer))
     case GLBufferData(target, size, data, usage) =>
@@ -90,29 +88,27 @@ object GLInterpreter extends (GL.Interpreter[GL.NoEffect]) {
   }
 }
 
-object GLLogInterpreter extends (GL.Interpreter[GL.LogEffect]) {
+final class GLLogInterpreter[F[_]: Monad](interpret: GL.Interpreter[GL.Effect[F, ?]]) extends (GL.Interpreter[GL.LogEffect[F, ?]]) {
 
-  private val logAfter: Id ~> Writer[List[String], ?] =
-    new (Id ~> Writer[List[String], ?]) {
-      def apply[A](a: Id[A]): Writer[List[String], A] =
-        a.writer(List(s"returned $a"))
+  private val logAfter: F ~> GL.Logger[F, ?] =
+    new (F ~> GL.Logger[F, ?]) {
+      def apply[A](fa: F[A]): GL.Logger[F, A] =
+        WriterT(fa.map(v => (List(s"returned $v"), v)))
     }
 
-  def apply[A](gl: GL[A]): GL.LogEffect[A] = {
-    List(s"called $gl").tell.liftT[ReaderT[?[_], GLES30Library, ?]] >>
-    GLInterpreter(gl).transform(logAfter)
+  def logBefore(s: String): GL.LogEffect[F, Unit] = 
+    ReaderT(_ => WriterT.tell[F, List[String]](List(s)))
+
+  def apply[A](gl: GL[A]): GL.LogEffect[F, A] = {
+    logBefore(s"calling $gl") >>
+    interpret(gl).transform(logAfter)
   }
 }
 
-object GLDebugInterpreter extends (GL.Interpreter[GL.DebugEffect]) {
+final class GLDebugInterpreter[F[_]: Monad](interpret: GL.Interpreter[GL.Effect[F, ?]]) extends (GL.Interpreter[GL.DebugEffect[F, ?]]) {
 
-  private val lift: Writer[List[String], ?] ~> XorT[
-      Writer[List[String], ?], String, ?] =
-    new (Writer[List[String], ?] ~> XorT[Writer[List[String], ?], String, ?]) {
-      def apply[A](w: Writer[List[String], A])
-        : XorT[Writer[List[String], ?], String, A] = {
-        XorT.right(w)
-      }
+  private val lift: F ~> XorT[F, String, ?] = new (F ~> XorT[F, String, ?]) {
+      def apply[A](fa: F[A]): XorT[F, String, A] = XorT.right(fa)
     }
 
   private val _errorCodes: Set[ErrorCode] = SealedEnum.values
@@ -125,9 +121,9 @@ object GLDebugInterpreter extends (GL.Interpreter[GL.DebugEffect]) {
         case None => s"Call failed with unknown error $value".left
       }
 
-  private def debug(method: String): GL.DebugEffect[Unit] =
+  private def debug(method: String): GL.DebugEffect[F, Unit] =
     GL.getError
-      .foldMap(GLLogInterpreter)
+      .foldMap(interpret)
       .transform(lift)
       .mapF(_.subflatMap(onError(method)))
 
@@ -136,22 +132,22 @@ object GLDebugInterpreter extends (GL.Interpreter[GL.DebugEffect]) {
 
   private def shaderLog(shader: Int) =
     GL.getCompileError(shader)
-      .foldMap(GLLogInterpreter)
+      .foldMap(interpret)
       .transform(lift)
       .mapF(_.subflatMap(onCompileError))
 
-  def apply[A](gl: GL[A]): GL.DebugEffect[A] = gl match {
+  def apply[A](gl: GL[A]): GL.DebugEffect[F, A] = gl match {
 
     case GLCompileShader(shader) =>
       for {
-        _ <- GLLogInterpreter(gl).transform(lift)
+        _ <- interpret(gl).transform(lift)
         _ <- shaderLog(shader)
         _ <- debug(gl.toString)
       } yield ()
 
     case _ =>
       for {
-        a <- GLLogInterpreter(gl).transform(lift)
+        a <- interpret(gl).transform(lift)
         _ <- debug(gl.toString)
       } yield a
   }

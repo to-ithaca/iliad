@@ -7,6 +7,7 @@ import iliad.std.int._
 
 import cats._
 import cats.data._
+import cats.std._
 import cats.free._, Free._
 import cats.implicits._
 
@@ -18,14 +19,19 @@ object GL {
   type Effect[F[_], A] = ReaderT[F, GLES30Library, A]
 
   type NoEffect[A] = Effect[Id, A]
-  type LogEffect[A] = Effect[Writer[List[String], ?], A]
-  type DebugEffect[A] = Effect[XorT[Writer[List[String], ?], String, ?], A]
+
+  type Logger[F[_], A] = WriterT[F, List[String], A]
+  type LogEffect[F[_], A] = Effect[Logger[F, ?], A]
+
+  type Debugger[F[_], A] = XorT[F, String, A]
+  type DebugEffect[F[_], A] = Effect[Debugger[F, ?], A]
 
   type Interpreter[F[_]] = GL ~> F
 
   val run: Interpreter[NoEffect] = GLInterpreter
-  val log: Interpreter[LogEffect] = GLLogInterpreter
-  val debug: Interpreter[DebugEffect] = GLDebugInterpreter
+  val log: Interpreter[LogEffect[Id, ?]] = new GLLogInterpreter(run)
+
+  val debugLog: Interpreter[DebugEffect[Logger[Id, ?], ?]] = new GLDebugInterpreter(log)
 
   def interpret[F[_]: Monad](f: Interpreter[F]): (DSL ~> F) = new (DSL ~> F) {
     def apply[A](gl: DSL[A]): F[A] = gl.foldMap(f)
@@ -70,13 +76,13 @@ object GL {
       _ <- GLLinkProgram(id).free
     } yield id
 
-  private def traverse[A, B, G[_]: Traverse](keys: G[A])(
+  private def traverseKeys[A, B, G[_]: Traverse](keys: G[A])(
       f: A => DSL[B]): DSL[G[(A, B)]] =
     keys.traverse[DSL, (A, B)](s => f(s).map(s -> _))
 
   def getAttributeLocations(
       program: Int, attributes: List[String]): DSL[List[(String, Int)]] =
-    traverse(attributes)(a => GLGetAttribLocation(program, a).free)
+    traverseKeys(attributes)(a => GLGetAttribLocation(program, a).free)
 
   private val genBuffer: DSL[Int] = GLGenBuffers(1).free.map(_.head)
 
@@ -87,18 +93,18 @@ object GL {
       _ <- GLBufferData(target, capacity, null, GL_STATIC_DRAW).free
     } yield id
 
-  private def makeNewBuffer(
+  private def makeBuffer(
       target: BufferTarget, data: Buffer, size: Int, capacity: Int): DSL[Int] =
     for {
       id <- makeEmptyBuffer(target, capacity)
       _ <- GLBufferSubData(target, 0, size, data).free
     } yield id
 
-  def makeNewVertexBuffer(data: Buffer, size: Int, capacity: Int): DSL[Int] =
-    makeNewBuffer(GL_ARRAY_BUFFER, data, size, capacity)
+  def makeVertexBuffer(data: Buffer, size: Int, capacity: Int): DSL[Int] =
+    makeBuffer(GL_ARRAY_BUFFER, data, size, capacity)
 
-  def makeNewElementBuffer(data: Buffer, size: Int, capacity: Int): DSL[Int] =
-    makeNewBuffer(GL_ELEMENT_ARRAY_BUFFER, data, size, capacity)
+  def makeElementBuffer(data: Buffer, size: Int, capacity: Int): DSL[Int] =
+    makeBuffer(GL_ELEMENT_ARRAY_BUFFER, data, size, capacity)
 
   private def insertInBuffer(target: BufferTarget,
                              buffer: Int,

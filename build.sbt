@@ -62,8 +62,7 @@ lazy val testSettings = Seq(
     "org.spire-math" %% "spire-laws" % "0.11.0" % "test",
     "org.scalatest" %% "scalatest" % "3.0.0-M7" % "test",
     "org.scalacheck" %% "scalacheck" % "1.12.1" % "test",
-    "org.typelevel" %% "discipline" % "0.4" % "test",
-    "org.scalamock" %% "scalamock-scalatest-support" % "3.2.2" % "test"
+    "org.typelevel" %% "discipline" % "0.4" % "test"
   )
 )
 

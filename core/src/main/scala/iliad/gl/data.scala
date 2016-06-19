@@ -9,6 +9,10 @@ import cats._
 import cats.data._
 import cats.implicits._
 
+import monocle._
+import monocle.macros._
+import monocle.syntax.all._
+
 object VertexShader {
   case class Source(text: String, attributes: List[Attribute.Constructor]) {
     def attributeNames: List[String] = attributes.map(_.name)
@@ -63,9 +67,16 @@ object VertexBuffer {
   case class Constructor(attributes: List[Attribute.Constructor])
   case class Loaded(
       id: Int, filled: Int, capacity: Int, constructor: Constructor) {
-    def inc(size: Int): Loaded = copy(filled = filled + size)
-    def fits(size: Int): Boolean = capacity - filled > size
   }
+
+  object Loaded {
+    val _filled: Lens[Loaded, Int] = GenLens[Loaded](_.filled)
+    val _capacity: Lens[Loaded, Int] = GenLens[Loaded](_.capacity)
+  }
+  def inc(l: Loaded, size: Int): Loaded = l &|-> Loaded._filled modify(_ + size)
+  def fits(l: Loaded, size: Int): Boolean =
+    (l &|-> Loaded._capacity get) - (l &|-> Loaded._filled get) > size
+
 
   case class Update(buffer: Loaded, data: VertexData.Loaded)
 
@@ -78,7 +89,7 @@ object VertexBuffer {
            VertexData.Loaded(DataRange(0, size), d))
 
   def insert(old: Loaded, d: VertexData.Ref, size: Int): Update =
-    Update(old.inc(size),
+    Update(inc(old, size),
            VertexData.Loaded(DataRange(old.filled, old.filled + size), d))
 
   def copy(id: Int,
@@ -94,9 +105,16 @@ object ElementBuffer {
   case class Constructor(name: String)
   case class Loaded(
       id: Int, filled: Int, capacity: Int, constructor: Constructor) {
-    def inc(size: Int): Loaded = copy(filled = filled + size)
-    def fits(size: Int): Boolean = capacity - filled > size
   }
+
+  object Loaded {
+    val _filled: Lens[Loaded, Int] = GenLens[Loaded](_.filled)
+    val _capacity: Lens[Loaded, Int] = GenLens[Loaded](_.capacity)
+  }
+  def inc(l: Loaded, size: Int): Loaded = l &|-> Loaded._filled modify(_ + size)
+  def fits(l: Loaded, size: Int): Boolean =
+    (l &|-> Loaded._capacity get) - (l &|-> Loaded._filled get) > size
+
 
   case class Update(buffer: Loaded, data: ElementData.Loaded)
 
@@ -109,7 +127,7 @@ object ElementBuffer {
            ElementData.Loaded(DataRange(0, size), d))
 
   def insert(old: Loaded, d: ElementData.Ref, size: Int): Update =
-    Update(old.inc(size),
+    Update(inc(old, size),
            ElementData.Loaded(DataRange(old.filled, old.filled + size), d))
 
   def copy(id: Int,
