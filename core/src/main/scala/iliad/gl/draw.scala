@@ -39,8 +39,11 @@ case class DrawTriangleModel(range: DataRange) extends Draw[Unit]
 private object DrawParser extends (Draw ~> GL.DSL) {
 
   private def enableAttribute(stride: Int)(a: Attribute.Offset): GL.DSL[Unit] =
-    GL.enableAttribute(
-        a.l.location, a.l.c.elementSize, a.l.c.`type`, stride, a.offset)
+    GL.enableAttribute(a.loaded.location,
+                       a.loaded.constructor.elementSize,
+                       a.loaded.constructor.`type`,
+                       stride,
+                       a.offset)
 
   def apply[A](draw: Draw[A]): GL.DSL[A] = draw match {
     case BindFramebuffer(f) => GL.bindFramebuffer(f)

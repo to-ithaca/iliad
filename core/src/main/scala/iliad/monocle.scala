@@ -11,7 +11,7 @@ object MonocleExtra {
     new StateOps(s)
 
   final class StateOps[S, A](s: State[S, A]) {
-    def transformLens[R](l: Lens[R, S]): State[R, A] =
+    def applyLens[R](l: Lens[R, S]): State[R, A] =
       s.transformS(_ &|-> l get, {
         case (r, s) => r &|-> l set s
       })

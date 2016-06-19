@@ -9,9 +9,7 @@ import cats.free._
 
 import monocle._
 import monocle.macros._
-import monocle.function.all._
 import monocle.syntax.all._
-import monocle.std.option._
 
 object Current {
   type DSL[A] = Free[Current, A]

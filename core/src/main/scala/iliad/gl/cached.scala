@@ -36,14 +36,14 @@ object Cached {
   def get(b: VertexBuffer.Constructor): DSL[Option[VertexBuffer.Loaded]] =
     VertexBufferGet(b).free
   def put(b: VertexBuffer.Update): DSL[Unit] =
-    VertexBufferPut(b.l).free >> VertexDataPut(b.d).free
+    VertexBufferPut(b.buffer).free >> VertexDataPut(b.data).free
 
   def get(e: ElementData.Ref): DSL[Option[ElementData.Loaded]] =
     ElementDataGet(e).free
   def get(b: ElementBuffer.Constructor): DSL[Option[ElementBuffer.Loaded]] =
     ElementBufferGet(b).free
   def put(b: ElementBuffer.Update): DSL[Unit] =
-    ElementBufferPut(b.l).free >> ElementDataPut(b.d).free
+    ElementBufferPut(b.buffer).free >> ElementDataPut(b.data).free
 
   def ensure[A, L](dsl: DSL[Option[A]], l: => L): DSL[L Xor A] =
     dsl.map(_.toRightXor(l))
@@ -113,28 +113,28 @@ private object CachedParser extends (Cached ~> Cached.Effect) {
       case VertexShaderGet(vs) =>
         State.inspect(_ &|-> _vertexShaders ^|-> at(vs) get)
       case VertexShaderPut(vs) =>
-        State.modify(_ &|-> _vertexShaders ^|-> at(vs.s) set (Some(vs)))
+        State.modify(_ &|-> _vertexShaders ^|-> at(vs.source) set Some(vs))
       case FragmentShaderGet(fs) =>
         State.inspect(_ &|-> _fragmentShaders ^|-> at(fs) get)
       case FragmentShaderPut(fs) =>
-        State.modify(_ &|-> _fragmentShaders ^|-> at(fs.s) set (Some(fs)))
+        State.modify(_ &|-> _fragmentShaders ^|-> at(fs.source) set Some(fs))
       case ProgramGet(p) => State.inspect(_ &|-> _programs ^|-> at(p) get)
       case ProgramPut(p) =>
-        State.modify(_ &|-> _programs ^|-> at(p.unlinked) set (Some(p)))
+        State.modify(_ &|-> _programs ^|-> at(p.unlinked) set Some(p))
       case VertexDataGet(d) => State.inspect(_ &|-> _vertexData ^|-> at(d) get)
       case VertexDataPut(d) =>
-        State.modify(_ &|-> _vertexData ^|-> at(d.ref) set (Some(d)))
+        State.modify(_ &|-> _vertexData ^|-> at(d.ref) set Some(d))
       case VertexBufferGet(b) =>
         State.inspect(_ &|-> _vertexBuffers ^|-> at(b) get)
       case VertexBufferPut(b) =>
-        State.modify(_ &|-> _vertexBuffers ^|-> at(b.c) set (Some(b)))
+        State.modify(_ &|-> _vertexBuffers ^|-> at(b.constructor) set Some(b))
       case ElementDataGet(d) =>
         State.inspect(_ &|-> _elementData ^|-> at(d) get)
       case ElementDataPut(d) =>
-        State.modify(_ &|-> _elementData ^|-> at(d.ref) set (Some(d)))
+        State.modify(_ &|-> _elementData ^|-> at(d.ref) set Some(d))
       case ElementBufferGet(b) =>
         State.inspect(_ &|-> _elementBuffers ^|-> at(b) get)
       case ElementBufferPut(b) =>
-        State.modify(_ &|-> _elementBuffers ^|-> at(b.c) set (Some(b)))
+        State.modify(_ &|-> _elementBuffers ^|-> at(b.constructor) set Some(b))
     }
 }

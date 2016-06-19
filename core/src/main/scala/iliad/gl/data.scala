@@ -10,19 +10,20 @@ import cats.data._
 import cats.implicits._
 
 object VertexShader {
-  case class Source(s: String, attributes: List[Attribute.Constructor]) {
+  case class Source(text: String, attributes: List[Attribute.Constructor]) {
     def attributeNames: List[String] = attributes.map(_.name)
   }
-  case class Compiled(id: Int, s: Source)
+  case class Compiled(id: Int, source: Source)
 }
 
 object FragmentShader {
-  case class Source(s: String)
-  case class Compiled(id: Int, s: Source)
+  case class Source(text: String)
+  case class Compiled(id: Int, source: Source)
 }
 
 object Program {
-  case class Unlinked(vs: VertexShader.Source, fs: FragmentShader.Source)
+  case class Unlinked(
+      vertex: VertexShader.Source, fragment: FragmentShader.Source)
   case class Linked(
       id: Int, unlinked: Unlinked, attributes: List[(String, Int)]) {
 
@@ -42,16 +43,17 @@ object Program {
 object Attribute {
   case class Constructor(
       name: String, byteSize: Int, elementSize: Int, `type`: VertexAttribType)
-  case class Loaded(c: Constructor, location: Int)
+  case class Loaded(constructor: Constructor, location: Int)
 
-  case class Offset(l: Loaded, offset: Int)
+  case class Offset(loaded: Loaded, offset: Int)
 
-  case class LoadedAttributes(ls: List[Loaded]) {
-    val stride: Int = ls.map(_.c.byteSize).sum
+  case class LoadedAttributes(attributes: List[Loaded]) {
+    val stride: Int = attributes.map(_.constructor.byteSize).sum
     def offsets(base: Int): List[Offset] =
-      ls.foldLeft(base -> List.empty[Offset])({
+      attributes
+        .foldLeft(base -> List.empty[Offset])({
           case ((offset, acc), a) =>
-            (offset + a.c.byteSize, (Offset(a, offset) :: acc))
+            (offset + a.constructor.byteSize, (Offset(a, offset) :: acc))
         })
         ._2
   }
@@ -59,12 +61,13 @@ object Attribute {
 
 object VertexBuffer {
   case class Constructor(attributes: List[Attribute.Constructor])
-  case class Loaded(id: Int, filled: Int, capacity: Int, c: Constructor) {
+  case class Loaded(
+      id: Int, filled: Int, capacity: Int, constructor: Constructor) {
     def inc(size: Int): Loaded = copy(filled = filled + size)
     def fits(size: Int): Boolean = capacity - filled > size
   }
 
-  case class Update(l: Loaded, d: VertexData.Loaded)
+  case class Update(buffer: Loaded, data: VertexData.Loaded)
 
   def loadNew(id: Int,
               c: VertexBuffer.Constructor,
@@ -83,18 +86,19 @@ object VertexBuffer {
            d: VertexData.Ref,
            size: Int,
            capacity: Int): Update =
-    Update(Loaded(id, old.filled + size, capacity, old.c),
+    Update(Loaded(id, old.filled + size, capacity, old.constructor),
            VertexData.Loaded(DataRange(old.filled, old.filled + size), d))
 }
 
 object ElementBuffer {
   case class Constructor(name: String)
-  case class Loaded(id: Int, filled: Int, capacity: Int, c: Constructor) {
+  case class Loaded(
+      id: Int, filled: Int, capacity: Int, constructor: Constructor) {
     def inc(size: Int): Loaded = copy(filled = filled + size)
     def fits(size: Int): Boolean = capacity - filled > size
   }
 
-  case class Update(l: Loaded, d: ElementData.Loaded)
+  case class Update(buffer: Loaded, data: ElementData.Loaded)
 
   def loadNew(id: Int,
               c: ElementBuffer.Constructor,
@@ -113,32 +117,29 @@ object ElementBuffer {
            d: ElementData.Ref,
            size: Int,
            capacity: Int): Update =
-    Update(Loaded(id, old.filled + size, capacity, old.c),
+    Update(Loaded(id, old.filled + size, capacity, old.constructor),
            ElementData.Loaded(DataRange(old.filled, old.filled + size), d))
 }
 
 case class DataRange(start: Int, end: Int) {
-  //TODO: do we even use this
   def plus(i: Int): DataRange = DataRange(start + i, end + i)
 }
 
 object VertexData {
   case class Data(data: Buffer, size: Int)
-  case class Ref(name: String, b: VertexBuffer.Constructor)
+  case class Ref(name: String, buffer: VertexBuffer.Constructor)
   case class Loaded(range: DataRange, ref: Ref) {
-    def offset(ref: Model.VertexRef): Int = {
+    def offset(ref: Model.VertexRef): Int =
       range.start + ref.range.start
-    }
   }
 }
 
 object ElementData {
   case class Data(data: Buffer, size: Int)
-  case class Ref(name: String, b: ElementBuffer.Constructor)
+  case class Ref(name: String, buffer: ElementBuffer.Constructor)
   case class Loaded(range: DataRange, ref: Ref) {
-    def offset(ref: Model.ElementRef): DataRange = {
-      ref.range plus (range.start)
-    }
+    def offset(ref: Model.ElementRef): DataRange =
+      ref.range.plus(range.start)
   }
 }
 
@@ -155,4 +156,12 @@ object Model {
   case class ElementRef(ref: ElementData.Ref, range: DataRange)
 }
 
-case class DrawOp(model: Model, program: Program.Unlinked, framebuffer: Int)
+case class DrawOp(model: Model, program: Program.Unlinked, framebuffer: Int) {
+  val vertexModel: Model.VertexRef = model.vertex
+  val vertexData: VertexData.Ref = vertexModel.ref
+  val vertexBuffer: VertexBuffer.Constructor = vertexData.buffer
+  val attributes = vertexBuffer.attributes
+  val elementModel: Model.ElementRef = model.element
+  val elementData: ElementData.Ref = elementModel.ref
+  val elementBuffer: ElementBuffer.Constructor = elementData.buffer
+}

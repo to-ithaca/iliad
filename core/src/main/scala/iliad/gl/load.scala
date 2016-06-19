@@ -99,14 +99,14 @@ private object LoadParser extends (Load ~> GL.DSL) {
 
   def apply[A](load: Load[A]): GL.DSL[A] = load match {
     case LoadVertexShader(s) =>
-      GL.makeVertexShader(s.s).map(VertexShader.Compiled(_, s))
+      GL.makeVertexShader(s.text).map(VertexShader.Compiled(_, s))
     case LoadFragmentShader(s) =>
-      GL.makeFragmentShader(s.s).map(FragmentShader.Compiled(_, s))
+      GL.makeFragmentShader(s.text).map(FragmentShader.Compiled(_, s))
     case LoadProgram(vs, fs) =>
       for {
         id <- GL.makeProgram(vs.id, fs.id)
-        as <- GL.getAttributeLocations(id, vs.s.attributeNames)
-      } yield Program.Linked(id, Program.Unlinked(vs.s, fs.s), as)
+        as <- GL.getAttributeLocations(id, vs.source.attributeNames)
+      } yield Program.Linked(id, Program.Unlinked(vs.source, fs.source), as)
 
     case LoadNewVertexBuffer(r, d, pageSize, b) =>
       val capacity = roundUp(d.size, pageSize)

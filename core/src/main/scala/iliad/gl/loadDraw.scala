@@ -10,8 +10,6 @@ import cats.implicits._
 
 import freek._
 
-import monocle._
-import monocle.syntax.all._
 import monocle.function.all._
 import monocle.std.all._
 
@@ -42,17 +40,14 @@ object LoadDraw {
   private def liftCached[F[_]: Monad]: Cached.Effect ~> PRG[F, ?] =
     new (Cached.Effect ~> PRG[F, ?]) {
       def apply[A](eff: State[Cached.CachedState, A]): PRG[F, A] =
-        liftS(
-            eff.transformLens[(Cached.CachedState, Current.CurrentState)](
-                first))
+        liftS(eff.applyLens[(Cached.CachedState, Current.CurrentState)](first))
     }
 
   private def liftCurrent[F[_]: Monad]: Current.Effect ~> PRG[F, ?] =
     new (Current.Effect ~> PRG[F, ?]) {
       def apply[A](eff: State[Current.CurrentState, A]): PRG[F, A] =
         liftS(
-            eff.transformLens[(Cached.CachedState, Current.CurrentState)](
-                second))
+            eff.applyLens[(Cached.CachedState, Current.CurrentState)](second))
     }
 
   def runner[F[_]: Monad](f: GL.Interpreter[GL.Effect[F, ?]]) =
@@ -86,8 +81,8 @@ object LoadDraw {
       case Some(p) => Free.pure(p)
       case None =>
         for {
-          v <- load(p.vs)
-          f <- load(p.fs)
+          v <- load(p.vertex)
+          f <- load(p.fragment)
           pl <- Load(v, f).freekF[LoadDraw]
           _ <- Cached.put(pl).freekF[LoadDraw]
         } yield pl
@@ -142,9 +137,9 @@ object LoadDraw {
   def clear(bitMask: ChannelBitMask): DSL[Unit] =
     Draw.clear(bitMask).freekF[LoadDraw]
 
-  private def doIfNot(pred: Current.DSL[Boolean])(f: DSL[Unit]): DSL[Unit] =
-    pred.freekF[LoadDraw] flatMap {
-      case false => f
+  private def doIfNot(f: Current.DSL[Boolean])(g: DSL[Unit]): DSL[Unit] =
+    f.freekF[LoadDraw] flatMap {
+      case false => g
       case true => Free.pure(())
     }
 
@@ -181,28 +176,18 @@ object LoadDraw {
       p <- ensure(Cached.get(draw.program),
                   s"Program not loaded. Unable to draw $draw")
       _ <- xort(set(p))
-      vb <- ensure(Cached.get(draw.model.vertex.ref.b),
+      vb <- ensure(Cached.get(draw.vertexBuffer),
                    s"Vertex buffer not loaded. Unable to draw $draw")
       _ <- xort(set(vb))
-      vd <- ensure(Cached.get(draw.model.vertex.ref),
+      vd <- ensure(Cached.get(draw.vertexData),
                    s"Vertex data not loaded. Unable to draw $draw")
-      eb <- ensure(Cached.get(draw.model.element.ref.b),
+      eb <- ensure(Cached.get(draw.elementBuffer),
                    s"Element buffer not loaded. Unable to draw $draw")
       _ <- xort(set(eb))
-      ed <- ensure(Cached.get(draw.model.element.ref),
+      ed <- ensure(Cached.get(draw.elementData),
                    s"Element data not loaded. Unable to draw $draw")
-      as <- XorT.fromXor[DSL](p.loaded(draw.model.vertex.ref.b.attributes))
-      _ <- xort(Draw.enable(as, vd.offset(draw.model.vertex)).freekF[LoadDraw])
-      _ <- xort(Draw(ed.offset(draw.model.element)).freekF[LoadDraw])
+      as <- XorT.fromXor[DSL](p.loaded(draw.attributes))
+      _ <- xort(Draw.enable(as, vd.offset(draw.vertexModel)).freekF[LoadDraw])
+      _ <- xort(Draw(ed.offset(draw.elementModel)).freekF[LoadDraw])
     } yield ()).value
 }
-
-/*
-object TestRunner {
-  def run[A](lib: GLES30Library)(start: String)(
-      cmd: CachedLoad.DSL[A]): (String, A) = {
-    val r = CachedLoad.runner[Id](GL.runInterpreter)
-    cmd.interpret(r).run(lib).run(start)
-  }
-}
- */
