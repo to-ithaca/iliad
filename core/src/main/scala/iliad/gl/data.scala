@@ -66,17 +66,16 @@ object Attribute {
 object VertexBuffer {
   case class Constructor(attributes: List[Attribute.Constructor])
   case class Loaded(
-      id: Int, filled: Int, capacity: Int, constructor: Constructor) {
-  }
+      id: Int, filled: Int, capacity: Int, constructor: Constructor) {}
 
   object Loaded {
     val _filled: Lens[Loaded, Int] = GenLens[Loaded](_.filled)
     val _capacity: Lens[Loaded, Int] = GenLens[Loaded](_.capacity)
   }
-  def inc(l: Loaded, size: Int): Loaded = l &|-> Loaded._filled modify(_ + size)
+  def inc(l: Loaded, size: Int): Loaded =
+    l &|-> Loaded._filled modify (_ + size)
   def fits(l: Loaded, size: Int): Boolean =
     (l &|-> Loaded._capacity get) - (l &|-> Loaded._filled get) > size
-
 
   case class Update(buffer: Loaded, data: VertexData.Loaded)
 
@@ -104,17 +103,16 @@ object VertexBuffer {
 object ElementBuffer {
   case class Constructor(name: String)
   case class Loaded(
-      id: Int, filled: Int, capacity: Int, constructor: Constructor) {
-  }
+      id: Int, filled: Int, capacity: Int, constructor: Constructor) {}
 
   object Loaded {
     val _filled: Lens[Loaded, Int] = GenLens[Loaded](_.filled)
     val _capacity: Lens[Loaded, Int] = GenLens[Loaded](_.capacity)
   }
-  def inc(l: Loaded, size: Int): Loaded = l &|-> Loaded._filled modify(_ + size)
+  def inc(l: Loaded, size: Int): Loaded =
+    l &|-> Loaded._filled modify (_ + size)
   def fits(l: Loaded, size: Int): Boolean =
     (l &|-> Loaded._capacity get) - (l &|-> Loaded._filled get) > size
-
 
   case class Update(buffer: Loaded, data: ElementData.Loaded)
 

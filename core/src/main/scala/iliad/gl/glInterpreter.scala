@@ -13,13 +13,14 @@ import java.nio.IntBuffer
 object GLInterpreter extends (GL.Interpreter[GL.NoEffect]) {
 
   private def genObject(r: Reader[GLES30Library, (Int, IntBuffer) => Unit],
-                        num: Int): Reader[GLES30Library, List[Int]] = r map { f => 
-    val ptr = Buffer.capacity[Int](num)
-    f(num, ptr)
-    val arr = new Array[Int](num)
-    ptr.get(arr, 0, num)
-    arr.toList
-  } 
+                        num: Int): Reader[GLES30Library, List[Int]] = r map {
+    f =>
+      val ptr = Buffer.capacity[Int](num)
+      f(num, ptr)
+      val arr = new Array[Int](num)
+      ptr.get(arr, 0, num)
+      arr.toList
+  }
 
   def apply[A](gl: GL[A]): Reader[GLES30Library, A] = gl match {
 
@@ -88,15 +89,16 @@ object GLInterpreter extends (GL.Interpreter[GL.NoEffect]) {
   }
 }
 
-final class GLLogInterpreter[F[_]: Monad](interpret: GL.Interpreter[GL.Effect[F, ?]]) extends (GL.Interpreter[GL.LogEffect[F, ?]]) {
+final class GLLogInterpreter[F[_]: Monad](
+    interpret: GL.Interpreter[GL.Effect[F, ?]])
+    extends (GL.Interpreter[GL.LogEffect[F, ?]]) {
 
-  private val logAfter: F ~> GL.Logger[F, ?] =
-    new (F ~> GL.Logger[F, ?]) {
-      def apply[A](fa: F[A]): GL.Logger[F, A] =
-        WriterT(fa.map(v => (List(s"returned $v"), v)))
-    }
+  private val logAfter: F ~> GL.Logger[F, ?] = new (F ~> GL.Logger[F, ?]) {
+    def apply[A](fa: F[A]): GL.Logger[F, A] =
+      WriterT(fa.map(v => (List(s"returned $v"), v)))
+  }
 
-  def logBefore(s: String): GL.LogEffect[F, Unit] = 
+  def logBefore(s: String): GL.LogEffect[F, Unit] =
     ReaderT(_ => WriterT.tell[F, List[String]](List(s)))
 
   def apply[A](gl: GL[A]): GL.LogEffect[F, A] = {
@@ -105,11 +107,13 @@ final class GLLogInterpreter[F[_]: Monad](interpret: GL.Interpreter[GL.Effect[F,
   }
 }
 
-final class GLDebugInterpreter[F[_]: Monad](interpret: GL.Interpreter[GL.Effect[F, ?]]) extends (GL.Interpreter[GL.DebugEffect[F, ?]]) {
+final class GLDebugInterpreter[F[_]: Monad](
+    interpret: GL.Interpreter[GL.Effect[F, ?]])
+    extends (GL.Interpreter[GL.DebugEffect[F, ?]]) {
 
   private val lift: F ~> XorT[F, String, ?] = new (F ~> XorT[F, String, ?]) {
-      def apply[A](fa: F[A]): XorT[F, String, A] = XorT.right(fa)
-    }
+    def apply[A](fa: F[A]): XorT[F, String, A] = XorT.right(fa)
+  }
 
   private val _errorCodes: Set[ErrorCode] = SealedEnum.values
 

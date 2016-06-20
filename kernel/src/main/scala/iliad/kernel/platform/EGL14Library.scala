@@ -29,6 +29,11 @@ trait EGL14Library {
   type EGLNativeWindowType
   type EGLNativePixmapType
 
+  def EGL_DEFAULT_DISPLAY: EGLNativeDisplayType
+  def EGL_NO_DISPLAY: EGLDisplay
+  def EGL_NO_CONTEXT: EGLContext
+  def EGL_NO_SURFACE: EGLSurface
+
   def eglChooseConfig(dpy: EGLDisplay,
                       attrib_list: Array[Int],
                       configs: Array[EGLConfig],

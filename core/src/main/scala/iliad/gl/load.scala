@@ -21,14 +21,14 @@ object Load {
     LoadProgram(vs, fs).free
 
   def create(ref: VertexData.Ref,
-                data: VertexData.Data,
-                pageSize: Int,
-                b: VertexBuffer.Constructor): DSL[VertexBuffer.Update] =
+             data: VertexData.Data,
+             pageSize: Int,
+             b: VertexBuffer.Constructor): DSL[VertexBuffer.Update] =
     LoadCreateVertexBuffer(ref, data, pageSize, b).free
   def create(ref: ElementData.Ref,
-                data: ElementData.Data,
-                pageSize: Int,
-                b: ElementBuffer.Constructor): DSL[ElementBuffer.Update] =
+             data: ElementData.Data,
+             pageSize: Int,
+             b: ElementBuffer.Constructor): DSL[ElementBuffer.Update] =
     LoadCreateElementBuffer(ref, data, pageSize, b).free
   def insert(ref: VertexData.Ref,
              data: VertexData.Data,
@@ -62,14 +62,14 @@ case class LoadProgram(vs: VertexShader.Compiled, fs: FragmentShader.Compiled)
     extends Load[Program.Linked]
 
 case class LoadCreateVertexBuffer(ref: VertexData.Ref,
-                               data: VertexData.Data,
-                               pageSize: Int,
-                               b: VertexBuffer.Constructor)
+                                  data: VertexData.Data,
+                                  pageSize: Int,
+                                  b: VertexBuffer.Constructor)
     extends Load[VertexBuffer.Update]
 case class LoadCreateElementBuffer(ref: ElementData.Ref,
-                                data: ElementData.Data,
-                                pageSize: Int,
-                                b: ElementBuffer.Constructor)
+                                   data: ElementData.Data,
+                                   pageSize: Int,
+                                   b: ElementBuffer.Constructor)
     extends Load[ElementBuffer.Update]
 case class LoadInsertVertexBuffer(ref: VertexData.Ref,
                                   data: VertexData.Data,

@@ -50,10 +50,11 @@ object LoadDraw {
             eff.applyLens[(Cached.CachedState, Current.CurrentState)](second))
     }
 
-  def runner[F[_]: Monad](f: GL.Interpreter[GL.Effect[F, ?]]) =
+  def runner[F[_]: Monad](
+      f: GL.Interpreter[GL.Effect[F, ?]]): Interpreter[LoadDraw, PRG[F, ?]] =
     Load.parse(f).andThen(liftOpenGL) :&:
-    Draw.parse(f).andThen(liftOpenGL) :&:
     CachedParser.andThen(liftCached[F]) :&:
+    Draw.parse(f).andThen(liftOpenGL) :&:
     CurrentParser.andThen(liftCurrent[F])
 
   private def load(s: VertexShader.Source): DSL[VertexShader.Compiled] =
@@ -138,7 +139,7 @@ object LoadDraw {
     Draw.clear(bitMask).freekF[LoadDraw]
 
   private def doIfNot(f: Current.DSL[Boolean])(g: DSL[Unit]): DSL[Unit] =
-    f.freekF[LoadDraw] flatMap(b => if(b) Free.pure(()) else g)
+    f.freekF[LoadDraw] flatMap (b => if (b) Free.pure(()) else g)
 
   private def setFramebuffer(framebuffer: Int): DSL[Unit] =
     doIfNot(Current.contains(framebuffer))(
