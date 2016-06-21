@@ -49,7 +49,7 @@ trait X11Bootstrap extends X11EventHandler with X11GLDependencies {
 
   private def initThreads(): Error Xor Unit = {
     val code = x.XInitThreads()
-    if(code == 0) new Error("Failed to multi thread X11").left
+    if (code == 0) new Error("Failed to multi thread X11").left
     else ().right
   }
 

@@ -34,9 +34,9 @@ object Current {
   def set(e: ElementBuffer.Loaded): DSL[Unit] = CurrentElementBufferSet(e).free
 
   case class State(framebuffer: Option[Int],
-                          program: Option[Program.Linked],
-                          vertexBuffer: Option[VertexBuffer.Loaded],
-                          elementBuffer: Option[ElementBuffer.Loaded])
+                   program: Option[Program.Linked],
+                   vertexBuffer: Option[VertexBuffer.Loaded],
+                   elementBuffer: Option[ElementBuffer.Loaded])
 
   object State {
     val empty: State = State(None, None, None, None)
@@ -65,12 +65,10 @@ private object CurrentParser extends (Current ~> Current.Effect) {
   private val _framebuffer: Lens[Current.State, Option[Int]] =
     GenLens[Current.State](_.framebuffer)
 
-  private val _vertexBuffer: Lens[
-      Current.State, Option[VertexBuffer.Loaded]] =
+  private val _vertexBuffer: Lens[Current.State, Option[VertexBuffer.Loaded]] =
     GenLens[Current.State](_.vertexBuffer)
 
-  private val _elementBuffer: Lens[
-      Current.State, Option[ElementBuffer.Loaded]] =
+  private val _elementBuffer: Lens[Current.State, Option[ElementBuffer.Loaded]] =
     GenLens[Current.State](_.elementBuffer)
 
   def apply[A](current: Current[A]): Current.Effect[A] = current match {
@@ -82,7 +80,8 @@ private object CurrentParser extends (Current ~> Current.Effect) {
     case CurrentVertexBufferGet => CatsState.inspect(_ &|-> _vertexBuffer get)
     case CurrentVertexBufferSet(b) =>
       CatsState.modify(_ &|-> _vertexBuffer set Some(b))
-    case CurrentElementBufferGet => CatsState.inspect(_ &|-> _elementBuffer get)
+    case CurrentElementBufferGet =>
+      CatsState.inspect(_ &|-> _elementBuffer get)
     case CurrentElementBufferSet(b) =>
       CatsState.modify(_ &|-> _elementBuffer set Some(b))
   }

@@ -26,16 +26,23 @@ sealed trait DisplayProperty extends IntConstant
 sealed trait EGLError extends IntConstant
 
 object ConfigAttrib {
-  def apply(k: ConfigAttrib, i: Int): (ConfigAttrib, Int Xor ConfigAttribValue) = k -> i.left
-  def apply(k: ConfigAttrib, v: ConfigAttribValue): (ConfigAttrib, Int Xor ConfigAttribValue) = k -> v.right
+  def apply(
+      k: ConfigAttrib, i: Int): (ConfigAttrib, Int Xor ConfigAttribValue) =
+    k -> i.left
+  def apply(k: ConfigAttrib,
+            v: ConfigAttribValue): (ConfigAttrib, Int Xor ConfigAttribValue) =
+    k -> v.right
 }
 
 object ContextAttrib {
-  def apply(k: ContextAttrib, i: Int): (ContextAttrib, Int Xor ContextAttribValue) =
+  def apply(
+      k: ContextAttrib, i: Int): (ContextAttrib, Int Xor ContextAttribValue) =
     k -> i.left
-  def apply(k: ContextAttrib, v: ContextAttribValue): (ContextAttrib, Int Xor ContextAttribValue) = k -> v.right
+  def apply(
+      k: ContextAttrib,
+      v: ContextAttribValue): (ContextAttrib, Int Xor ContextAttribValue) =
+    k -> v.right
 }
-
 
 case object EGL_ALPHA_SIZE extends IntConstant(0x3021) with ConfigAttrib
 case object EGL_BAD_ACCESS extends IntConstant(0x3002) with EGLError

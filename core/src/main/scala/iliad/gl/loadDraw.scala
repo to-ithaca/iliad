@@ -18,18 +18,16 @@ import MonocleExtra._
 
 object LoadDraw {
 
-  type LoadDraw[A] = (Load :|: Cached :|: Draw :|: Current :|: GL :|: FXNil)#Cop[A]
+  type LoadDraw[A] =
+    (Load :|: Cached :|: Draw :|: Current :|: GL :|: FXNil)#Cop[A]
   type DSL[A] = Free[LoadDraw, A]
   type PRG[F[_], A] =
-    ReaderT[StateT[F, (Cached.State, Current.State), ?],
-            GLES30Library,
-            A]
+    ReaderT[StateT[F, (Cached.State, Current.State), ?], GLES30Library, A]
 
   private def liftOpenGL[F[_]: Monad]: GL.Effect[F, ?] ~> PRG[F, ?] =
     new (GL.Effect[F, ?] ~> PRG[F, ?]) {
       def apply[A](eff: ReaderT[F, GLES30Library, A]): PRG[F, A] =
-        eff.mapF(_.liftT[StateT[
-                    ?[_], (Cached.State, Current.State), ?]])
+        eff.mapF(_.liftT[StateT[?[_], (Cached.State, Current.State), ?]])
     }
 
   def liftS[F[_]: Monad, A](
@@ -45,8 +43,7 @@ object LoadDraw {
   private def liftCurrent[F[_]: Monad]: Current.Effect ~> PRG[F, ?] =
     new (Current.Effect ~> PRG[F, ?]) {
       def apply[A](eff: State[Current.State, A]): PRG[F, A] =
-        liftS(
-            eff.applyLens[(Cached.State, Current.State)](second))
+        liftS(eff.applyLens[(Cached.State, Current.State)](second))
     }
 
   def runner[F[_]: Monad](
@@ -54,8 +51,8 @@ object LoadDraw {
     Load.parse(f).andThen(liftOpenGL) :&:
     CachedParser.andThen(liftCached[F]) :&:
     Draw.parse(f).andThen(liftOpenGL) :&:
-  CurrentParser.andThen(liftCurrent[F]) :&:
-  f.andThen(liftOpenGL)
+    CurrentParser.andThen(liftCurrent[F]) :&:
+    f.andThen(liftOpenGL)
 
   private def load(s: VertexShader.Source): DSL[VertexShader.Compiled] =
     Cached.get(s).freekF[LoadDraw] flatMap {

@@ -40,7 +40,6 @@ trait GLDependencies extends ScreenDependencies {
   ]
 
   val GLES30: platform.GLES30Library
-
 }
 
 //Ideally our only implementation inside here would be the EGL14Library

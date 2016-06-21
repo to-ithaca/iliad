@@ -58,7 +58,13 @@ object Cached {
       elementBuffers: Map[ElementBuffer.Constructor, ElementBuffer.Loaded])
 
   object State {
-    val empty: State = State(Map.empty, Map.empty, Map.empty, Map.empty, Map.empty, Map.empty, Map.empty)
+    val empty: State = State(Map.empty,
+                             Map.empty,
+                             Map.empty,
+                             Map.empty,
+                             Map.empty,
+                             Map.empty,
+                             Map.empty)
   }
 }
 
@@ -92,8 +98,7 @@ private object CachedParser extends (Cached ~> Cached.Effect) {
       Cached.State, Map[VertexShader.Source, VertexShader.Compiled]] =
     GenLens[Cached.State](_.vertexShaders)
   private val _fragmentShaders: Lens[
-      Cached.State,
-      Map[FragmentShader.Source, FragmentShader.Compiled]] =
+      Cached.State, Map[FragmentShader.Source, FragmentShader.Compiled]] =
     GenLens[Cached.State](_.fragmentShaders)
   private val _programs: Lens[
       Cached.State, Map[Program.Unlinked, Program.Linked]] =
@@ -108,37 +113,40 @@ private object CachedParser extends (Cached ~> Cached.Effect) {
       Cached.State, Map[ElementData.Ref, ElementData.Loaded]] =
     GenLens[Cached.State](_.elementData)
   private val _elementBuffers: Lens[
-      Cached.State,
-      Map[ElementBuffer.Constructor, ElementBuffer.Loaded]] =
+      Cached.State, Map[ElementBuffer.Constructor, ElementBuffer.Loaded]] =
     GenLens[Cached.State](_.elementBuffers)
 
   def apply[A](cached: Cached[A]): Cached.Effect[A] =
     cached match {
       case VertexShaderGet(vs) =>
-       CatsState.inspect(_ &|-> _vertexShaders ^|-> at(vs) get)
+        CatsState.inspect(_ &|-> _vertexShaders ^|-> at(vs) get)
       case VertexShaderPut(vs) =>
-       CatsState.modify(_ &|-> _vertexShaders ^|-> at(vs.source) set Some(vs))
+        CatsState.modify(_ &|-> _vertexShaders ^|-> at(vs.source) set Some(vs))
       case FragmentShaderGet(fs) =>
-       CatsState.inspect(_ &|-> _fragmentShaders ^|-> at(fs) get)
+        CatsState.inspect(_ &|-> _fragmentShaders ^|-> at(fs) get)
       case FragmentShaderPut(fs) =>
-       CatsState.modify(_ &|-> _fragmentShaders ^|-> at(fs.source) set Some(fs))
+        CatsState.modify(
+            _ &|-> _fragmentShaders ^|-> at(fs.source) set Some(fs))
       case ProgramGet(p) => CatsState.inspect(_ &|-> _programs ^|-> at(p) get)
       case ProgramPut(p) =>
-       CatsState.modify(_ &|-> _programs ^|-> at(p.unlinked) set Some(p))
-      case VertexDataGet(d) => CatsState.inspect(_ &|-> _vertexData ^|-> at(d) get)
+        CatsState.modify(_ &|-> _programs ^|-> at(p.unlinked) set Some(p))
+      case VertexDataGet(d) =>
+        CatsState.inspect(_ &|-> _vertexData ^|-> at(d) get)
       case VertexDataPut(d) =>
-       CatsState.modify(_ &|-> _vertexData ^|-> at(d.ref) set Some(d))
+        CatsState.modify(_ &|-> _vertexData ^|-> at(d.ref) set Some(d))
       case VertexBufferGet(b) =>
-       CatsState.inspect(_ &|-> _vertexBuffers ^|-> at(b) get)
+        CatsState.inspect(_ &|-> _vertexBuffers ^|-> at(b) get)
       case VertexBufferPut(b) =>
-       CatsState.modify(_ &|-> _vertexBuffers ^|-> at(b.constructor) set Some(b))
+        CatsState.modify(
+            _ &|-> _vertexBuffers ^|-> at(b.constructor) set Some(b))
       case ElementDataGet(d) =>
-       CatsState.inspect(_ &|-> _elementData ^|-> at(d) get)
+        CatsState.inspect(_ &|-> _elementData ^|-> at(d) get)
       case ElementDataPut(d) =>
-       CatsState.modify(_ &|-> _elementData ^|-> at(d.ref) set Some(d))
+        CatsState.modify(_ &|-> _elementData ^|-> at(d.ref) set Some(d))
       case ElementBufferGet(b) =>
-       CatsState.inspect(_ &|-> _elementBuffers ^|-> at(b) get)
+        CatsState.inspect(_ &|-> _elementBuffers ^|-> at(b) get)
       case ElementBufferPut(b) =>
-       CatsState.modify(_ &|-> _elementBuffers ^|-> at(b.constructor) set Some(b))
+        CatsState.modify(
+            _ &|-> _elementBuffers ^|-> at(b.constructor) set Some(b))
     }
 }

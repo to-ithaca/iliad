@@ -27,7 +27,8 @@ case class Attributes[K <: IntConstant, V <: IntConstant](
 }
 
 object Attributes {
-  def apply[K <: IntConstant, V <: IntConstant](kvs: (K, Int Xor V)*): Attributes[K, V] =
+  def apply[K <: IntConstant, V <: IntConstant](
+      kvs: (K, Int Xor V)*): Attributes[K, V] =
     Attributes(Map(kvs: _*))
   def empty[K <: IntConstant, V <: IntConstant]: Attributes[K, V] = apply()
 }
@@ -86,7 +87,7 @@ final class EGLPRG[NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
   def config(
       dpy: Disp,
       attrs: Attributes[ConfigAttrib, ConfigAttribValue]): DSL[Option[Cfg]] = {
-    fix(EGLChooseConfig(dpy, attrs, 1)).map (_.headOption)
+    fix(EGLChooseConfig(dpy, attrs, 1)).map(_.headOption)
   }
 
   def property(dpy: Disp, property: DisplayProperty): DSL[String] =
@@ -156,8 +157,7 @@ trait EGL[+NDisp, +NWin, +Disp, +Cfg, +Sfc, +Ctx, A]
 
 case class EGLChooseConfig[Disp, Cfg](
     dpy: Disp, attrs: Attributes[ConfigAttrib, ConfigAttribValue], count: Int)
-    extends EGL[
-        Nothing, Nothing, Disp, Cfg, Nothing, Nothing, List[Cfg]]
+    extends EGL[Nothing, Nothing, Disp, Cfg, Nothing, Nothing, List[Cfg]]
 case class EGLQueryString[Disp](dpy: Disp, name: DisplayProperty)
     extends EGL[Nothing, Nothing, Disp, Nothing, Nothing, Nothing, String]
 case class EGLCreateContext[Disp, Cfg, Ctx](
