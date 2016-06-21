@@ -19,12 +19,15 @@ private[kernel] final class BlockingPromise[A] {
   def set(t: Throwable): Unit = set(Left(t))
   def set(a: A): Unit = set(Right(a))
 
-  def task(implicit S: Strategy): Task[A] = Task.async {
-    cb => this.synchronized {
-      if(_value.isEmpty) {
+  def task(implicit S: Strategy): Task[A] = Task {
+    this.synchronized {
+      if (_value.isEmpty) {
         this.wait()
-      }  
-      cb(_value.get)
+      }
+      _value.get
     }
+  }.flatMap {
+    case Left(err) => Task.fail(err)
+    case Right(a) => Task.now(a)
   }
 }

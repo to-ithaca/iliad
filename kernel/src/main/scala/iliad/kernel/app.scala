@@ -1,6 +1,8 @@
 package iliad
 package kernel
 
+import cats._
+
 import scala.reflect._
 
 trait IliadApp {
@@ -14,16 +16,19 @@ trait ScreenDependencies {
 
   val session: BlockingPromise[(NativeWindow, NativeDisplay)] =
     new BlockingPromise[(NativeWindow, NativeDisplay)]
+
+  def lockDisplay: Option[NativeDisplay => Unit] = None
+  def unlockDisplay: Option[NativeDisplay => Unit] = None
 }
 
-trait EGLDependencies extends ScreenDependencies {
+trait GLDependencies extends ScreenDependencies {
 
   type EGLDisplay
   type EGLSurface
   type EGLContext
   type EGLConfig
 
-  implicit val ct: ClassTag[EGLConfig]
+  implicit def configClassTag: ClassTag[EGLConfig]
 
   val EGL14: platform.EGL14Library.Aux[
       NativeDisplay,
@@ -33,10 +38,9 @@ trait EGLDependencies extends ScreenDependencies {
       EGLSurface,
       EGLContext
   ]
-}
 
-trait GLDependencies {
   val GLES30: platform.GLES30Library
+
 }
 
 //Ideally our only implementation inside here would be the EGL14Library

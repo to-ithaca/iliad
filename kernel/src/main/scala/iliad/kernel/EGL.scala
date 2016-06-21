@@ -145,8 +145,8 @@ abstract class EGL[F[_], NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx] {
       _ <- makeCurrent(display, surface, surface, context)
     } yield Session(display, config, surface, context)
 
-  def setupSecondaryContext(
-      session: Session[Disp, Cfg, Sfc, Ctx])(implicit M: Monad[F]): IO[Ctx] =
+  def setupSecondaryContext(session: Session[Disp, Cfg, Sfc, Ctx])(
+      implicit M: Monad[F]): IO[Ctx] =
     for {
       _ <- initialisedVersion(session.display)
       config <- chooseConfig(session.display, EGLDefaults.secondaryConfig)

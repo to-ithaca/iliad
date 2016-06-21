@@ -179,8 +179,8 @@ object GLState {
   def addBuffer(b: LoadedBuffer)(s: GLState): GLState =
     Zoom._buffers.modify(b :: _)(s)
 
-  def replaceBuffer(
-      prev: LoadedBuffer)(next: LoadedBuffer)(s: GLState): GLState =
+  def replaceBuffer(prev: LoadedBuffer)(
+      next: LoadedBuffer)(s: GLState): GLState =
     Zoom._buffers.modify(_.map {
       case b if b == prev => next
       case x => x

@@ -1,6 +1,8 @@
 package iliad
 package kernel
 
+import scala.reflect._
+
 import iliad.kernel.vectord._
 import iliad.kernel.platform.unix.X11
 
@@ -16,7 +18,23 @@ import cats.implicits._
 
 import org.slf4j._
 
-trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
+trait X11GLDependencies extends GLDependencies with IliadApp {
+
+  type NativeDisplay = iliad.kernel.EGL14.EGLNativeDisplayType
+  type NativeWindow = iliad.kernel.EGL14.EGLNativeWindowType
+  type NativePixmap = iliad.kernel.EGL14.EGLNativePixmapType
+  type EGLConfig = iliad.kernel.EGL14.EGLConfig
+  type EGLSurface = iliad.kernel.EGL14.EGLSurface
+  type EGLDisplay = iliad.kernel.EGL14.EGLDisplay
+  type EGLContext = iliad.kernel.EGL14.EGLContext
+
+  val configClassTag = classTag[iliad.kernel.platform.unix.EGLConfig]
+
+  val EGL14 = iliad.kernel.EGL14
+  val GLES30 = iliad.kernel.GLES30
+}
+
+trait X11Bootstrap extends X11EventHandler with X11GLDependencies {
 
   private val log = LoggerFactory.getLogger(classOf[X11Bootstrap])
 
@@ -25,6 +43,15 @@ trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
   def viewDimensions: Vec2i = v"$width $height"
 
   private val x = iliad.kernel.platform.unix.X11.INSTANCE
+
+  override val lockDisplay = Some(x.XLockDisplay _)
+  override val unlockDisplay = Some(x.XUnlockDisplay _)
+
+  private def initThreads(): Error Xor Unit = {
+    val code = x.XInitThreads()
+    if(code == 0) new Error("Failed to multi thread X11").left
+    else ().right
+  }
 
   private def openDisplay(): Error Xor Display =
     Option(x.XOpenDisplay(null)) match {
@@ -89,6 +116,7 @@ trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
 
   private def createWindow: Error Xor (Display, Window) =
     for {
+      _ <- initThreads()
       d <- openDisplay()
       r <- rootWindow(d)
       w <- createSimpleWindow(d, r)
@@ -115,91 +143,23 @@ trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
     }
   }
 
-  //TODO: tidy this code up
-  def setupEGL(d: Display, w: Window): EGL.Session[EGL14.EGLDisplay,
-                                                   EGL14.EGLConfig,
-                                                   EGL14.EGLSurface,
-                                                   EGL14.EGLContext] = {
-    val eglRunner = EGL.debuggingLogging[EGL14.EGLNativeDisplayType,
-                                         EGL14.EGLNativeWindowType,
-                                         EGL14.EGLDisplay,
-                                         EGL14.EGLConfig,
-                                         EGL14.EGLSurface,
-                                         EGL14.EGLContext]
-
-    val writer = eglRunner
-      .setupPrimaryContext(d, w, EGL14.EGL_NO_CONTEXT)
-      .run(EGL14)
-      .value
-    writer.written.foreach(s => log.info("EGL log {}", s))
-    writer.value match {
-      case Xor.Left(err) =>
-        log.error("Failed to create EGL session - exiting application {}", err)
-        throw new Error(err)
-      case Xor.Right(session) =>
-        log.info("Successfully created EGL session {}", session)
-        session
-    }
-  }
-
-  def setupGL: Unit = {
-    import iliad.kernel._
-    val gl =
-      GL.debugAndLog(GL.DebuggerConfig(Set.empty), GL.LoggerConfig(Set.empty))
-    val cmds = for {
-      _ <- gl.clear(GL_COLOR_BUFFER_BIT)
-      _ <- gl.clearColor(0f, 1f, 0f, 1f)
-      _ <- gl.clear(GL_COLOR_BUFFER_BIT)
-    } yield ()
-
-    //FIXME: add a glState in here
-    val writer = cmds.run(GLES30).run(???).value
-    writer.written.foreach(s => log.info("GL log {}", s))
-
-    writer.value match {
-      case Xor.Left(err) =>
-        log.error("Failed to create GL - exiting application {}", err)
-        throw new IllegalStateException(err)
-      case Xor.Right(_) =>
-        log.info("Successfully called GL commands")
-    }
-  }
-
-  def swapBuffers(display: EGL14.EGLDisplay, surface: EGL14.EGLSurface): Unit = {
-    val eglRunner = EGL.debuggingLogging[EGL14.EGLNativeDisplayType,
-                                         EGL14.EGLNativeWindowType,
-                                         EGL14.EGLDisplay,
-                                         EGL14.EGLConfig,
-                                         EGL14.EGLSurface,
-                                         EGL14.EGLContext]
-
-    val writer = eglRunner.swapBuffers(display, surface).run(EGL14).value
-    writer.written.foreach(s => log.info("EGL log {}", s))
-    writer.value match {
-      case Xor.Left(err) =>
-        log.error("Failed to swap EGL buffers - exiting application {}", err)
-        throw new Error(err)
-      case Xor.Right(_) =>
-        log.info("Successfully swapped EGL buffers")
-    }
-  }
-
   def main(args: Array[String]): Unit = {
+    println("running app")
     createWindow match {
       case Xor.Right((d, w)) =>
         log.info("Created window")
-        val session = setupEGL(d, w)
-        setupGL
-        swapBuffers(session.display, session.surface)
-        app.run()
+        session.set((w, d))
+        run()
+
         var shouldDraw = true
         while (shouldDraw) {
+          x.XLockDisplay(d)
           shouldDraw = handleAllEvents(d)
+          x.XUnlockDisplay(d)
         }
         destroyWindow(d, w)
       case Xor.Left(err) =>
-        log.error("Failed to create window - exiting application")
-        throw err
+        session.set(err)
     }
   }
 }

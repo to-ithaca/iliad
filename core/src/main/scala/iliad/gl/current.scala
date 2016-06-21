@@ -4,7 +4,7 @@ package gl
 import iliad.CatsExtra._
 
 import cats._
-import cats.data._
+import cats.data.{State => CatsState}
 import cats.free._
 
 import monocle._
@@ -13,7 +13,7 @@ import monocle.syntax.all._
 
 object Current {
   type DSL[A] = Free[Current, A]
-  type Effect[A] = State[CurrentState, A]
+  type Effect[A] = CatsState[State, A]
 
   private def getContains[A](a: A)(get: Current[Option[A]]): DSL[Boolean] =
     get.free map (_.contains(a))
@@ -33,10 +33,14 @@ object Current {
   def set(v: VertexBuffer.Loaded): DSL[Unit] = CurrentVertexBufferSet(v).free
   def set(e: ElementBuffer.Loaded): DSL[Unit] = CurrentElementBufferSet(e).free
 
-  case class CurrentState(framebuffer: Option[Int],
+  case class State(framebuffer: Option[Int],
                           program: Option[Program.Linked],
                           vertexBuffer: Option[VertexBuffer.Loaded],
                           elementBuffer: Option[ElementBuffer.Loaded])
+
+  object State {
+    val empty: State = State(None, None, None, None)
+  }
 }
 
 sealed trait Current[A]
@@ -55,31 +59,31 @@ case class CurrentElementBufferSet(e: ElementBuffer.Loaded)
 
 private object CurrentParser extends (Current ~> Current.Effect) {
 
-  private val _program: Lens[Current.CurrentState, Option[Program.Linked]] =
-    GenLens[Current.CurrentState](_.program)
+  private val _program: Lens[Current.State, Option[Program.Linked]] =
+    GenLens[Current.State](_.program)
 
-  private val _framebuffer: Lens[Current.CurrentState, Option[Int]] =
-    GenLens[Current.CurrentState](_.framebuffer)
+  private val _framebuffer: Lens[Current.State, Option[Int]] =
+    GenLens[Current.State](_.framebuffer)
 
   private val _vertexBuffer: Lens[
-      Current.CurrentState, Option[VertexBuffer.Loaded]] =
-    GenLens[Current.CurrentState](_.vertexBuffer)
+      Current.State, Option[VertexBuffer.Loaded]] =
+    GenLens[Current.State](_.vertexBuffer)
 
   private val _elementBuffer: Lens[
-      Current.CurrentState, Option[ElementBuffer.Loaded]] =
-    GenLens[Current.CurrentState](_.elementBuffer)
+      Current.State, Option[ElementBuffer.Loaded]] =
+    GenLens[Current.State](_.elementBuffer)
 
   def apply[A](current: Current[A]): Current.Effect[A] = current match {
-    case CurrentProgramGet => State.inspect(_ &|-> _program get)
-    case CurrentProgramSet(p) => State.modify(_ &|-> _program set Some(p))
-    case CurrentFramebufferGet => State.inspect(_ &|-> _framebuffer get)
+    case CurrentProgramGet => CatsState.inspect(_ &|-> _program get)
+    case CurrentProgramSet(p) => CatsState.modify(_ &|-> _program set Some(p))
+    case CurrentFramebufferGet => CatsState.inspect(_ &|-> _framebuffer get)
     case CurrentFramebufferSet(f) =>
-      State.modify(_ &|-> _framebuffer set Some(f))
-    case CurrentVertexBufferGet => State.inspect(_ &|-> _vertexBuffer get)
+      CatsState.modify(_ &|-> _framebuffer set Some(f))
+    case CurrentVertexBufferGet => CatsState.inspect(_ &|-> _vertexBuffer get)
     case CurrentVertexBufferSet(b) =>
-      State.modify(_ &|-> _vertexBuffer set Some(b))
-    case CurrentElementBufferGet => State.inspect(_ &|-> _elementBuffer get)
+      CatsState.modify(_ &|-> _vertexBuffer set Some(b))
+    case CurrentElementBufferGet => CatsState.inspect(_ &|-> _elementBuffer get)
     case CurrentElementBufferSet(b) =>
-      State.modify(_ &|-> _elementBuffer set Some(b))
+      CatsState.modify(_ &|-> _elementBuffer set Some(b))
   }
 }

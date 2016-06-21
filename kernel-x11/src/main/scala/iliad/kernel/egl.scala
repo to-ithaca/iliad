@@ -10,7 +10,7 @@ trait EGL14Binding
 
 object EGL14 extends Lib with EGL14Binding {
 
-  type EGLConfig = iliad.kernel.platform.unix.EGLConfig
+  type EGLConfig =  iliad.kernel.platform.unix.EGLConfig
   type EGLSurface = iliad.kernel.platform.unix.EGLSurface
   type EGLDisplay = iliad.kernel.platform.unix.EGLDisplay
   type EGLContext = iliad.kernel.platform.unix.EGLContext

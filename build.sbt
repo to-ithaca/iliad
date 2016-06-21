@@ -42,7 +42,7 @@ lazy val commonSettings = Seq(
   libraryDependencies ++= Seq(
     "org.spire-math" %% "imp" % "0.2.0" % "provided",
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4",
-    "co.fs2" %% "fs2-core" % "0.9.0-M2",
+    "co.fs2" %% "fs2-core" % "0.9.0-M3",
     "com.chuusai" %% "shapeless" % "2.2.5",
     "org.spire-math" %% "spire" % "0.11.0",
     "org.typelevel" %% "cats-core" % catsVersion,
@@ -53,7 +53,8 @@ lazy val commonSettings = Seq(
     "com.github.julien-truffaut" %% "monocle-core" % monocleVersion,
     "com.github.julien-truffaut"  %%  "monocle-macro" % monocleVersion,
     "com.projectseptember" %% "freek" % "0.3.0",
-    "org.slf4j" % "slf4j-api" % "1.7.13"
+    "org.slf4j" % "slf4j-api" % "1.7.13",
+    "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0"
   )
 ) ++ compilerOptions
 

@@ -148,7 +148,7 @@ final class GLDebugInterpreter[F[_]: Monad](
         _ <- shaderLog(shader)
         _ <- debug(gl.toString)
       } yield ()
-
+      
     case _ =>
       for {
         a <- interpret(gl).transform(lift)

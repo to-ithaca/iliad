@@ -26,6 +26,12 @@ case class Attributes[K <: IntConstant, V <: IntConstant](
   }
 }
 
+object Attributes {
+  def apply[K <: IntConstant, V <: IntConstant](kvs: (K, Int Xor V)*): Attributes[K, V] =
+    Attributes(Map(kvs: _*))
+  def empty[K <: IntConstant, V <: IntConstant]: Attributes[K, V] = apply()
+}
+
 import CatsExtra._
 
 final class EGLPRG[NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
