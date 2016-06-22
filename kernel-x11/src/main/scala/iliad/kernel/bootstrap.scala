@@ -3,11 +3,9 @@ package kernel
 
 import scala.reflect._
 
-import iliad.kernel.vectord._
 import iliad.kernel.platform.unix.X11
 
 import iliad.kernel._
-import iliad.kernel.GL._
 
 import com.sun.jna.platform.unix.X11._
 import com.sun.jna._
@@ -40,7 +38,6 @@ trait X11Bootstrap extends X11EventHandler with X11GLDependencies {
 
   def width: Int
   def height: Int
-  def viewDimensions: Vec2i = v"$width $height"
 
   private val x = iliad.kernel.platform.unix.X11.INSTANCE
 
@@ -72,16 +69,16 @@ trait X11Bootstrap extends X11EventHandler with X11GLDependencies {
     val border = 1
     val background = 0
     log.debug("Creating window with width {} height {}",
-              viewDimensions(0),
-              viewDimensions(1))
+              width,
+              height)
     try {
       x.XCreateSimpleWindow(
             d,
             root,
             xOffset,
             yOffset,
-            viewDimensions(0),
-            viewDimensions(1),
+            width,
+            height,
             borderWidth,
             border,
             background

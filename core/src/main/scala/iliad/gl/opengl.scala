@@ -55,6 +55,20 @@ object GL {
         } yield Some(s)
     }
 
+  private def getProgramLogLength(program: Int): DSL[Int] = 
+    GLGetProgramiv(program, GL_INFO_LOG_LENGTH).free
+  private def getLinkStatus(program: Int): DSL[Int] = 
+    GLGetProgramiv(program, GL_LINK_STATUS).free
+  def getLinkError(program: Int): DSL[Option[String]] = 
+    getLinkStatus(program) flatMap { status =>
+      if(status == GL_TRUE.value) Free.pure(None)
+      else for {
+        l <- getProgramLogLength(program)
+        s <- GLGetProgramInfoLog(program, l).free
+        } yield Some(s)
+    }
+
+
   def makeVertexShader(source: String): DSL[Int] =
     for {
       id <- GLCreateShader(GL_VERTEX_SHADER).free
@@ -184,6 +198,9 @@ case object GLGetError extends GL[Int]
 
 case class GLGetShaderiv(shader: Int, pname: ShaderParameter) extends GL[Int]
 case class GLGetShaderInfoLog(shader: Int, maxLength: Int) extends GL[String]
+
+case class GLGetProgramiv(program: Int, pname: ProgramParameter) extends GL[Int]
+case class GLGetProgramInfoLog(program: Int, maxLength: Int) extends GL[String]
 
 case class GLCreateShader(`type`: ShaderType) extends GL[Int]
 case class GLShaderSource(shader: Int, sources: List[String]) extends GL[Unit]

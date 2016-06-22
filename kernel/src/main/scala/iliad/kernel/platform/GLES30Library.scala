@@ -33,6 +33,10 @@ trait GLES30Library {
   def glCreateProgram(): Int
   def glUseProgram(program: Int): Unit
   def glLinkProgram(program: Int): Unit
+
+  def glGetProgramiv(pid: Int, name: Int, ptr: IntBuffer): Unit
+  def glGetProgramInfoLog(program: Int, bufSize: Int, length: IntBuffer, infoLog: Buffer): Unit
+
   def glGetAttribLocation(pid: Int, name: String): Int
   def glGetUniformLocation(pid: Int, name: String): Int
 

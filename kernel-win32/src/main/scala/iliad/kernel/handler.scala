@@ -1,8 +1,6 @@
 package iliad
 package kernel
 
-import iliad.kernel.vectord._
-
 import com.sun.jna.platform.win32.User32._
 import com.sun.jna.platform.win32.WinDef._
 
@@ -33,7 +31,7 @@ trait Win32EventHandler extends EventHandler {
         val xFraction = Macros.GET_X_LPARAM(lParam).toFloat / width.toFloat
         val yFraction = GET_Y_LPARAM(lParam).toFloat / height.toFloat
         //TODO: windows must have a better way of getting the time
-        tapCallback(Tap(System.currentTimeMillis(), v"$xFraction $yFraction"))
+        tapCallback(Tap(System.currentTimeMillis(), xFraction, yFraction))
         true
       case _ => false
     }

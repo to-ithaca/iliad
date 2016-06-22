@@ -6,7 +6,7 @@ import iliad.syntax.all._
 import cats._
 
 import shapeless._
-
+/*
 object RenderMap {
 
   /** Node on the renderMap.  Represents a drawElements call */
@@ -223,3 +223,4 @@ What we have missed:
   **/
 
 //constraints can be added in afterwards
+ */

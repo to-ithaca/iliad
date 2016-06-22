@@ -26,3 +26,4 @@ trait EventStream extends EventHandler {
 
   def eventStream: Stream[Task, InputEvent] = baseStream(onTap)
 }
+

@@ -1,5 +1,4 @@
 package iliad
-package kernel
 
 import java.nio.{ByteBuffer, ByteOrder, FloatBuffer, IntBuffer}
 

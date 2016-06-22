@@ -74,6 +74,7 @@ object LoadDraw {
         } yield v
     }
 
+  //TODO: set current program as ths one
   def load(p: Program.Unlinked): DSL[Program.Linked] =
     Cached.get(p).freekF[LoadDraw] flatMap {
       case Some(p) => Free.pure(p)
@@ -88,9 +89,8 @@ object LoadDraw {
 
   def load(r: VertexData.Ref,
            d: VertexData.Data,
-           pageSize: Int,
-           vb: VertexBuffer.Constructor): DSL[Unit] =
-    Cached.get(vb).freekF[LoadDraw] flatMap {
+           pageSize: Int): DSL[Unit] =
+    Cached.get(r.buffer).freekF[LoadDraw] flatMap {
       case Some(prev) =>
         if (VertexBuffer.fits(prev, d.size))
           for {
@@ -104,16 +104,15 @@ object LoadDraw {
           } yield ()
       case None =>
         for {
-          b <- Load.create(r, d, pageSize, vb).freekF[LoadDraw]
+          b <- Load.create(r, d, pageSize, r.buffer).freekF[LoadDraw]
           _ <- Cached.put(b).freekF[LoadDraw]
         } yield ()
     }
 
   def load(r: ElementData.Ref,
            d: ElementData.Data,
-           pageSize: Int,
-           eb: ElementBuffer.Constructor): DSL[Unit] =
-    Cached.get(eb).freekF[LoadDraw] flatMap {
+           pageSize: Int): DSL[Unit] =
+    Cached.get(r.buffer).freekF[LoadDraw] flatMap {
       case Some(prev) =>
         if (ElementBuffer.fits(prev, d.size))
           for {
@@ -127,7 +126,7 @@ object LoadDraw {
           } yield ()
       case None =>
         for {
-          b <- Load.create(r, d, pageSize, eb).freekF[LoadDraw]
+          b <- Load.create(r, d, pageSize, r.buffer).freekF[LoadDraw]
           _ <- Cached.put(b).freekF[LoadDraw]
         } yield ()
     }

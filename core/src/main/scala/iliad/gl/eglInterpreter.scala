@@ -4,7 +4,6 @@ package gl
 import scala.reflect.ClassTag
 
 import iliad.kernel.platform.EGL14Library
-import iliad.kernel.Buffer //TODO: move this to a different place
 
 import cats._
 import cats.data._

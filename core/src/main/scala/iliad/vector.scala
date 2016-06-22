@@ -10,14 +10,6 @@ import cats.implicits._
 import shapeless._
 import shapeless.ops.nat._
 
-/*
- AttributeType {
-    def reifyAttributeType[A]() = ???
-    implicit val vector 
- }
- 
- */
-
 //TODO: Really think we should parameterize this?
 final class VectorD[N <: Nat, A] private[iliad](_unsized: Vector[A]) {
 

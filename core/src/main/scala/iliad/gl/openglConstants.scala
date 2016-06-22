@@ -35,6 +35,7 @@ sealed trait ChannelBit extends IntConstant
 sealed trait BlitFilter extends IntConstant
 sealed trait ShaderType extends IntConstant
 sealed trait ShaderParameter extends IntConstant
+sealed trait ProgramParameter extends IntConstant
 sealed trait TrueFalse extends IntConstant
 sealed trait BufferTarget extends IntConstant
 sealed trait BufferUsage extends IntConstant
@@ -145,9 +146,9 @@ case object GL_SAMPLE_ALPHA_TO_COVERAGE
     with Capability
 case object GL_SAMPLE_COVERAGE extends IntConstant(0x80A0) with Capability
 case object GL_NO_ERROR extends IntConstant(0) with ErrorCode
-case object GL_INVALID_ENUM extends IntConstant(0x0500)
-case object GL_INVALID_VALUE extends IntConstant(0x0501)
-case object GL_INVALID_OPERATION extends IntConstant(0x0502)
+case object GL_INVALID_ENUM extends IntConstant(0x0500) with ErrorCode
+case object GL_INVALID_VALUE extends IntConstant(0x0501) with ErrorCode
+case object GL_INVALID_OPERATION extends IntConstant(0x0502) with ErrorCode
 case object GL_OUT_OF_MEMORY extends IntConstant(0x0505)
 case object GL_CW extends IntConstant(0x0900)
 case object GL_CCW extends IntConstant(0x0901)
@@ -316,8 +317,8 @@ case object GL_MAX_FRAGMENT_UNIFORM_VECTORS
     with Parameter
 case object GL_SHADER_TYPE extends IntConstant(0x8B4F) with ShaderParameter
 case object GL_DELETE_STATUS extends IntConstant(0x8B80) with ShaderParameter
-case object GL_LINK_STATUS extends IntConstant(0x8B82)
-case object GL_VALIDATE_STATUS extends IntConstant(0x8B83)
+case object GL_LINK_STATUS extends IntConstant(0x8B82) with ProgramParameter
+case object GL_VALIDATE_STATUS extends IntConstant(0x8B83) with ProgramParameter 
 case object GL_ATTACHED_SHADERS extends IntConstant(0x8B85)
 case object GL_ACTIVE_UNIFORMS extends IntConstant(0x8B86)
 case object GL_ACTIVE_UNIFORM_MAX_LENGTH extends IntConstant(0x8B87)
@@ -497,7 +498,7 @@ case object GL_IMPLEMENTATION_COLOR_READ_FORMAT
     extends IntConstant(0x8B9B)
     with Parameter
 case object GL_COMPILE_STATUS extends IntConstant(0x8B81) with ShaderParameter
-case object GL_INFO_LOG_LENGTH extends IntConstant(0x8B84) with ShaderParameter
+case object GL_INFO_LOG_LENGTH extends IntConstant(0x8B84) with ShaderParameter with ProgramParameter
 case object GL_SHADER_SOURCE_LENGTH
     extends IntConstant(0x8B88)
     with ShaderParameter
@@ -580,7 +581,7 @@ case object GL_FRAMEBUFFER_UNSUPPORTED
 case object GL_FRAMEBUFFER_BINDING extends IntConstant(0x8CA6)
 case object GL_RENDERBUFFER_BINDING extends IntConstant(0x8CA7) with Parameter
 case object GL_MAX_RENDERBUFFER_SIZE extends IntConstant(0x84E8) with Parameter
-case object GL_INVALID_FRAMEBUFFER_OPERATION extends IntConstant(0x0506)
+case object GL_INVALID_FRAMEBUFFER_OPERATION extends IntConstant(0x0506) with ErrorCode
 case object GL_READ_BUFFER extends IntConstant(0x0C02) with Parameter
 case object GL_UNPACK_ROW_LENGTH
     extends IntConstant(0x0CF2)

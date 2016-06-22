@@ -2,7 +2,6 @@ package iliad
 package gl
 
 import iliad.kernel.platform.GLES30Library
-import iliad.kernel.Buffer //TODO: move this to a different place
 
 import cats._
 import cats.data._
@@ -43,7 +42,22 @@ object GLInterpreter extends (GL.Interpreter[GL.NoEffect]) {
         logPtr.get(arr, 0, len)
         new String(arr)
       }
-
+  case GLGetProgramiv(program, pname) =>
+      Reader { lib =>
+        val ptr = Buffer.capacity[Int](1)
+        lib.glGetProgramiv(program, pname.value, ptr)
+        ptr.get()
+      }
+    case GLGetProgramInfoLog(program, maxLength) =>
+      Reader { lib =>
+        val lenPtr = Buffer.capacity[Int](1)
+        val logPtr = Buffer.capacity[Byte](maxLength)
+        lib.glGetProgramInfoLog(program, maxLength, lenPtr, logPtr)
+        val len = lenPtr.get()
+        val arr = new Array[Byte](len)
+        logPtr.get(arr, 0, len)
+        new String(arr)
+      }
     case GLCreateShader(t) => Reader(_.glCreateShader(t.value))
     case GLShaderSource(shader, sources) =>
       Reader(
@@ -115,7 +129,7 @@ final class GLDebugInterpreter[F[_]: Monad](
     def apply[A](fa: F[A]): XorT[F, String, A] = XorT.right(fa)
   }
 
-  private val _errorCodes: Set[ErrorCode] = SealedEnum.values
+  private val _errorCodes: Set[ErrorCode] = SealedEnum.values[ErrorCode]
 
   private def onError(method: String)(value: Int): String Xor Unit =
     if (value == GL_NO_ERROR.value) ().right
@@ -134,11 +148,20 @@ final class GLDebugInterpreter[F[_]: Monad](
   private def onCompileError(log: Option[String]): String Xor Unit =
     log.map(l => s"Compilation failed with error $l").toLeftXor(())
 
+ private def onLinkError(log: Option[String]): String Xor Unit =
+    log.map(l => s"Link failed with error $l").toLeftXor(())
+
+
   private def shaderLog(shader: Int) =
     GL.getCompileError(shader)
       .foldMap(interpret)
       .transform(lift)
       .mapF(_.subflatMap(onCompileError))
+
+  private def programLog(program: Int) = GL.getLinkError(program)
+  .foldMap(interpret)
+  .transform(lift)
+  .mapF(_.subflatMap(onLinkError))
 
   def apply[A](gl: GL[A]): GL.DebugEffect[F, A] = gl match {
 
@@ -146,6 +169,12 @@ final class GLDebugInterpreter[F[_]: Monad](
       for {
         _ <- interpret(gl).transform(lift)
         _ <- shaderLog(shader)
+        _ <- debug(gl.toString)
+      } yield ()
+    case GLLinkProgram(program) =>
+      for {
+        _ <- interpret(gl).transform(lift)
+        _ <- programLog(program)
         _ <- debug(gl.toString)
       } yield ()
 
