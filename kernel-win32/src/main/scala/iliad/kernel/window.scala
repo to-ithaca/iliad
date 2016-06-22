@@ -5,6 +5,8 @@ import cats._
 import cats.data._
 import cats.implicits._
 
+import scala.reflect._
+
 import iliad.kernel.platform.win32.User32._
 
 import com.sun.jna.platform.win32.WinDef._
@@ -39,6 +41,18 @@ object Win32 {
   //contains the session information
   case class Error(code: Int, message: String)
   case class Session(cls: WNDCLASSEX, hwnd: HWND, hdc: HDC)
+}
+
+trait Win32GLDependencies extends GLDependencies {
+  type NativeWindow = HWND
+  type NativeDisplay = HDC
+  type NativePixmap = HBITMAP
+  type EGLDisplay = iliad.kernel.platform.win32.EGLDisplay
+  type EGLConfig = iliad.kernel.platform.win32.EGLConfig
+  type EGLSurface = iliad.kernel.platform.win32.EGLSurface
+  type EGLContext = iliad.kernel.platform.win32.EGLContext
+
+  val configClassTag: ClassTag[EGLConfig] =  classTag[EGLConfig]
 }
 
 abstract class Win32Bootstrap(name: String, val width: Int, val height: Int)
