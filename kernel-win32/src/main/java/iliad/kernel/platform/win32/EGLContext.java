@@ -1,4 +1,4 @@
-package iliad.kernel.platform.unix;
+package iliad.kernel.platform.win32;
 
 import com.sun.jna.PointerType;
 
