@@ -54,14 +54,15 @@ trait Win32GLDependencies extends GLDependencies {
   type EGLSurface = iliad.kernel.platform.win32.EGLSurface
   type EGLContext = iliad.kernel.platform.win32.EGLContext
 
-  val configClassTag: ClassTag[EGLConfig] =  classTag[EGLConfig]
+  val configClassTag: ClassTag[EGLConfig] = classTag[EGLConfig]
   val EGL14 = iliad.kernel.EGL14
   val GLES30 = iliad.kernel.GLES30
 }
 
 abstract class Win32Bootstrap(name: String, val width: Int, val height: Int)
     extends Win32EventHandler
-    with IliadApp with Win32GLDependencies {
+    with IliadApp
+    with Win32GLDependencies {
 
   def main(args: Array[String]): Unit = {
     val win32 = new Win32(name, width, height, this)

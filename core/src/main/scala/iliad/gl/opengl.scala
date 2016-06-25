@@ -134,10 +134,16 @@ object GL {
       _ <- GLBufferSubData(target, offset, size, data).free
     } yield ()
 
-  def insertVertices(buffer: Int, offset: Int, size: Int, data: Buffer) =
+  def insertVertices(buffer: Int,
+                     offset: Int,
+                     size: Int,
+                     data: Buffer): DSL[Unit] =
     insertInBuffer(GL_ARRAY_BUFFER, buffer, offset, size, data)
 
-  def insertElements(buffer: Int, offset: Int, size: Int, data: Buffer) =
+  def insertElements(buffer: Int,
+                     offset: Int,
+                     size: Int,
+                     data: Buffer): DSL[Unit] =
     insertInBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer, offset, size, data)
 
   private def copyToNewBuffer(oldId: Int,

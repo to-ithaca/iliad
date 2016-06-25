@@ -1,8 +1,6 @@
 package iliad
 package kernel
 
-//import iliad.kernel.vectord._
-
 //TODO: Parameterize on at
 sealed trait InputEvent
 

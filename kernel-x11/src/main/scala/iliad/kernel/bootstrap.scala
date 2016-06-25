@@ -56,8 +56,7 @@ trait X11Bootstrap extends X11EventHandler with X11GLDependencies {
     (for {
       t <- s.get
       _ <- s.set(t + 5L).schedule(1 second)
-    } yield vsync(s)
-    ).unsafeRunAsync(msg => log.info(msg.toString))
+    } yield vsync(s)).unsafeRunAsync(msg => log.info(msg.toString))
   }
 
   private def initThreads(): Error Xor Unit = {
@@ -145,9 +144,9 @@ trait X11Bootstrap extends X11EventHandler with X11GLDependencies {
   private def handleEvents(d: Display): Unit = {
     val e = new XEvent()
     val hasEvent = x.XCheckMaskEvent(d, inputMask, e)
-    if(hasEvent) {
-        log.info("received event")
-        handleEvent(e)
+    if (hasEvent) {
+      log.info("received event")
+      handleEvent(e)
     }
   }
 

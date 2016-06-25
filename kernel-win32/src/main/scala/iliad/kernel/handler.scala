@@ -21,7 +21,7 @@ trait Win32EventHandler extends EventHandler {
 
   private var tapCallback: Callback[Tap] = EventHandler.zero
 
-  def onTap(cb: Tap => Unit) = tapCallback = cb
+  def onTap(cb: Tap => Unit): Unit = tapCallback = cb
 
   def handleEvent(hwnd: HWND,
                   uMsg: Int,

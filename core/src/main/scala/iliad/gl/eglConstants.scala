@@ -176,7 +176,9 @@ case object EGL_OPENGL_ES_API extends IntConstant(0x30A0) with EGLAPI
 case object EGL_OPENVG_API extends IntConstant(0x30A1) with EGLAPI
 case object EGL_OPENVG_IMAGE extends IntConstant(0x3096)
 case object EGL_PIXEL_ASPECT_RATIO extends IntConstant(0x3092)
-case object EGL_RENDERABLE_TYPE extends IntConstant(0x3040) with IntConfigAttrib //TODO: Add bitmask support
+case object EGL_RENDERABLE_TYPE
+    extends IntConstant(0x3040)
+    with IntConfigAttrib //TODO: Add bitmask support
 case object EGL_RENDER_BUFFER extends IntConstant(0x3086)
 case object EGL_RGB_BUFFER extends IntConstant(0x308E) with ConfigAttribValue
 case object EGL_SINGLE_BUFFER extends IntConstant(0x3085)

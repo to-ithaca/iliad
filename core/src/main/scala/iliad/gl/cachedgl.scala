@@ -16,11 +16,11 @@ import monocle.std.all._
 import FreekExtra._
 import MonocleExtra._
 
-object LoadDraw {
+object CachedGL {
 
-  type LoadDraw[A] =
+  type CachedGL[A] =
     (Load :|: Cached :|: Draw :|: Current :|: GL :|: FXNil)#Cop[A]
-  type DSL[A] = Free[LoadDraw, A]
+  type DSL[A] = Free[CachedGL, A]
   type PRG[F[_], A] =
     ReaderT[StateT[F, (Cached.State, Current.State), ?], GLES30Library, A]
 
@@ -47,7 +47,7 @@ object LoadDraw {
     }
 
   def runner[F[_]: Monad](
-      f: GL.Interpreter[GL.Effect[F, ?]]): Interpreter[LoadDraw, PRG[F, ?]] =
+      f: GL.Interpreter[GL.Effect[F, ?]]): Interpreter[CachedGL, PRG[F, ?]] =
     Load.parse(f).andThen(liftOpenGL) :&:
       CachedParser.andThen(liftCached[F]) :&:
         Draw.parse(f).andThen(liftOpenGL) :&:
@@ -55,108 +55,120 @@ object LoadDraw {
             f.andThen(liftOpenGL)
 
   private def load(s: VertexShader.Source): DSL[VertexShader.Compiled] =
-    Cached.get(s).freekF[LoadDraw] flatMap {
+    Cached.get(s).freekF[CachedGL] flatMap {
       case Some(v) => Free.pure(v)
       case None =>
         for {
-          v <- Load(s).freekF[LoadDraw]
-          _ <- Cached.put(v).freekF[LoadDraw]
+          v <- Load(s).freekF[CachedGL]
+          _ <- Cached.put(v).freekF[CachedGL]
         } yield v
     }
 
   private def load(s: FragmentShader.Source): DSL[FragmentShader.Compiled] =
-    Cached.get(s).freekF[LoadDraw] flatMap {
+    Cached.get(s).freekF[CachedGL] flatMap {
       case Some(v) => Free.pure(v)
       case None =>
         for {
-          v <- Load(s).freekF[LoadDraw]
-          _ <- Cached.put(v).freekF[LoadDraw]
+          v <- Load(s).freekF[CachedGL]
+          _ <- Cached.put(v).freekF[CachedGL]
         } yield v
     }
 
-  //TODO: set current program as ths one
   def load(p: Program.Unlinked): DSL[Program.Linked] =
-    Cached.get(p).freekF[LoadDraw] flatMap {
+    Cached.get(p).freekF[CachedGL] flatMap {
       case Some(p) => Free.pure(p)
       case None =>
         for {
           v <- load(p.vertex)
           f <- load(p.fragment)
-          pl <- Load(v, f).freekF[LoadDraw]
-          _ <- Cached.put(pl).freekF[LoadDraw]
+          pl <- Load(v, f).freekF[CachedGL]
+          _ <- Cached.put(pl).freekF[CachedGL]
+          _ <- Current.set(pl).freekF[CachedGL]
         } yield pl
     }
 
+  private def add(u: VertexBuffer.Update): DSL[Unit] =
+    for {
+      _ <- Cached.put(u).freekF[CachedGL]
+      _ <- Current.set(u.buffer).freekF[CachedGL]
+    } yield ()
+
   def load(r: VertexData.Ref, d: VertexData.Data, pageSize: Int): DSL[Unit] =
-    Cached.get(r.buffer).freekF[LoadDraw] flatMap {
+    Cached.get(r.buffer).freekF[CachedGL] flatMap {
       case Some(prev) =>
         if (VertexBuffer.fits(prev, d.size))
           for {
-            next <- Load.insert(r, d, pageSize, prev).freekF[LoadDraw]
-            _ <- Cached.put(next).freekF[LoadDraw]
+            next <- Load.insert(r, d, pageSize, prev).freekF[CachedGL]
+            _ <- add(next)
           } yield ()
         else
           for {
-            next <- Load.copy(r, d, pageSize, prev).freekF[LoadDraw]
-            _ <- Cached.put(next).freekF[LoadDraw]
+            next <- Load.copy(r, d, pageSize, prev).freekF[CachedGL]
+            _ <- add(next)
           } yield ()
       case None =>
         for {
-          b <- Load.create(r, d, pageSize, r.buffer).freekF[LoadDraw]
-          _ <- Cached.put(b).freekF[LoadDraw]
+          b <- Load.create(r, d, pageSize, r.buffer).freekF[CachedGL]
+          _ <- add(b)
         } yield ()
     }
 
+  private def add(u: ElementBuffer.Update): DSL[Unit] =
+    for {
+      _ <- Cached.put(u).freekF[CachedGL]
+      _ <- Current.set(u.buffer).freekF[CachedGL]
+    } yield ()
+
   def load(r: ElementData.Ref, d: ElementData.Data, pageSize: Int): DSL[Unit] =
-    Cached.get(r.buffer).freekF[LoadDraw] flatMap {
+    Cached.get(r.buffer).freekF[CachedGL] flatMap {
       case Some(prev) =>
         if (ElementBuffer.fits(prev, d.size))
           for {
-            next <- Load.insert(r, d, pageSize, prev).freekF[LoadDraw]
-            _ <- Cached.put(next).freekF[LoadDraw]
+            next <- Load.insert(r, d, pageSize, prev).freekF[CachedGL]
+            _ <- add(next)
           } yield ()
         else
           for {
-            next <- Load.copy(r, d, pageSize, prev).freekF[LoadDraw]
-            _ <- Cached.put(next).freekF[LoadDraw]
+            next <- Load.copy(r, d, pageSize, prev).freekF[CachedGL]
+            _ <- add(next)
           } yield ()
       case None =>
         for {
-          b <- Load.create(r, d, pageSize, r.buffer).freekF[LoadDraw]
-          _ <- Cached.put(b).freekF[LoadDraw]
+          b <- Load.create(r, d, pageSize, r.buffer).freekF[CachedGL]
+          _ <- add(b)
         } yield ()
     }
 
   def clear(bitMask: ChannelBitMask): DSL[Unit] =
-    Draw.clear(bitMask).freekF[LoadDraw]
+    Draw.clear(bitMask).freekF[CachedGL]
 
   private def doIfNot(f: Current.DSL[Boolean])(g: DSL[Unit]): DSL[Unit] =
-    f.freekF[LoadDraw] flatMap (b => if (b) Free.pure(()) else g)
+    f.freekF[CachedGL] flatMap (b => if (b) Free.pure(()) else g)
 
   private def setFramebuffer(framebuffer: Int): DSL[Unit] =
     doIfNot(Current.contains(framebuffer))(
-        Draw.bindFramebuffer(framebuffer).freekF[LoadDraw] >> Current
+        Draw.bindFramebuffer(framebuffer).freekF[CachedGL] >> Current
           .set(framebuffer)
-          .freekF[LoadDraw]
+          .freekF[CachedGL]
     )
 
   private def set(p: Program.Linked): DSL[Unit] = doIfNot(Current.contains(p))(
-      Draw.use(p).freekF[LoadDraw] >> Current.set(p).freekF[LoadDraw]
+      Draw.use(p).freekF[CachedGL] >> Current.set(p).freekF[CachedGL]
   )
 
   private def set(vb: VertexBuffer.Loaded): DSL[Unit] =
     doIfNot(Current.contains(vb))(
-        Draw.bind(vb).freekF[LoadDraw] >> Current.set(vb).freekF[LoadDraw]
+        Draw.bind(vb).freekF[CachedGL] >> Current.set(vb).freekF[CachedGL]
     )
 
   private def set(eb: ElementBuffer.Loaded): DSL[Unit] =
     doIfNot(Current.contains(eb))(
-        Draw.bind(eb).freekF[LoadDraw] >> Current.set(eb).freekF[LoadDraw]
+        Draw.bind(eb).freekF[CachedGL] >> Current.set(eb).freekF[CachedGL]
     )
 
   private def ensure[A](c: Cached.DSL[Option[A]],
                         msg: String): XorT[DSL, String, A] =
-    XorT(Cached.ensure(c, msg).freekF[LoadDraw])
+    XorT(Cached.ensure(c, msg).freekF[CachedGL])
 
   private def xort[A](dsl: DSL[A]): XorT[DSL, String, A] = XorT.right(dsl)
 
@@ -177,7 +189,7 @@ object LoadDraw {
       ed <- ensure(Cached.get(draw.elementData),
                    s"Element data not loaded. Unable to draw $draw")
       as <- XorT.fromXor[DSL](p.loaded(draw.attributes))
-      _ <- xort(Draw.enable(as, vd.offset(draw.vertexModel)).freekF[LoadDraw])
-      _ <- xort(Draw(ed.offset(draw.elementModel)).freekF[LoadDraw])
+      _ <- xort(Draw.enable(as, vd.offset(draw.vertexModel)).freekF[CachedGL])
+      _ <- xort(Draw(ed.offset(draw.elementModel)).freekF[CachedGL])
     } yield ()).value
 }

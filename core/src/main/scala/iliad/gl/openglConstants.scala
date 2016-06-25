@@ -21,9 +21,15 @@ object ChannelBitMask {
   }
 }
 
-case object GL_DEPTH_BUFFER_BIT extends BitmaskConstant(0x00000100) with ChannelBit
-case object GL_STENCIL_BUFFER_BIT extends BitmaskConstant(0x00000400) with ChannelBit
-case object GL_COLOR_BUFFER_BIT extends BitmaskConstant(0x00004000) with ChannelBit
+case object GL_DEPTH_BUFFER_BIT
+    extends BitmaskConstant(0x00000100)
+    with ChannelBit
+case object GL_STENCIL_BUFFER_BIT
+    extends BitmaskConstant(0x00000400)
+    with ChannelBit
+case object GL_COLOR_BUFFER_BIT
+    extends BitmaskConstant(0x00004000)
+    with ChannelBit
 
 sealed trait Texture extends IntConstant
 sealed trait ColorAttachment
@@ -1515,4 +1521,4 @@ case object GL_TEXTURE_IMMUTABLE_LEVELS extends IntConstant(0x82DF)
       }
     }
 }
-*/
+ */

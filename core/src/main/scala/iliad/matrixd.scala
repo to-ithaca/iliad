@@ -27,7 +27,7 @@ final class MatrixD[W <: Nat, H <: Nat, A] private[iliad] (_unsized: Vector[A],
   def map[B](f: A => B): MatrixD[W, H, B] =
     new MatrixD(unsized map f, width, height)
 
-  def map2[B, C](that: MatrixD[W, H, B])(f: (A, B) => C) =
+  def map2[B, C](that: MatrixD[W, H, B])(f: (A, B) => C): MatrixD[W, H, C] =
     that ap (this map f.curried)
   def ap[B](ff: MatrixD[W, H, A => B]): MatrixD[W, H, B] =
     new MatrixD(unsized.zip(ff.unsized).map { case (a, f) => f(a) },

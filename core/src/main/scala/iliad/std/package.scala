@@ -5,4 +5,5 @@ package object std {
 
   object vector extends VectorInstances
   object int extends IntInstances
+  object float extends FloatInstances
 }
