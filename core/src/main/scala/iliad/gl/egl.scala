@@ -19,7 +19,7 @@ case class Attributes[K <: IntConstant, V <: IntConstant](
   def toArray: Array[Int] = {
     values.toList
       .foldLeft(List[Int](EGL_NONE.value)) { (b, a) =>
-        a._1.value :: a._2.map(_.value).merge :: b
+        a._1.value ::a._2.map(_.value).merge :: b
       }
       .toArray
   }
@@ -67,8 +67,7 @@ final class EGLPRG[NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
   def configAttribs(
       dpy: Disp,
       cfg: Cfg): DSL[Attributes[ConfigAttrib, ConfigAttribValue]] = {
-    val is = SealedEnum
-      .values[IntConfigAttrib]
+    val is = SealedEnum.values[IntConfigAttrib]
       .toList
       .map(a =>
             configAttrib(dpy, cfg, a).map(
@@ -105,8 +104,8 @@ final class EGLPRG[NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
   def display(nDisp: NDisp): DSL[String Xor Disp] =
     (for {
       nd <- XorT.right(fix[Disp](EGL_NO_DISPLAY()))
-      d <- ensure(fix[Disp](EGLGetDisplay(nDisp)))(_ != nd,
-                                                   "could not get EGLDisplay")
+      d <- ensure(fix[Disp](EGLGetDisplay(nDisp)))(
+              dd => dd != null && dd != nd, "could not get EGLDisplay")
     } yield d).value
 
   def context(dpy: Disp,
@@ -116,8 +115,7 @@ final class EGLPRG[NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
     (for {
       nc <- XorT.right(noContext)
       ctx <- ensure(fix(EGLCreateContext(dpy, cfg, nc, attrs)))(
-                _ != nc,
-                s"could not create EGLContext with $attrs")
+                c => c != null && c != nc, s"could not create EGLContext with $attrs")
     } yield ctx).value
 
   def windowSurface(dpy: Disp,
@@ -128,8 +126,7 @@ final class EGLPRG[NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
     (for {
       ns <- XorT.right(noSurface)
       sfc <- ensure(fix[Sfc](EGLCreateWindowSurface(dpy, cfg, nw, attribs)))(
-                _ != ns,
-                s"could not create EGLSurface with $attribs")
+                s => s != null && s != ns, s"could not create EGLSurface with $attribs")
     } yield sfc).value
 
   def swapBuffers(dpy: Disp, sfc: Sfc): DSL[String Xor Boolean] =
@@ -146,9 +143,8 @@ final class EGLPRG[NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
     (for {
       nod <- XorT.right(noDisplay)
       dpy <- ensure(fix[Disp](EGLGetDisplay(ndpy)))(
-                _ != nod,
-                "could not get EGLDisplay from native display")
-      _ <- XorT.right(fix[(Int, Int)](EGLInitialize(dpy)))
+                dd => dd != null && dd != nod, "could not get EGLDisplay from native display")
+      _ <- XorT.right[DSL, String, (Int, Int)](fix(EGLInitialize(dpy)))
       _ <- ensure(fix[Boolean](EGLBindAPI(EGL_OPENGL_ES_API)))(
               identity,
               "unable to bind GLES API")
