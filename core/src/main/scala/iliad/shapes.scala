@@ -26,7 +26,7 @@ case class Rect[A](x0y0: VectorD[nat._2, A], dx: A, dy: A) {
   def contains(xy: VectorD[nat._2, A])(implicit NA: Numeric[A]): Boolean = {
     val x0y0 = bottomLeft
     val x1y1 = topRight
-    xy.x > x0y0.x && xy.x < x1y1.x && xy.y > x1y1.x && xy.y < x1y1.y
+    xy.x > x0y0.x && xy.x < x1y1.x && xy.y > x0y0.y && xy.y < x1y1.y
   }
   def combine(that: Rect[A])(implicit NA: Numeric[A]): Rect[A] = {
     val cx0y0 = (this.bottomLeft map2 that.bottomLeft)(_ min _)

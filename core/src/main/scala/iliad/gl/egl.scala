@@ -40,8 +40,8 @@ final class EGLPRG[NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
 
   private def fix[A](egl: EGL[NDisp, NWin, Disp, Cfg, Sfc, Ctx, A]): DSL[A] =
     egl.free
-  private def ensure[A](dsl: DSL[A])(
-      p: A => Boolean, err: => String): XorT[DSL, String, A] =
+  private def ensure[A](dsl: DSL[A])(p: A => Boolean,
+                                     err: => String): XorT[DSL, String, A] =
     XorT(dsl.map(a => if (p(a)) a.right[String] else err.left[A]))
 
   val getError: DSL[Int] = fix(EGLGetError)
@@ -131,10 +131,13 @@ final class EGLPRG[NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
 
   def swapBuffers(dpy: Disp, sfc: Sfc): DSL[String Xor Boolean] =
     ensure(fix(EGLSwapBuffers(dpy, sfc)))(identity, "could not eglSwapBuffers").value
-  def makeCurrent(
-      dpy: Disp, draw: Sfc, read: Sfc, ctx: Ctx): DSL[String Xor Boolean] =
+  def makeCurrent(dpy: Disp,
+                  draw: Sfc,
+                  read: Sfc,
+                  ctx: Ctx): DSL[String Xor Boolean] =
     ensure(fix(EGLMakeCurrent(dpy, draw, read, ctx)))(
-        identity, "could not eglMakeCurrent").value
+        identity,
+        "could not eglMakeCurrent").value
 
   def initialise(ndpy: NDisp): DSL[String Xor Disp] =
     (for {
@@ -142,24 +145,23 @@ final class EGLPRG[NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
       dpy <- ensure(fix[Disp](EGLGetDisplay(ndpy)))(
                 dd => dd != null && dd != nod, "could not get EGLDisplay from native display")
       _ <- XorT.right[DSL, String, (Int, Int)](fix(EGLInitialize(dpy)))
-//      _ <- ensure(fix[Boolean](EGLBindAPI(EGL_OPENGL_ES_API)))(
-//             identity, "unable to bind GLES API")
+      _ <- ensure(fix[Boolean](EGLBindAPI(EGL_OPENGL_ES_API)))(
+              identity,
+              "unable to bind GLES API")
     } yield dpy).value
-
-
-  def bindApi: DSL[String Xor Boolean] =
-    ensure(fix[Boolean](EGLBindAPI(EGL_OPENGL_ES_API)))(identity, "unable to bind GLES API").value 
-
 
   def swapInterval(dpy: Disp, interval: Int): DSL[String Xor Boolean] =
     ensure(fix(EGLSwapInterval(dpy, interval)))(
-        identity, s"could not set swap interval to $interval").value
+        identity,
+        s"could not set swap interval to $interval").value
 }
 
 trait EGL[+NDisp, +NWin, +Disp, +Cfg, +Sfc, +Ctx, A]
 
 case class EGLChooseConfig[Disp, Cfg](
-    dpy: Disp, attrs: Attributes[ConfigAttrib, ConfigAttribValue], count: Int)
+    dpy: Disp,
+    attrs: Attributes[ConfigAttrib, ConfigAttribValue],
+    count: Int)
     extends EGL[Nothing, Nothing, Disp, Cfg, Nothing, Nothing, List[Cfg]]
 case class EGLQueryString[Disp](dpy: Disp, name: DisplayProperty)
     extends EGL[Nothing, Nothing, Disp, Nothing, Nothing, Nothing, String]
@@ -183,12 +185,15 @@ case class EGLSwapBuffers[Disp, Sfc](dpy: Disp, sfc: Sfc)
     extends EGL[Nothing, Nothing, Disp, Nothing, Sfc, Nothing, Boolean]
 case class EGLBindAPI(api: EGLAPI)
     extends EGL[Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Boolean]
-case class EGLGetConfigAttrib[Disp, Cfg](
-    disp: Disp, config: Cfg, attrib: ConfigAttrib)
+case class EGLGetConfigAttrib[Disp, Cfg](disp: Disp,
+                                         config: Cfg,
+                                         attrib: ConfigAttrib)
     extends EGL[Nothing, Nothing, Disp, Cfg, Nothing, Nothing, Int]
 
-case class EGLMakeCurrent[Disp, Sfc, Ctx](
-    dpy: Disp, draw: Sfc, read: Sfc, ctx: Ctx)
+case class EGLMakeCurrent[Disp, Sfc, Ctx](dpy: Disp,
+                                          draw: Sfc,
+                                          read: Sfc,
+                                          ctx: Ctx)
     extends EGL[Nothing, Nothing, Disp, Nothing, Sfc, Ctx, Boolean]
 case object EGLGetError
     extends EGL[Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Int]

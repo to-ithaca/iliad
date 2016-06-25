@@ -4,7 +4,6 @@ package gl
 import scala.reflect.ClassTag
 
 import iliad.kernel.platform.EGL14Library
-import iliad.kernel.Buffer //TODO: move this to a different place
 
 import cats._
 import cats.data._
@@ -65,7 +64,8 @@ final class EGLDebugInterpreter[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](
 
 final class EGLInterpreter[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]
     extends (EGL[NDisp, NWin, Disp, Cfg, Sfc, Ctx, ?] ~> Reader[
-        EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx], ?]) {
+        EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
+        ?]) {
 
   private def reader[A](
       f: EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx] => A)
@@ -88,17 +88,20 @@ final class EGLInterpreter[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]
         //explicit cast because type isn't inferred
         reader(_.eglCreateContext(disp, cfg, sc, attribs.toArray))
           .asInstanceOf[Reader[
-                EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx], A]]
+                  EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
+                  A]]
       case EGLBindAPI(api) => reader(_.eglBindAPI(api.value))
       case EGLCreateWindowSurface(disp, cfg, nw, attribs) =>
         //explicit cast because type isn't inferred      
         reader(_.eglCreateWindowSurface(disp, cfg, nw, attribs.toArray))
           .asInstanceOf[Reader[
-                EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx], A]]
+                  EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
+                  A]]
       case EGLGetDisplay(nDisp) =>
         //explicit cast because type isn't inferred
         reader(_.eglGetDisplay(nDisp)).asInstanceOf[Reader[
-                EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx], A]]
+                EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
+                A]]
       case EGLSwapBuffers(disp, sfc) => reader(_.eglSwapBuffers(disp, sfc))
       case EGLMakeCurrent(disp, draw, read, ctx) =>
         reader(_.eglMakeCurrent(disp, draw, read, ctx))
@@ -120,15 +123,19 @@ final class EGLInterpreter[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]
       //explit cast because type isn't inferred  
       case EGL_DEFAULT_DISPLAY() =>
         reader(_.EGL_DEFAULT_DISPLAY).asInstanceOf[Reader[
-                EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx], A]]
+                EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
+                A]]
       case EGL_NO_DISPLAY() =>
         reader(_.EGL_NO_DISPLAY).asInstanceOf[Reader[
-                EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx], A]]
+                EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
+                A]]
       case EGL_NO_CONTEXT() =>
         reader(_.EGL_NO_CONTEXT).asInstanceOf[Reader[
-                EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx], A]]
+                EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
+                A]]
       case EGL_NO_SURFACE() =>
         reader(_.EGL_NO_SURFACE).asInstanceOf[Reader[
-                EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx], A]]
+                EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
+                A]]
     }
 }

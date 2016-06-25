@@ -1,5 +1,7 @@
 package iliad
-/*
+
+import iliad.syntax.all._
+
 import org.typelevel.discipline.scalatest._
 import org.scalatest._
 
@@ -10,8 +12,6 @@ import cats._
 import cats.kernel.laws._
 
 import shapeless._
-
-import iliad.kernel.vectord._
 
 import org.scalacheck.Arbitrary
 import org.scalacheck._
@@ -66,4 +66,3 @@ class RectTests extends FunSuite with Discipline with GeneratorDrivenPropertyChe
     forAll(externalPointGen) { case (r, p) => !r.contains(p)}
   }
 }
- */

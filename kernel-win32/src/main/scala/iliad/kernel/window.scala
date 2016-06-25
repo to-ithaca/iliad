@@ -21,8 +21,10 @@ private[kernel] final class MessageCallback(delegate: Win32EventHandler)
 
   private def dequeueMsg: LRESULT = new LRESULT(0)
 
-  def callback(
-      hwnd: HWND, uMsg: Int, wParam: WPARAM, lParam: LPARAM): LRESULT =
+  def callback(hwnd: HWND,
+               uMsg: Int,
+               wParam: WPARAM,
+               lParam: LPARAM): LRESULT =
     uMsg match {
       case WM_DESTROY =>
         user32.PostQuitMessage(0)

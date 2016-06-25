@@ -46,8 +46,9 @@ trait EGL14Library {
                        config: EGLConfig,
                        share_context: EGLContext,
                        attrib_list: Array[Int]): EGLContext
-  def eglCreatePbufferSurface(
-      dpy: EGLDisplay, config: EGLConfig, attrib_list: Array[Int]): EGLSurface
+  def eglCreatePbufferSurface(dpy: EGLDisplay,
+                              config: EGLConfig,
+                              attrib_list: Array[Int]): EGLSurface
   def eglCreatePixmapSurface(dpy: EGLDisplay,
                              config: EGLConfig,
                              pixmap: EGLNativePixmapType,
@@ -71,8 +72,9 @@ trait EGL14Library {
   def eglGetDisplay(display_id: EGLNativeDisplayType): EGLDisplay
   def eglGetError(): Int
   def eglGetProcAddress(procname: String): Unit
-  def eglInitialize(
-      dpy: EGLDisplay, major: IntBuffer, minor: IntBuffer): Boolean
+  def eglInitialize(dpy: EGLDisplay,
+                    major: IntBuffer,
+                    minor: IntBuffer): Boolean
   def eglMakeCurrent(dpy: EGLDisplay,
                      draw: EGLSurface,
                      read: EGLSurface,
@@ -90,10 +92,12 @@ trait EGL14Library {
   def eglTerminate(dpy: EGLDisplay): Boolean
   def eglWaitGL(): Boolean
   def eglWaitNative(engine: Int): Boolean
-  def eglBindTexImage(
-      dpy: EGLDisplay, surface: EGLSurface, buffer: Int): Boolean
-  def eglReleaseTexImage(
-      dpy: EGLDisplay, surface: EGLSurface, buffer: Int): Boolean
+  def eglBindTexImage(dpy: EGLDisplay,
+                      surface: EGLSurface,
+                      buffer: Int): Boolean
+  def eglReleaseTexImage(dpy: EGLDisplay,
+                         surface: EGLSurface,
+                         buffer: Int): Boolean
   def eglSurfaceAttrib(dpy: EGLDisplay,
                        surface: EGLSurface,
                        attribute: Int,

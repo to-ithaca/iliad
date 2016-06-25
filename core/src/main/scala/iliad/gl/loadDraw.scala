@@ -49,10 +49,10 @@ object LoadDraw {
   def runner[F[_]: Monad](
       f: GL.Interpreter[GL.Effect[F, ?]]): Interpreter[LoadDraw, PRG[F, ?]] =
     Load.parse(f).andThen(liftOpenGL) :&:
-    CachedParser.andThen(liftCached[F]) :&:
-    Draw.parse(f).andThen(liftOpenGL) :&:
-    CurrentParser.andThen(liftCurrent[F]) :&:
-    f.andThen(liftOpenGL)
+      CachedParser.andThen(liftCached[F]) :&:
+        Draw.parse(f).andThen(liftOpenGL) :&:
+          CurrentParser.andThen(liftCurrent[F]) :&:
+            f.andThen(liftOpenGL)
 
   private def load(s: VertexShader.Source): DSL[VertexShader.Compiled] =
     Cached.get(s).freekF[LoadDraw] flatMap {
@@ -74,6 +74,7 @@ object LoadDraw {
         } yield v
     }
 
+  //TODO: set current program as ths one
   def load(p: Program.Unlinked): DSL[Program.Linked] =
     Cached.get(p).freekF[LoadDraw] flatMap {
       case Some(p) => Free.pure(p)
@@ -86,11 +87,8 @@ object LoadDraw {
         } yield pl
     }
 
-  def load(r: VertexData.Ref,
-           d: VertexData.Data,
-           pageSize: Int,
-           vb: VertexBuffer.Constructor): DSL[Unit] =
-    Cached.get(vb).freekF[LoadDraw] flatMap {
+  def load(r: VertexData.Ref, d: VertexData.Data, pageSize: Int): DSL[Unit] =
+    Cached.get(r.buffer).freekF[LoadDraw] flatMap {
       case Some(prev) =>
         if (VertexBuffer.fits(prev, d.size))
           for {
@@ -104,16 +102,13 @@ object LoadDraw {
           } yield ()
       case None =>
         for {
-          b <- Load.create(r, d, pageSize, vb).freekF[LoadDraw]
+          b <- Load.create(r, d, pageSize, r.buffer).freekF[LoadDraw]
           _ <- Cached.put(b).freekF[LoadDraw]
         } yield ()
     }
 
-  def load(r: ElementData.Ref,
-           d: ElementData.Data,
-           pageSize: Int,
-           eb: ElementBuffer.Constructor): DSL[Unit] =
-    Cached.get(eb).freekF[LoadDraw] flatMap {
+  def load(r: ElementData.Ref, d: ElementData.Data, pageSize: Int): DSL[Unit] =
+    Cached.get(r.buffer).freekF[LoadDraw] flatMap {
       case Some(prev) =>
         if (ElementBuffer.fits(prev, d.size))
           for {
@@ -127,7 +122,7 @@ object LoadDraw {
           } yield ()
       case None =>
         for {
-          b <- Load.create(r, d, pageSize, eb).freekF[LoadDraw]
+          b <- Load.create(r, d, pageSize, r.buffer).freekF[LoadDraw]
           _ <- Cached.put(b).freekF[LoadDraw]
         } yield ()
     }
@@ -159,13 +154,13 @@ object LoadDraw {
         Draw.bind(eb).freekF[LoadDraw] >> Current.set(eb).freekF[LoadDraw]
     )
 
-  private def ensure[A](
-      c: Cached.DSL[Option[A]], msg: String): XorT[DSL, String, A] =
+  private def ensure[A](c: Cached.DSL[Option[A]],
+                        msg: String): XorT[DSL, String, A] =
     XorT(Cached.ensure(c, msg).freekF[LoadDraw])
 
   private def xort[A](dsl: DSL[A]): XorT[DSL, String, A] = XorT.right(dsl)
 
-  private def draw(draw: DrawOp): DSL[String Xor Unit] =
+  def draw(draw: DrawOp): DSL[String Xor Unit] =
     (for {
       _ <- xort(setFramebuffer(draw.framebuffer))
       p <- ensure(Cached.get(draw.program),

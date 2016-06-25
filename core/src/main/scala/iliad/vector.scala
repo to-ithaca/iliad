@@ -10,16 +10,8 @@ import cats.implicits._
 import shapeless._
 import shapeless.ops.nat._
 
-/*
- AttributeType {
-    def reifyAttributeType[A]() = ???
-    implicit val vector 
- }
- 
- */
-
 //TODO: Really think we should parameterize this?
-final class VectorD[N <: Nat, A] private[iliad](_unsized: Vector[A]) {
+final class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
 
   import LTEq._
 
@@ -63,8 +55,8 @@ final class VectorD[N <: Nat, A] private[iliad](_unsized: Vector[A]) {
 
 object VectorD extends VectorDInstances {
 
-  def zero[N <: Nat, A](
-      implicit NA: Numeric[A], toInt: ToInt[N]): VectorD[N, A] = fill(NA.zero)
+  def zero[N <: Nat, A](implicit NA: Numeric[A],
+                        toInt: ToInt[N]): VectorD[N, A] = fill(NA.zero)
   def sized[A](i: Nat, unsized: Vector[A])(
       implicit toInt: ToInt[i.N]): VectorD[i.N, A] =
     if (unsized.length < toInt())

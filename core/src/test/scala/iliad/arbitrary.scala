@@ -1,5 +1,7 @@
 package iliad
-/*
+
+import iliad.syntax.all._
+
 import org.scalacheck._
 
 import shapeless._
@@ -7,8 +9,6 @@ import shapeless.ops.nat._
 
 import spire._
 import spire.implicits._
-
-import iliad.kernel.vectord._
 
 trait ArbitraryInstances {
 
@@ -29,4 +29,3 @@ trait ArbitraryInstances {
 }
 
 object arbitrary extends ArbitraryInstances
- */

@@ -7,17 +7,13 @@ import iliad.kernel._
 import shapeless._
 import shapeless.ops.nat._
 
-trait VectorDCoreSyntax {
+import shapeless._
 
-  def attributeType[N <: Nat, A](
-      implicit SA: SizeOf[A],
-      VA: VertexAttribTypeConversion[A],
-      toInt: ToInt[N]): AttributeType[VectorD[N, A]] =
-    new AttributeType[VectorD[N, A]] {
-      def baseType: VertexAttribType = VA.baseType
-      def byteSize: Int = SA.byteSize * toInt()
-      def elementSize: Int = toInt()
-    }
-
-  implicit val vec2fAttributeType = attributeType[nat._2, Float]
+trait VectorDSyntax extends VectorContextSyntax {
+  type Vec2i = VectorD[nat._2, Int]
+  type Vec3i = VectorD[nat._3, Int]
+  type Vec4i = VectorD[nat._4, Int]
+  type Vec2f = VectorD[nat._2, Float]
+  type Vec3f = VectorD[nat._3, Float]
+  type Vec4f = VectorD[nat._4, Float]
 }

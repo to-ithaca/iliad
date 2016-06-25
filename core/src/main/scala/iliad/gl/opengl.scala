@@ -55,6 +55,20 @@ object GL {
         } yield Some(s)
     }
 
+  private def getProgramLogLength(program: Int): DSL[Int] =
+    GLGetProgramiv(program, GL_INFO_LOG_LENGTH).free
+  private def getLinkStatus(program: Int): DSL[Int] =
+    GLGetProgramiv(program, GL_LINK_STATUS).free
+  def getLinkError(program: Int): DSL[Option[String]] =
+    getLinkStatus(program) flatMap { status =>
+      if (status == GL_TRUE.value) Free.pure(None)
+      else
+        for {
+          l <- getProgramLogLength(program)
+          s <- GLGetProgramInfoLog(program, l).free
+        } yield Some(s)
+    }
+
   def makeVertexShader(source: String): DSL[Int] =
     for {
       id <- GLCreateShader(GL_VERTEX_SHADER).free
@@ -82,7 +96,8 @@ object GL {
     keys.traverse[DSL, (A, B)](s => f(s).map(s -> _))
 
   def getAttributeLocations(
-      program: Int, attributes: List[String]): DSL[List[(String, Int)]] =
+      program: Int,
+      attributes: List[String]): DSL[List[(String, Int)]] =
     traverseKeys(attributes)(a => GLGetAttribLocation(program, a).free)
 
   private val genBuffer: DSL[Int] = GLGenBuffers(1).free.map(_.head)
@@ -94,8 +109,10 @@ object GL {
       _ <- GLBufferData(target, capacity, null, GL_STATIC_DRAW).free
     } yield id
 
-  private def makeBuffer(
-      target: BufferTarget, data: Buffer, size: Int, capacity: Int): DSL[Int] =
+  private def makeBuffer(target: BufferTarget,
+                         data: Buffer,
+                         size: Int,
+                         capacity: Int): DSL[Int] =
     for {
       id <- makeEmptyBuffer(target, capacity)
       _ <- GLBufferSubData(target, 0, size, data).free
@@ -148,8 +165,12 @@ object GL {
                    size: Int,
                    data: Buffer,
                    capacity: Int): DSL[Int] =
-    copyToNewBuffer(
-        oldId, GL_ELEMENT_ARRAY_BUFFER, offset, size, data, capacity)
+    copyToNewBuffer(oldId,
+                    GL_ELEMENT_ARRAY_BUFFER,
+                    offset,
+                    size,
+                    data,
+                    capacity)
 
   def bindFramebuffer(framebuffer: Int): DSL[Unit] =
     GLBindFramebuffer(GL_FRAMEBUFFER, framebuffer).free
@@ -167,8 +188,12 @@ object GL {
                       offset: Int): DSL[Unit] =
     for {
       _ <- GLEnableVertexAttribArray(location).free
-      _ <- GLVertexAttribPointer(
-              location, numElements, `type`, false, stride, offset).free
+      _ <- GLVertexAttribPointer(location,
+                                 numElements,
+                                 `type`,
+                                 false,
+                                 stride,
+                                 offset).free
     } yield ()
 
   def drawTriangles(start: Int, end: Int): DSL[Unit] =
@@ -185,6 +210,10 @@ case object GLGetError extends GL[Int]
 case class GLGetShaderiv(shader: Int, pname: ShaderParameter) extends GL[Int]
 case class GLGetShaderInfoLog(shader: Int, maxLength: Int) extends GL[String]
 
+case class GLGetProgramiv(program: Int, pname: ProgramParameter)
+    extends GL[Int]
+case class GLGetProgramInfoLog(program: Int, maxLength: Int) extends GL[String]
+
 case class GLCreateShader(`type`: ShaderType) extends GL[Int]
 case class GLShaderSource(shader: Int, sources: List[String]) extends GL[Unit]
 case class GLCompileShader(shader: Int) extends GL[Unit]
@@ -195,11 +224,15 @@ case class GLGetAttribLocation(program: Int, name: String) extends GL[Int]
 
 case class GLGenBuffers(number: Int) extends GL[List[Int]]
 case class GLBindBuffer(target: BufferTarget, buffer: Int) extends GL[Unit]
-case class GLBufferData(
-    target: BufferTarget, size: Int, data: Buffer, usage: BufferUsage)
+case class GLBufferData(target: BufferTarget,
+                        size: Int,
+                        data: Buffer,
+                        usage: BufferUsage)
     extends GL[Unit]
-case class GLBufferSubData(
-    target: BufferTarget, offset: Int, size: Int, data: Buffer)
+case class GLBufferSubData(target: BufferTarget,
+                           offset: Int,
+                           size: Int,
+                           data: Buffer)
     extends GL[Unit]
 case class GLCopyBufferSubData(read: BufferTarget,
                                write: BufferTarget,
@@ -212,8 +245,10 @@ case class GLBindFramebuffer(target: FramebufferTarget, framebuffer: Int)
     extends GL[Unit]
 case class GLEnable(capability: Capability) extends GL[Unit]
 case class GLDisable(capability: Capability) extends GL[Unit]
-case class GLColorMask(
-    red: Boolean, green: Boolean, blue: Boolean, alpha: Boolean)
+case class GLColorMask(red: Boolean,
+                       green: Boolean,
+                       blue: Boolean,
+                       alpha: Boolean)
     extends GL[Unit]
 case class GLUseProgram(program: Int) extends GL[Unit]
 case class GLEnableVertexAttribArray(location: Int) extends GL[Unit]
@@ -224,7 +259,9 @@ case class GLVertexAttribPointer(location: Int,
                                  stride: Int,
                                  offset: Int)
     extends GL[Unit]
-case class GLDrawElements(
-    mode: PrimitiveType, count: Int, `type`: IndexType, offset: Int)
+case class GLDrawElements(mode: PrimitiveType,
+                          count: Int,
+                          `type`: IndexType,
+                          offset: Int)
     extends GL[Unit]
 case class GLClear(bitmask: ChannelBitMask) extends GL[Unit]

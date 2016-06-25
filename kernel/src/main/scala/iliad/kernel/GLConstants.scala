@@ -1,6 +1,7 @@
 package iliad
 package kernel
 
+/*
 import simulacrum.typeclass
 
 import cats._
@@ -1762,3 +1763,4 @@ case object GL_TEXTURE_IMMUTABLE_FORMAT extends IntConstant(0x912F)
 case object GL_MAX_ELEMENT_INDEX extends IntConstant(0x8D6B) with Parameter
 case object GL_NUM_SAMPLE_COUNTS extends IntConstant(0x9380)
 case object GL_TEXTURE_IMMUTABLE_LEVELS extends IntConstant(0x82DF)
+ */

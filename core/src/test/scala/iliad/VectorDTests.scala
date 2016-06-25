@@ -1,5 +1,7 @@
 package iliad
-/*
+
+import iliad.syntax.all._
+
 import org.typelevel.discipline.scalatest._
 import org.scalatest._
 
@@ -16,8 +18,6 @@ import cats.implicits._
 
 import shapeless._
 import shapeless.ops.nat.ToInt
-
-import iliad.kernel.vectord._
 
 import org.scalacheck.Arbitrary
 
@@ -85,4 +85,3 @@ class VectorDTests extends FunSuite with Discipline {
 
 }
 
- */

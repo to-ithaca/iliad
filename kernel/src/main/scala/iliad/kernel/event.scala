@@ -1,13 +1,13 @@
 package iliad
 package kernel
 
-import iliad.kernel.vectord._
+//import iliad.kernel.vectord._
 
 //TODO: Parameterize on at
 sealed trait InputEvent
 
 object InputEvent {
-  case class Tap(at: Long, position: Vec2f) extends InputEvent
+  case class Tap(at: Long, x: Float, y: Float) extends InputEvent
 }
 
 object EventHandler {

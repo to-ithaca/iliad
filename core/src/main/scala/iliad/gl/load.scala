@@ -105,6 +105,7 @@ private object LoadParser extends (Load ~> GL.DSL) {
     case LoadProgram(vs, fs) =>
       for {
         id <- GL.makeProgram(vs.id, fs.id)
+        _ <- GL.useProgram(id)
         as <- GL.getAttributeLocations(id, vs.source.attributeNames)
       } yield Program.Linked(id, Program.Unlinked(vs.source, fs.source), as)
 

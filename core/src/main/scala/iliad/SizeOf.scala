@@ -6,8 +6,3 @@ import simulacrum.typeclass
 trait SizeOf[A] {
   def byteSize: Int
 }
-
-@typeclass
-trait VertexAttribTypeConversion[A] {
-  def baseType: iliad.kernel.VertexAttribType
-}
