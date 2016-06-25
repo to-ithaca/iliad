@@ -15,11 +15,11 @@ import cats._
 import cats.data._
 import cats.implicits._
 
-import org.slf4j._
-
 import fs2._
 import fs2.async.mutable._
 import fs2.util._
+
+import com.typesafe.scalalogging._
 
 trait X11GLDependencies extends GLDependencies with IliadApp {
 
@@ -37,12 +37,10 @@ trait X11GLDependencies extends GLDependencies with IliadApp {
   val GLES30 = iliad.kernel.GLES30
 }
 
-trait X11Bootstrap extends X11EventHandler with X11GLDependencies {
+trait X11Bootstrap extends X11EventHandler with X11GLDependencies with LazyLogging {
 
   implicit val SS = Strategy.fromFixedDaemonPool(1, "vsync-thread")
   implicit val S = Scheduler.fromFixedDaemonPool(4)
-
-  private val log = LoggerFactory.getLogger(classOf[X11Bootstrap])
 
   def width: Int
   def height: Int
@@ -56,7 +54,7 @@ trait X11Bootstrap extends X11EventHandler with X11GLDependencies {
     (for {
       t <- s.get
       _ <- s.set(t + 5L).schedule(1 second)
-    } yield vsync(s)).unsafeRunAsync(msg => log.info(msg.toString))
+    } yield vsync(s)).unsafeRunAsync(msg => logger.info(msg.toString))
   }
 
   private def initThreads(): Error Xor Unit = {
@@ -83,7 +81,7 @@ trait X11Bootstrap extends X11EventHandler with X11GLDependencies {
     val borderWidth = 1
     val border = 1
     val background = 0
-    log.debug("Creating window with width {} height {}", width, height)
+    logger.debug(s"Creating window with width $width height $height")
     try {
       x.XCreateSimpleWindow(
             d,
@@ -104,7 +102,7 @@ trait X11Bootstrap extends X11EventHandler with X11GLDependencies {
   }
 
   private def addDeletionProtocol(d: Display, w: Window): Error Xor Unit = {
-    log.debug("Adding deletion protocol")
+    logger.debug("Adding deletion protocol")
     val protocol = x.XInternAtom(d, "WM_DELETE_WINDOW", false)
     x.XSetWMProtocols(d, w, Array(protocol), 1) match {
       case 0 => new Error("Unable to set deletion protocol").left
@@ -115,12 +113,12 @@ trait X11Bootstrap extends X11EventHandler with X11GLDependencies {
   private val inputMask = new NativeLong(ExposureMask | ButtonPressMask)
 
   private def addInputDetection(d: Display, w: Window): Unit = {
-    log.debug("Adding input detection")
+    logger.debug("Adding input detection")
     x.XSelectInput(d, w, inputMask)
   }
 
   private def showWindow(d: Display, w: Window): Unit = {
-    log.debug("Showing window")
+    logger.debug("Showing window")
     x.XMapWindow(d, w)
   }
 
@@ -136,7 +134,7 @@ trait X11Bootstrap extends X11EventHandler with X11GLDependencies {
     } yield (d, w)
 
   private def destroyWindow(d: Display, w: Window): Unit = {
-    log.info("closing window")
+    logger.info("closing window")
     x.XDestroyWindow(d, w)
     x.XCloseDisplay(d)
   }
@@ -145,7 +143,7 @@ trait X11Bootstrap extends X11EventHandler with X11GLDependencies {
     val e = new XEvent()
     val hasEvent = x.XCheckMaskEvent(d, inputMask, e)
     if (hasEvent) {
-      log.info("received event")
+      logger.info("received event")
       handleEvent(e)
     }
   }
@@ -158,7 +156,7 @@ trait X11Bootstrap extends X11EventHandler with X11GLDependencies {
     println("running app")
     createWindow match {
       case Xor.Right((d, w)) =>
-        log.info("Created window")
+        logger.info("Created window")
         session.set((w, d))
         run()
 
