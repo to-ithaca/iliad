@@ -1,3 +1,4 @@
+
 package iliad
 
 import scala.reflect._
@@ -43,20 +44,21 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
       EGLSurface,
       EGLContext,
       ?
-  ] ~> Reader[EGL14Library.Aux[NativeDisplay,
+  ] ~> ReaderT[Xor[String, ?], EGL14Library.Aux[NativeDisplay,
                                NativeWindow,
                                EGLDisplay,
                                EGLConfig,
                                EGLSurface,
                                EGLContext],
-              ?] = Interpreter.compose(
-      new EffectfulLogInterpreter[EGL[NativeDisplay,
+              ?] = new EGLDebugInterpreter(Interpreter.compose(
+      new EffectfulLogBefore[EGL[NativeDisplay,
                                       NativeWindow,
                                       EGLDisplay,
                                       EGLConfig,
                                       EGLSurface,
                                       EGLContext,
-                                      ?]](_.toString))
+        ?]](_.toString)).andThen(new EffectfulLogAfter)
+  )
 
   private def EGLTask(cattrs: Attributes[ConfigAttrib, ConfigAttribValue],
                       wattrs: Attributes[WindowAttrib, WindowAttribValue],
@@ -67,18 +69,21 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
         lockDisplay.foreach(_ (display))
         val prg = (for {
           dpy <- XorT(EGLP.initialise(display))
+           _ <- XorT(EGLP.bindApi)
+          _ <- XorT.right(EGLP.properties(dpy))
           cfg <- XorT(
                     EGLP
                       .config(dpy, cattrs)
                       .map(_.toRightXor(
-                              s"Cannot find for attributes: $cattrs")))
+                        s"Cannot find for attributes: $cattrs")))
+          _ <- XorT.right(EGLP.configAttribs(dpy, cfg))
           sfc <- XorT(EGLP.windowSurface(dpy, cfg, window, wattrs))
           ctx <- XorT(EGLP.context(dpy, cfg, cxattrs))
           _ <- XorT(EGLP.makeCurrent(dpy, sfc, sfc, ctx))
         } yield (dpy, sfc, ctx)).value
         val r = prg
           .foldMap(LogEGLInterpreter)
-          .run(EGL14)
+          .run(EGL14).flatMap(identity)
           .bimap(err => Task.fail(new Error(err)), Task.now)
           .merge[Task[(EGLDisplay, EGLSurface, EGLContext)]]
         unlockDisplay.foreach(_ (display))
@@ -90,13 +95,14 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
         EGLTask(Attributes(
                     ConfigAttrib(EGL_LEVEL, 0),
                     ConfigAttrib(EGL_SURFACE_TYPE, EGL_WINDOW_BIT),
-                    ConfigAttrib(EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT),
+                    ConfigAttrib(EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT.value),
+                    ConfigAttrib(EGL_CONFORMANT, EGL_OPENGL_ES3_BIT),
                     ConfigAttrib(EGL_BLUE_SIZE, 8),
                     ConfigAttrib(EGL_GREEN_SIZE, 8),
                     ConfigAttrib(EGL_RED_SIZE, 8),
                     ConfigAttrib(EGL_ALPHA_SIZE, 8),
                     ConfigAttrib(EGL_BUFFER_SIZE, 32),
-                    ConfigAttrib(EGL_DEPTH_SIZE, 24)
+                    ConfigAttrib(EGL_DEPTH_SIZE, 16)
                 ),
                 Attributes.empty,
                 Attributes(

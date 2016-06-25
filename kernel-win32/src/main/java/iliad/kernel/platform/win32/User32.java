@@ -44,6 +44,7 @@ public interface User32 extends com.sun.jna.platform.win32.User32 {
     int WM_MOVE = 0x0003;
     int CS_VREDRAW = 0x0001;
     int CS_HREDRAW = 0x0002;
+    int CS_OWNDC = 0x0020;
     int COLOR_WINDOW = 5;
 
     static final class Macros {

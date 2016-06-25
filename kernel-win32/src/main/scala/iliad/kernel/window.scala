@@ -53,20 +53,26 @@ trait Win32GLDependencies extends GLDependencies {
   type EGLContext = iliad.kernel.platform.win32.EGLContext
 
   val configClassTag: ClassTag[EGLConfig] =  classTag[EGLConfig]
+  val EGL14 = iliad.kernel.EGL14
+  val GLES30 = iliad.kernel.GLES30
 }
 
 abstract class Win32Bootstrap(name: String, val width: Int, val height: Int)
     extends Win32EventHandler
-    with IliadApp {
+    with IliadApp with Win32GLDependencies {
 
   def main(args: Array[String]): Unit = {
     val win32 = new Win32(name, width, height, this)
     win32.session match {
-      case Xor.Right(session) =>
+      case Xor.Right(s) =>
         //TODO: Not fond of the run method bootstrap here!
+        session.set((s.hwnd, s.hdc))
+        win32.show.run(s)
         run()
-        win32.main.run(session)
-      case Xor.Left(err) => System.exit(1)
+        win32.main.run(s)
+      case Xor.Left(err) =>
+        session.set(new IllegalStateException(err.toString))
+        System.exit(1)
     }
   }
 }
@@ -89,8 +95,7 @@ class Win32(name: String, width: Int, height: Int, delegate: Win32EventHandler) 
     val hInstance = kernel32.GetModuleHandle("")
     wc.hInstance = hInstance
     wc.lpszClassName = cn
-    wc.style = CS_HREDRAW | CS_VREDRAW
-    wc.hbrBackground = null
+    wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC
     wc.lpfnWndProc = new MessageCallback(delegate)
     user32.RegisterClassEx(wc)
     checkError("registering window class")(wc)
@@ -150,7 +155,6 @@ class Win32(name: String, width: Int, height: Int, delegate: Win32EventHandler) 
 
   def main: Reader[Session, Int] =
     for {
-      _ <- show
       _ <- update
       _ <- foreground
       code <- loop
