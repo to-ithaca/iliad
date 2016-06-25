@@ -42,7 +42,7 @@ object GLInterpreter extends (GL.Interpreter[GL.NoEffect]) {
         logPtr.get(arr, 0, len)
         new String(arr)
       }
-  case GLGetProgramiv(program, pname) =>
+    case GLGetProgramiv(program, pname) =>
       Reader { lib =>
         val ptr = Buffer.capacity[Int](1)
         lib.glGetProgramiv(program, pname.value, ptr)
@@ -81,8 +81,12 @@ object GLInterpreter extends (GL.Interpreter[GL.NoEffect]) {
     case GLBufferSubData(target, offset, size, data) =>
       Reader(_.glBufferSubData(target.value, offset, size, data))
     case GLCopyBufferSubData(read, write, readOffset, writeOffset, size) =>
-      Reader(_.glCopyBufferSubData(
-              read.value, write.value, readOffset, writeOffset, size))
+      Reader(
+          _.glCopyBufferSubData(read.value,
+                                write.value,
+                                readOffset,
+                                writeOffset,
+                                size))
 
     case GLBindFramebuffer(target, framebuffer) =>
       Reader(_.glBindFramebuffer(target.value, framebuffer))
@@ -92,11 +96,19 @@ object GLInterpreter extends (GL.Interpreter[GL.NoEffect]) {
     case GLUseProgram(program) => Reader(_.glUseProgram(program))
     case GLEnableVertexAttribArray(location) =>
       Reader(_.glEnableVertexAttribArray(location))
-    case GLVertexAttribPointer(
-        location, size, t, normalized, stride, offset) =>
+    case GLVertexAttribPointer(location,
+                               size,
+                               t,
+                               normalized,
+                               stride,
+                               offset) =>
       Reader(
-          _.glVertexAttribPointer(
-              location, size, t.value, normalized, stride, offset))
+          _.glVertexAttribPointer(location,
+                                  size,
+                                  t.value,
+                                  normalized,
+                                  stride,
+                                  offset))
     case GLDrawElements(mode, count, t, offset) =>
       Reader(_.glDrawElements(mode.value, count, t.value, offset))
     case GLClear(bitMask) => Reader(_.glClear(bitMask.value))
@@ -148,9 +160,8 @@ final class GLDebugInterpreter[F[_]: Monad](
   private def onCompileError(log: Option[String]): String Xor Unit =
     log.map(l => s"Compilation failed with error $l").toLeftXor(())
 
- private def onLinkError(log: Option[String]): String Xor Unit =
+  private def onLinkError(log: Option[String]): String Xor Unit =
     log.map(l => s"Link failed with error $l").toLeftXor(())
-
 
   private def shaderLog(shader: Int) =
     GL.getCompileError(shader)
@@ -158,10 +169,11 @@ final class GLDebugInterpreter[F[_]: Monad](
       .transform(lift)
       .mapF(_.subflatMap(onCompileError))
 
-  private def programLog(program: Int) = GL.getLinkError(program)
-  .foldMap(interpret)
-  .transform(lift)
-  .mapF(_.subflatMap(onLinkError))
+  private def programLog(program: Int) =
+    GL.getLinkError(program)
+      .foldMap(interpret)
+      .transform(lift)
+      .mapF(_.subflatMap(onLinkError))
 
   def apply[A](gl: GL[A]): GL.DebugEffect[F, A] = gl match {
 

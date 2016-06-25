@@ -48,51 +48,51 @@ case class RenderMap(nodes: List[RenderMap.Node],
                      valves: List[RenderMap.Valve])
 
 /**
-  * Rules:
-  * - all nodes must be linked to other nodes.  There can be no orphan nodes.
-  * - node names must be unique
-  * - two nodes can have zero or one link connecting them
-  * - all end nodes should draw to the screen
-  *
-  * => it is always possible to find the start nodes
-  * => there are certain valid valve combinations
-  *
-  * --------------
-  * Q: how do we deal with recursion?  Pipe the outputs of one node to the inputs of another in the next loop?
-  * i.e. particles writes textureP and reads textureB
-  * body reads textureP and writes textureB
-  *
-  * we know to flip textureB after writing to it, because anything else will only read from the new texture.
-  * => So we link back via doubleTextures
-  * --------------
-  *
-  * Any other difficult questions....
-  *
-  * Q: Once we have a map, how do we add an instance?
-  *
-  * Any instance must flow from a start node to the end node
-  * Certain things are shared across instances
-  *
-  * Scenario: load and draw the restaurant.
-  * The most basic:  We have a single draw drawing untextured vertices to the screen.
-  * We add each instance. We need to add vertexData and uniform data only.
-  * We can add another instance by adding vertex data
-  *
-  * More advanced: We want to add shadows to certain objects.
-  * For a shadow, we draw all casting objects to the same texture.
-  * We then use that texture when drawing all objects to the screen.
-  * => we add an instance of a shadow casting object, which means we draw it to the texture
-  *
-  * Even mode advanced: We want to add lights to certain objects.
-  * We draw them with a light source.
-  *
-  * We want to add bumpmapping to certain objects.
-  * We draw them with a normal map.
-  *
-  * So if we want a shadow casting, bumpmapped, lit object, we go through all the steps.
-  *
-  * Consider we have multilpe light sources.
-  */
+ * Rules:
+ * - all nodes must be linked to other nodes.  There can be no orphan nodes.
+ * - node names must be unique
+ * - two nodes can have zero or one link connecting them
+ * - all end nodes should draw to the screen
+ *
+ * => it is always possible to find the start nodes
+ * => there are certain valid valve combinations
+ *
+ * --------------
+ * Q: how do we deal with recursion?  Pipe the outputs of one node to the inputs of another in the next loop?
+ * i.e. particles writes textureP and reads textureB
+ * body reads textureP and writes textureB
+ *
+ * we know to flip textureB after writing to it, because anything else will only read from the new texture.
+ * => So we link back via doubleTextures
+ * --------------
+ *
+ * Any other difficult questions....
+ *
+ * Q: Once we have a map, how do we add an instance?
+ *
+ * Any instance must flow from a start node to the end node
+ * Certain things are shared across instances
+ *
+ * Scenario: load and draw the restaurant.
+ * The most basic:  We have a single draw drawing untextured vertices to the screen.
+ * We add each instance. We need to add vertexData and uniform data only.
+ * We can add another instance by adding vertex data
+ *
+ * More advanced: We want to add shadows to certain objects.
+ * For a shadow, we draw all casting objects to the same texture.
+ * We then use that texture when drawing all objects to the screen.
+ * => we add an instance of a shadow casting object, which means we draw it to the texture
+ *
+ * Even mode advanced: We want to add lights to certain objects.
+ * We draw them with a light source.
+ *
+ * We want to add bumpmapping to certain objects.
+ * We draw them with a normal map.
+ *
+ * So if we want a shadow casting, bumpmapped, lit object, we go through all the steps.
+ *
+ * Consider we have multilpe light sources.
+ */
 trait Loadable {
   def loadCommands[F[_]]: GL.IO[F, Unit]
 }
@@ -179,7 +179,7 @@ void main() {
 
    load(table, chair) andThen addInstance(node -> table) and addInstance(node -> chair)
    //will validate that all info is provided
-  */
+ */
 }
 
 //How do we link buffers? Should we do so?
@@ -195,7 +195,7 @@ For a given model (table), we want to add it
   so for each node, we specify the data given a model
   we then have all of the instance data.
   and we have a node instance, which contains instances of the textures etc.  
-  */
+ */
 
 /**
 We have a template and an instance
@@ -220,7 +220,7 @@ What we have missed:
  - constraining animations
  - pixel draws
  - by default, point buffers are treated like any other
-  **/
+ **/
 
 //constraints can be added in afterwards
  */

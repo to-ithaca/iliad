@@ -95,25 +95,29 @@ case class ElementBufferPut(e: ElementBuffer.Loaded) extends Cached[Unit]
 
 private object CachedParser extends (Cached ~> Cached.Effect) {
   private val _vertexShaders: Lens[
-      Cached.State, Map[VertexShader.Source, VertexShader.Compiled]] =
+      Cached.State,
+      Map[VertexShader.Source, VertexShader.Compiled]] =
     GenLens[Cached.State](_.vertexShaders)
   private val _fragmentShaders: Lens[
-      Cached.State, Map[FragmentShader.Source, FragmentShader.Compiled]] =
+      Cached.State,
+      Map[FragmentShader.Source, FragmentShader.Compiled]] =
     GenLens[Cached.State](_.fragmentShaders)
-  private val _programs: Lens[
-      Cached.State, Map[Program.Unlinked, Program.Linked]] =
+  private val _programs: Lens[Cached.State,
+                              Map[Program.Unlinked, Program.Linked]] =
     GenLens[Cached.State](_.programs)
-  private val _vertexData: Lens[
-      Cached.State, Map[VertexData.Ref, VertexData.Loaded]] =
+  private val _vertexData: Lens[Cached.State,
+                                Map[VertexData.Ref, VertexData.Loaded]] =
     GenLens[Cached.State](_.vertexData)
   private val _vertexBuffers: Lens[
-      Cached.State, Map[VertexBuffer.Constructor, VertexBuffer.Loaded]] =
+      Cached.State,
+      Map[VertexBuffer.Constructor, VertexBuffer.Loaded]] =
     GenLens[Cached.State](_.vertexBuffers)
-  private val _elementData: Lens[
-      Cached.State, Map[ElementData.Ref, ElementData.Loaded]] =
+  private val _elementData: Lens[Cached.State,
+                                 Map[ElementData.Ref, ElementData.Loaded]] =
     GenLens[Cached.State](_.elementData)
   private val _elementBuffers: Lens[
-      Cached.State, Map[ElementBuffer.Constructor, ElementBuffer.Loaded]] =
+      Cached.State,
+      Map[ElementBuffer.Constructor, ElementBuffer.Loaded]] =
     GenLens[Cached.State](_.elementBuffers)
 
   def apply[A](cached: Cached[A]): Cached.Effect[A] =

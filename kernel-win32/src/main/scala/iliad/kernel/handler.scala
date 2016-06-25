@@ -23,8 +23,10 @@ trait Win32EventHandler extends EventHandler {
 
   def onTap(cb: Tap => Unit) = tapCallback = cb
 
-  def handleEvent(
-      hwnd: HWND, uMsg: Int, wParam: WPARAM, lParam: LPARAM): Boolean =
+  def handleEvent(hwnd: HWND,
+                  uMsg: Int,
+                  wParam: WPARAM,
+                  lParam: LPARAM): Boolean =
     uMsg match {
       case WM_LBUTTONDOWN =>
         log.debug("received tap")

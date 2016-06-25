@@ -26,8 +26,8 @@ sealed trait DisplayProperty extends IntConstant
 sealed trait EGLError extends IntConstant
 
 object ConfigAttrib {
-  def apply(
-      k: ConfigAttrib, i: Int): (ConfigAttrib, Int Xor ConfigAttribValue) =
+  def apply(k: ConfigAttrib,
+            i: Int): (ConfigAttrib, Int Xor ConfigAttribValue) =
     k -> i.left
   def apply(k: ConfigAttrib,
             v: ConfigAttribValue): (ConfigAttrib, Int Xor ConfigAttribValue) =
@@ -35,8 +35,8 @@ object ConfigAttrib {
 }
 
 object ContextAttrib {
-  def apply(
-      k: ContextAttrib, i: Int): (ContextAttrib, Int Xor ContextAttribValue) =
+  def apply(k: ContextAttrib,
+            i: Int): (ContextAttrib, Int Xor ContextAttribValue) =
     k -> i.left
   def apply(
       k: ContextAttrib,

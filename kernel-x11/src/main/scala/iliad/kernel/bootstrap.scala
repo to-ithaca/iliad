@@ -2,6 +2,7 @@ package iliad
 package kernel
 
 import scala.reflect._
+import scala.concurrent.duration._
 
 import iliad.kernel.platform.unix.X11
 
@@ -15,6 +16,10 @@ import cats.data._
 import cats.implicits._
 
 import org.slf4j._
+
+import fs2._
+import fs2.async.mutable._
+import fs2.util._
 
 trait X11GLDependencies extends GLDependencies with IliadApp {
 
@@ -34,6 +39,9 @@ trait X11GLDependencies extends GLDependencies with IliadApp {
 
 trait X11Bootstrap extends X11EventHandler with X11GLDependencies {
 
+  implicit val SS = Strategy.fromFixedDaemonPool(1, "vsync-thread")
+  implicit val S = Scheduler.fromFixedDaemonPool(4)
+
   private val log = LoggerFactory.getLogger(classOf[X11Bootstrap])
 
   def width: Int
@@ -43,6 +51,14 @@ trait X11Bootstrap extends X11EventHandler with X11GLDependencies {
 
   override val lockDisplay = Some(x.XLockDisplay _)
   override val unlockDisplay = Some(x.XUnlockDisplay _)
+
+  def vsync(s: Signal[Task, Long]): Unit = {
+    (for {
+      t <- s.get
+      _ <- s.set(t + 5L).schedule(1 second)
+    } yield vsync(s)
+    ).unsafeRunAsync(msg => log.info(msg.toString))
+  }
 
   private def initThreads(): Error Xor Unit = {
     val code = x.XInitThreads()
@@ -68,9 +84,7 @@ trait X11Bootstrap extends X11EventHandler with X11GLDependencies {
     val borderWidth = 1
     val border = 1
     val background = 0
-    log.debug("Creating window with width {} height {}",
-              width,
-              height)
+    log.debug("Creating window with width {} height {}", width, height)
     try {
       x.XCreateSimpleWindow(
             d,
@@ -123,21 +137,22 @@ trait X11Bootstrap extends X11EventHandler with X11GLDependencies {
     } yield (d, w)
 
   private def destroyWindow(d: Display, w: Window): Unit = {
+    log.info("closing window")
     x.XDestroyWindow(d, w)
     x.XCloseDisplay(d)
   }
 
-  private def handleAllEvents(d: Display): Boolean = {
+  private def handleEvents(d: Display): Unit = {
     val e = new XEvent()
-    x.XNextEvent(d, e)
-    e.`type` match {
-      case ClientMessage =>
-        log.info("Closing window")
-        false
-      case other =>
+    val hasEvent = x.XCheckMaskEvent(d, inputMask, e)
+    if(hasEvent) {
+        log.info("received event")
         handleEvent(e)
-        true
     }
+  }
+
+  private def shouldClose(d: Display): Boolean = {
+    x.XCheckTypedEvent(d, ClientMessage, new XEvent())
   }
 
   def main(args: Array[String]): Unit = {
@@ -151,7 +166,8 @@ trait X11Bootstrap extends X11EventHandler with X11GLDependencies {
         var shouldDraw = true
         while (shouldDraw) {
           x.XLockDisplay(d)
-          shouldDraw = handleAllEvents(d)
+          handleEvents(d)
+          shouldDraw = !shouldClose(d)
           x.XUnlockDisplay(d)
         }
         destroyWindow(d, w)

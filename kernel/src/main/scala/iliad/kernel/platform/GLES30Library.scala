@@ -11,8 +11,10 @@ trait GLES30Library {
 
   def glViewport(x: Int, y: Int, width: Int, height: Int): Unit
   def glClearColor(red: Float, green: Float, blue: Float, alpha: Float): Unit
-  def glColorMask(
-      red: Boolean, green: Boolean, blue: Boolean, alpha: Boolean): Unit
+  def glColorMask(red: Boolean,
+                  green: Boolean,
+                  blue: Boolean,
+                  alpha: Boolean): Unit
   def glEnable(cap: Int): Unit
   def glDisable(cap: Int): Unit
 
@@ -35,7 +37,10 @@ trait GLES30Library {
   def glLinkProgram(program: Int): Unit
 
   def glGetProgramiv(pid: Int, name: Int, ptr: IntBuffer): Unit
-  def glGetProgramInfoLog(program: Int, bufSize: Int, length: IntBuffer, infoLog: Buffer): Unit
+  def glGetProgramInfoLog(program: Int,
+                          bufSize: Int,
+                          length: IntBuffer,
+                          infoLog: Buffer): Unit
 
   def glGetAttribLocation(pid: Int, name: String): Int
   def glGetUniformLocation(pid: Int, name: String): Int
@@ -57,8 +62,11 @@ trait GLES30Library {
                             normalized: Boolean,
                             stride: Int,
                             offset: Int): Unit
-  def glVertexAttribIPointer(
-      index: Int, size: Int, `type`: Int, stride: Int, offset: Int): Unit
+  def glVertexAttribIPointer(index: Int,
+                             size: Int,
+                             `type`: Int,
+                             stride: Int,
+                             offset: Int): Unit
 
   def glGenFramebuffers(num: Int, ptr: IntBuffer): Unit
   def glBindFramebuffer(target: Int, framebuffer: Int): Unit
@@ -76,8 +84,10 @@ trait GLES30Library {
 
   def glGenRenderbuffers(num: Int, ptr: IntBuffer): Unit
   def glBindRenderbuffer(target: Int, renderbuffer: Int): Unit
-  def glRenderbufferStorage(
-      target: Int, format: Int, width: Int, height: Int): Unit
+  def glRenderbufferStorage(target: Int,
+                            format: Int,
+                            width: Int,
+                            height: Int): Unit
 
   def glBindTexture(target: Int, texture: Int): Unit
   def glGenTextures(num: Int, ptr: IntBuffer): Unit
@@ -99,18 +109,27 @@ trait GLES30Library {
   def glUniform2f(location: Int, arg0: Float, arg1: Float): Unit
   def glUniform3i(location: Int, arg0: Int, arg1: Int, arg2: Int): Unit
   def glUniform3f(location: Int, arg0: Float, arg1: Float, arg2: Float): Unit
-  def glUniform4i(
-      location: Int, arg0: Int, arg1: Int, arg2: Int, arg3: Int): Unit
-  def glUniform4f(
-      location: Int, arg0: Float, arg1: Float, arg2: Float, arg3: Float): Unit
+  def glUniform4i(location: Int,
+                  arg0: Int,
+                  arg1: Int,
+                  arg2: Int,
+                  arg3: Int): Unit
+  def glUniform4f(location: Int,
+                  arg0: Float,
+                  arg1: Float,
+                  arg2: Float,
+                  arg3: Float): Unit
 
   def glGenSamplers(num: Int, buffer: IntBuffer): Unit
   def glSamplerParameteri(sid: Int, name: Int, arg0: Int): Unit
   def glBindSampler(tid: Int, sid: Int): Unit
 
   def glDrawElements(mode: Int, count: Int, `type`: Int, offset: Int): Unit
-  def glDrawElementsInstanced(
-      mode: Int, count: Int, `type`: Int, offset: Int, primCount: Int): Unit
+  def glDrawElementsInstanced(mode: Int,
+                              count: Int,
+                              `type`: Int,
+                              offset: Int,
+                              primCount: Int): Unit
 
   def glClearBufferfv(buffer: Int, drawbuffer: Int, value: Array[Float]): Unit
   def glClearBufferiv(buffer: Int, drawbuffer: Int, value: Array[Int]): Unit

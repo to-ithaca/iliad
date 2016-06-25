@@ -21,8 +21,10 @@ private[kernel] final class MessageCallback(delegate: Win32EventHandler)
 
   private def dequeueMsg: LRESULT = new LRESULT(0)
 
-  def callback(
-      hwnd: HWND, uMsg: Int, wParam: WPARAM, lParam: LPARAM): LRESULT =
+  def callback(hwnd: HWND,
+               uMsg: Int,
+               wParam: WPARAM,
+               lParam: LPARAM): LRESULT =
     uMsg match {
       case WM_DESTROY =>
         user32.PostQuitMessage(0)
@@ -52,7 +54,7 @@ trait Win32GLDependencies extends GLDependencies {
   type EGLSurface = iliad.kernel.platform.win32.EGLSurface
   type EGLContext = iliad.kernel.platform.win32.EGLContext
 
-  val configClassTag: ClassTag[EGLConfig] =  classTag[EGLConfig]
+  val configClassTag: ClassTag[EGLConfig] = classTag[EGLConfig]
 }
 
 abstract class Win32Bootstrap(name: String, val width: Int, val height: Int)

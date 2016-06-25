@@ -5,6 +5,9 @@ import cats._
 
 import scala.reflect._
 
+import fs2.util._
+import fs2.async.mutable._
+
 trait IliadApp {
   def run(): Unit
 }
@@ -19,6 +22,8 @@ trait ScreenDependencies {
 
   def lockDisplay: Option[NativeDisplay => Unit] = None
   def unlockDisplay: Option[NativeDisplay => Unit] = None
+
+  def vsync(s: Signal[Task, Long]): Unit
 }
 
 trait GLDependencies extends ScreenDependencies {

@@ -12,7 +12,6 @@ sealed trait ChannelBitMask { self =>
   }
 }
 
-//TODO: move this somewhere else
 object ChannelBitMask {
   implicit def bitToMask(bit: ChannelBit): ChannelBitMask = BitMask(Set(bit))
 
@@ -21,6 +20,10 @@ object ChannelBitMask {
     override def toString: String = s"(${each.mkString("|")})"
   }
 }
+
+case object GL_DEPTH_BUFFER_BIT extends BitmaskConstant(0x00000100) with ChannelBit
+case object GL_STENCIL_BUFFER_BIT extends BitmaskConstant(0x00000400) with ChannelBit
+case object GL_COLOR_BUFFER_BIT extends BitmaskConstant(0x00004000) with ChannelBit
 
 sealed trait Texture extends IntConstant
 sealed trait ColorAttachment
@@ -318,7 +321,9 @@ case object GL_MAX_FRAGMENT_UNIFORM_VECTORS
 case object GL_SHADER_TYPE extends IntConstant(0x8B4F) with ShaderParameter
 case object GL_DELETE_STATUS extends IntConstant(0x8B80) with ShaderParameter
 case object GL_LINK_STATUS extends IntConstant(0x8B82) with ProgramParameter
-case object GL_VALIDATE_STATUS extends IntConstant(0x8B83) with ProgramParameter 
+case object GL_VALIDATE_STATUS
+    extends IntConstant(0x8B83)
+    with ProgramParameter
 case object GL_ATTACHED_SHADERS extends IntConstant(0x8B85)
 case object GL_ACTIVE_UNIFORMS extends IntConstant(0x8B86)
 case object GL_ACTIVE_UNIFORM_MAX_LENGTH extends IntConstant(0x8B87)
@@ -498,7 +503,10 @@ case object GL_IMPLEMENTATION_COLOR_READ_FORMAT
     extends IntConstant(0x8B9B)
     with Parameter
 case object GL_COMPILE_STATUS extends IntConstant(0x8B81) with ShaderParameter
-case object GL_INFO_LOG_LENGTH extends IntConstant(0x8B84) with ShaderParameter with ProgramParameter
+case object GL_INFO_LOG_LENGTH
+    extends IntConstant(0x8B84)
+    with ShaderParameter
+    with ProgramParameter
 case object GL_SHADER_SOURCE_LENGTH
     extends IntConstant(0x8B88)
     with ShaderParameter
@@ -581,7 +589,9 @@ case object GL_FRAMEBUFFER_UNSUPPORTED
 case object GL_FRAMEBUFFER_BINDING extends IntConstant(0x8CA6)
 case object GL_RENDERBUFFER_BINDING extends IntConstant(0x8CA7) with Parameter
 case object GL_MAX_RENDERBUFFER_SIZE extends IntConstant(0x84E8) with Parameter
-case object GL_INVALID_FRAMEBUFFER_OPERATION extends IntConstant(0x0506) with ErrorCode
+case object GL_INVALID_FRAMEBUFFER_OPERATION
+    extends IntConstant(0x0506)
+    with ErrorCode
 case object GL_READ_BUFFER extends IntConstant(0x0C02) with Parameter
 case object GL_UNPACK_ROW_LENGTH
     extends IntConstant(0x0CF2)
@@ -1300,3 +1310,209 @@ case object GL_TEXTURE_IMMUTABLE_FORMAT extends IntConstant(0x912F)
 case object GL_MAX_ELEMENT_INDEX extends IntConstant(0x8D6B) with Parameter
 case object GL_NUM_SAMPLE_COUNTS extends IntConstant(0x9380)
 case object GL_TEXTURE_IMMUTABLE_LEVELS extends IntConstant(0x82DF)
+
+/* TODO: incorporate these as draws become more advanced
+  object DrawBuffer {
+    implicit val drawbufferBounded: Bounded[DrawBuffer] = new Bounded[DrawBuffer] {
+      val MinValue = GL_DRAW_BUFFER0
+      val MaxValue = GL_DRAW_BUFFER15
+    }
+
+    implicit val drawbufferEnum: Enum[DrawBuffer] = new Enum[DrawBuffer] {
+      def succ(dbuf: DrawBuffer): DrawBuffer = dbuf match {
+        case GL_DRAW_BUFFER0 => GL_DRAW_BUFFER1
+        case GL_DRAW_BUFFER1 => GL_DRAW_BUFFER2
+        case GL_DRAW_BUFFER2 => GL_DRAW_BUFFER3
+        case GL_DRAW_BUFFER3 => GL_DRAW_BUFFER4
+        case GL_DRAW_BUFFER4 => GL_DRAW_BUFFER5
+        case GL_DRAW_BUFFER5 => GL_DRAW_BUFFER6
+        case GL_DRAW_BUFFER6 => GL_DRAW_BUFFER7
+        case GL_DRAW_BUFFER7 => GL_DRAW_BUFFER8
+        case GL_DRAW_BUFFER8 => GL_DRAW_BUFFER9
+        case GL_DRAW_BUFFER9 => GL_DRAW_BUFFER10
+        case GL_DRAW_BUFFER10 => GL_DRAW_BUFFER11
+        case GL_DRAW_BUFFER11 => GL_DRAW_BUFFER12
+        case GL_DRAW_BUFFER12 => GL_DRAW_BUFFER13
+        case GL_DRAW_BUFFER13 => GL_DRAW_BUFFER14
+        case GL_DRAW_BUFFER14 => GL_DRAW_BUFFER15
+        case GL_DRAW_BUFFER15 => GL_DRAW_BUFFER0
+      }
+      def pred(dbuf: DrawBuffer): DrawBuffer = dbuf match {
+        case GL_DRAW_BUFFER0 => GL_DRAW_BUFFER15
+        case GL_DRAW_BUFFER1 => GL_DRAW_BUFFER0
+        case GL_DRAW_BUFFER2 => GL_DRAW_BUFFER1
+        case GL_DRAW_BUFFER3 => GL_DRAW_BUFFER2
+        case GL_DRAW_BUFFER4 => GL_DRAW_BUFFER3
+        case GL_DRAW_BUFFER5 => GL_DRAW_BUFFER4
+        case GL_DRAW_BUFFER6 => GL_DRAW_BUFFER5
+        case GL_DRAW_BUFFER7 => GL_DRAW_BUFFER6
+        case GL_DRAW_BUFFER8 => GL_DRAW_BUFFER7
+        case GL_DRAW_BUFFER9 => GL_DRAW_BUFFER8
+        case GL_DRAW_BUFFER10 => GL_DRAW_BUFFER9
+        case GL_DRAW_BUFFER11 => GL_DRAW_BUFFER10
+        case GL_DRAW_BUFFER12 => GL_DRAW_BUFFER11
+        case GL_DRAW_BUFFER13 => GL_DRAW_BUFFER12
+        case GL_DRAW_BUFFER14 => GL_DRAW_BUFFER13
+        case GL_DRAW_BUFFER15 => GL_DRAW_BUFFER14
+      }
+    }
+  }
+
+  object ColorAttachment {
+    val colorAttachmentBounded = new Bounded[ColorAttachment] {
+      val MinValue = GL_COLOR_ATTACHMENT0
+      val MaxValue = GL_COLOR_ATTACHMENT31
+    }
+
+    val colorAttachmentEnum = new Enum[ColorAttachment] {
+      def succ(color: ColorAttachment): ColorAttachment = color match {
+        case GL_COLOR_ATTACHMENT0 => GL_COLOR_ATTACHMENT1
+        case GL_COLOR_ATTACHMENT1 => GL_COLOR_ATTACHMENT2
+        case GL_COLOR_ATTACHMENT2 => GL_COLOR_ATTACHMENT3
+        case GL_COLOR_ATTACHMENT3 => GL_COLOR_ATTACHMENT4
+        case GL_COLOR_ATTACHMENT4 => GL_COLOR_ATTACHMENT5
+        case GL_COLOR_ATTACHMENT5 => GL_COLOR_ATTACHMENT6
+        case GL_COLOR_ATTACHMENT6 => GL_COLOR_ATTACHMENT7
+        case GL_COLOR_ATTACHMENT7 => GL_COLOR_ATTACHMENT8
+        case GL_COLOR_ATTACHMENT8 => GL_COLOR_ATTACHMENT9
+        case GL_COLOR_ATTACHMENT9 => GL_COLOR_ATTACHMENT10
+        case GL_COLOR_ATTACHMENT10 => GL_COLOR_ATTACHMENT11
+        case GL_COLOR_ATTACHMENT11 => GL_COLOR_ATTACHMENT12
+        case GL_COLOR_ATTACHMENT12 => GL_COLOR_ATTACHMENT13
+        case GL_COLOR_ATTACHMENT13 => GL_COLOR_ATTACHMENT14
+        case GL_COLOR_ATTACHMENT14 => GL_COLOR_ATTACHMENT15
+        case GL_COLOR_ATTACHMENT15 => GL_COLOR_ATTACHMENT16
+        case GL_COLOR_ATTACHMENT16 => GL_COLOR_ATTACHMENT17
+        case GL_COLOR_ATTACHMENT17 => GL_COLOR_ATTACHMENT18
+        case GL_COLOR_ATTACHMENT18 => GL_COLOR_ATTACHMENT19
+        case GL_COLOR_ATTACHMENT19 => GL_COLOR_ATTACHMENT20
+        case GL_COLOR_ATTACHMENT20 => GL_COLOR_ATTACHMENT21
+        case GL_COLOR_ATTACHMENT21 => GL_COLOR_ATTACHMENT22
+        case GL_COLOR_ATTACHMENT22 => GL_COLOR_ATTACHMENT23
+        case GL_COLOR_ATTACHMENT23 => GL_COLOR_ATTACHMENT24
+        case GL_COLOR_ATTACHMENT24 => GL_COLOR_ATTACHMENT25
+        case GL_COLOR_ATTACHMENT25 => GL_COLOR_ATTACHMENT26
+        case GL_COLOR_ATTACHMENT26 => GL_COLOR_ATTACHMENT27
+        case GL_COLOR_ATTACHMENT27 => GL_COLOR_ATTACHMENT28
+        case GL_COLOR_ATTACHMENT28 => GL_COLOR_ATTACHMENT29
+        case GL_COLOR_ATTACHMENT29 => GL_COLOR_ATTACHMENT30
+        case GL_COLOR_ATTACHMENT30 => GL_COLOR_ATTACHMENT31
+        case GL_COLOR_ATTACHMENT31 => GL_COLOR_ATTACHMENT0
+      }
+
+      def pred(color: ColorAttachment): ColorAttachment = color match {
+        case GL_COLOR_ATTACHMENT0 => GL_COLOR_ATTACHMENT31
+        case GL_COLOR_ATTACHMENT1 => GL_COLOR_ATTACHMENT0
+        case GL_COLOR_ATTACHMENT2 => GL_COLOR_ATTACHMENT1
+        case GL_COLOR_ATTACHMENT3 => GL_COLOR_ATTACHMENT2
+        case GL_COLOR_ATTACHMENT4 => GL_COLOR_ATTACHMENT3
+        case GL_COLOR_ATTACHMENT5 => GL_COLOR_ATTACHMENT4
+        case GL_COLOR_ATTACHMENT6 => GL_COLOR_ATTACHMENT5
+        case GL_COLOR_ATTACHMENT7 => GL_COLOR_ATTACHMENT6
+        case GL_COLOR_ATTACHMENT8 => GL_COLOR_ATTACHMENT7
+        case GL_COLOR_ATTACHMENT9 => GL_COLOR_ATTACHMENT8
+        case GL_COLOR_ATTACHMENT10 => GL_COLOR_ATTACHMENT9
+        case GL_COLOR_ATTACHMENT11 => GL_COLOR_ATTACHMENT10
+        case GL_COLOR_ATTACHMENT12 => GL_COLOR_ATTACHMENT11
+        case GL_COLOR_ATTACHMENT13 => GL_COLOR_ATTACHMENT12
+        case GL_COLOR_ATTACHMENT14 => GL_COLOR_ATTACHMENT13
+        case GL_COLOR_ATTACHMENT15 => GL_COLOR_ATTACHMENT14
+        case GL_COLOR_ATTACHMENT16 => GL_COLOR_ATTACHMENT15
+        case GL_COLOR_ATTACHMENT17 => GL_COLOR_ATTACHMENT16
+        case GL_COLOR_ATTACHMENT18 => GL_COLOR_ATTACHMENT17
+        case GL_COLOR_ATTACHMENT19 => GL_COLOR_ATTACHMENT18
+        case GL_COLOR_ATTACHMENT20 => GL_COLOR_ATTACHMENT19
+        case GL_COLOR_ATTACHMENT21 => GL_COLOR_ATTACHMENT20
+        case GL_COLOR_ATTACHMENT22 => GL_COLOR_ATTACHMENT21
+        case GL_COLOR_ATTACHMENT23 => GL_COLOR_ATTACHMENT22
+        case GL_COLOR_ATTACHMENT24 => GL_COLOR_ATTACHMENT23
+        case GL_COLOR_ATTACHMENT25 => GL_COLOR_ATTACHMENT24
+        case GL_COLOR_ATTACHMENT26 => GL_COLOR_ATTACHMENT25
+        case GL_COLOR_ATTACHMENT27 => GL_COLOR_ATTACHMENT26
+        case GL_COLOR_ATTACHMENT28 => GL_COLOR_ATTACHMENT27
+        case GL_COLOR_ATTACHMENT29 => GL_COLOR_ATTACHMENT28
+        case GL_COLOR_ATTACHMENT30 => GL_COLOR_ATTACHMENT29
+        case GL_COLOR_ATTACHMENT31 => GL_COLOR_ATTACHMENT30
+      }
+    }
+  }
+
+  object Texture {
+    val textureBounded = new Bounded[Texture] {
+      val MinValue = GL_TEXTURE0
+      val MaxValue = GL_TEXTURE31
+    }
+
+    val textureEnum = new Enum[Texture] {
+      def succ(tex: Texture): Texture = tex match {
+        case GL_TEXTURE0 => GL_TEXTURE1
+        case GL_TEXTURE1 => GL_TEXTURE2
+        case GL_TEXTURE2 => GL_TEXTURE3
+        case GL_TEXTURE3 => GL_TEXTURE4
+        case GL_TEXTURE4 => GL_TEXTURE5
+        case GL_TEXTURE5 => GL_TEXTURE6
+        case GL_TEXTURE6 => GL_TEXTURE7
+        case GL_TEXTURE7 => GL_TEXTURE8
+        case GL_TEXTURE8 => GL_TEXTURE9
+        case GL_TEXTURE9 => GL_TEXTURE10
+        case GL_TEXTURE10 => GL_TEXTURE11
+        case GL_TEXTURE11 => GL_TEXTURE12
+        case GL_TEXTURE12 => GL_TEXTURE13
+        case GL_TEXTURE13 => GL_TEXTURE14
+        case GL_TEXTURE14 => GL_TEXTURE15
+        case GL_TEXTURE15 => GL_TEXTURE16
+        case GL_TEXTURE16 => GL_TEXTURE17
+        case GL_TEXTURE17 => GL_TEXTURE18
+        case GL_TEXTURE18 => GL_TEXTURE19
+        case GL_TEXTURE19 => GL_TEXTURE20
+        case GL_TEXTURE20 => GL_TEXTURE21
+        case GL_TEXTURE21 => GL_TEXTURE22
+        case GL_TEXTURE22 => GL_TEXTURE23
+        case GL_TEXTURE23 => GL_TEXTURE24
+        case GL_TEXTURE24 => GL_TEXTURE25
+        case GL_TEXTURE25 => GL_TEXTURE26
+        case GL_TEXTURE26 => GL_TEXTURE27
+        case GL_TEXTURE27 => GL_TEXTURE28
+        case GL_TEXTURE28 => GL_TEXTURE29
+        case GL_TEXTURE29 => GL_TEXTURE30
+        case GL_TEXTURE30 => GL_TEXTURE31
+        case GL_TEXTURE31 => GL_TEXTURE0
+      }
+
+      def pred(tex: Texture): Texture = tex match {
+        case GL_TEXTURE0 => GL_TEXTURE31
+        case GL_TEXTURE1 => GL_TEXTURE0
+        case GL_TEXTURE2 => GL_TEXTURE1
+        case GL_TEXTURE3 => GL_TEXTURE2
+        case GL_TEXTURE4 => GL_TEXTURE3
+        case GL_TEXTURE5 => GL_TEXTURE4
+        case GL_TEXTURE6 => GL_TEXTURE5
+        case GL_TEXTURE7 => GL_TEXTURE6
+        case GL_TEXTURE8 => GL_TEXTURE7
+        case GL_TEXTURE9 => GL_TEXTURE8
+        case GL_TEXTURE10 => GL_TEXTURE9
+        case GL_TEXTURE11 => GL_TEXTURE10
+        case GL_TEXTURE12 => GL_TEXTURE11
+        case GL_TEXTURE13 => GL_TEXTURE12
+        case GL_TEXTURE14 => GL_TEXTURE13
+        case GL_TEXTURE15 => GL_TEXTURE14
+        case GL_TEXTURE16 => GL_TEXTURE15
+        case GL_TEXTURE17 => GL_TEXTURE16
+        case GL_TEXTURE18 => GL_TEXTURE17
+        case GL_TEXTURE19 => GL_TEXTURE18
+        case GL_TEXTURE20 => GL_TEXTURE19
+        case GL_TEXTURE21 => GL_TEXTURE20
+        case GL_TEXTURE22 => GL_TEXTURE21
+        case GL_TEXTURE23 => GL_TEXTURE22
+        case GL_TEXTURE24 => GL_TEXTURE23
+        case GL_TEXTURE25 => GL_TEXTURE24
+        case GL_TEXTURE26 => GL_TEXTURE25
+        case GL_TEXTURE27 => GL_TEXTURE26
+        case GL_TEXTURE28 => GL_TEXTURE27
+        case GL_TEXTURE29 => GL_TEXTURE28
+        case GL_TEXTURE30 => GL_TEXTURE29
+        case GL_TEXTURE31 => GL_TEXTURE30
+      }
+    }
+}
+*/

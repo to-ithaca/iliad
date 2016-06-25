@@ -26,10 +26,11 @@ object FragmentShader {
 }
 
 object Program {
-  case class Unlinked(
-      vertex: VertexShader.Source, fragment: FragmentShader.Source)
-  case class Linked(
-      id: Int, unlinked: Unlinked, attributes: List[(String, Int)]) {
+  case class Unlinked(vertex: VertexShader.Source,
+                      fragment: FragmentShader.Source)
+  case class Linked(id: Int,
+                    unlinked: Unlinked,
+                    attributes: List[(String, Int)]) {
 
     private def loaded(a: Attribute.Constructor): Option[Attribute.Loaded] =
       attributes.find(_._1 == a.name).map {
@@ -45,8 +46,10 @@ object Program {
 }
 
 object Attribute {
-  case class Constructor(
-      name: String, byteSize: Int, elementSize: Int, `type`: VertexAttribType)
+  case class Constructor(name: String,
+                         byteSize: Int,
+                         elementSize: Int,
+                         `type`: VertexAttribType)
   case class Loaded(constructor: Constructor, location: Int)
 
   case class Offset(loaded: Loaded, offset: Int)
@@ -65,8 +68,10 @@ object Attribute {
 
 object VertexBuffer {
   case class Constructor(attributes: List[Attribute.Constructor])
-  case class Loaded(
-      id: Int, filled: Int, capacity: Int, constructor: Constructor) {}
+  case class Loaded(id: Int,
+                    filled: Int,
+                    capacity: Int,
+                    constructor: Constructor) {}
 
   object Loaded {
     val _filled: Lens[Loaded, Int] = GenLens[Loaded](_.filled)
@@ -102,8 +107,10 @@ object VertexBuffer {
 
 object ElementBuffer {
   case class Constructor(name: String)
-  case class Loaded(
-      id: Int, filled: Int, capacity: Int, constructor: Constructor) {}
+  case class Loaded(id: Int,
+                    filled: Int,
+                    capacity: Int,
+                    constructor: Constructor) {}
 
   object Loaded {
     val _filled: Lens[Loaded, Int] = GenLens[Loaded](_.filled)

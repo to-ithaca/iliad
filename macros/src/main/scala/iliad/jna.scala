@@ -77,7 +77,7 @@ final class BridgeInstanceMacro(val c: whitebox.Context) extends SymbolMacro {
     mkTrees(instance)(
         m =>
           m.isMethod && m.isPublic &&
-          !m.isConstructor && !deprecated(m) && !objectMethods.contains(m),
+            !m.isConstructor && !deprecated(m) && !objectMethods.contains(m),
         s => mkMethod(t)(s.asMethod)
     )
   }
