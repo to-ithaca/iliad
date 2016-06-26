@@ -13,8 +13,8 @@ object Draw {
   def parse[F[_]: Monad](i: GL.Interpreter[F]): Draw ~> F =
     DrawParser.andThen(GL.interpret(i))
 
-  def bindFramebuffer(framebuffer: Int): DSL[Unit] =
-    BindFramebuffer(framebuffer).free
+  def bind(f: Framebuffer.LoadedFramebuffer): DSL[Unit] =
+    BindFramebuffer(f).free
   def clear(m: ChannelBitMask): DSL[Unit] = ClearFrame(m).free
   def use(p: Program.Linked): DSL[Unit] = UseProgram(p).free
   def bind(v: VertexBuffer.Loaded): DSL[Unit] = BindVertexBuffer(v).free
@@ -26,7 +26,7 @@ object Draw {
 
 sealed trait Draw[A]
 
-case class BindFramebuffer(id: Int) extends Draw[Unit]
+case class BindFramebuffer(f: Framebuffer.LoadedFramebuffer) extends Draw[Unit]
 case class ClearFrame(bitMask: ChannelBitMask) extends Draw[Unit]
 case class UseProgram(p: Program.Linked) extends Draw[Unit]
 case class BindVertexBuffer(v: VertexBuffer.Loaded) extends Draw[Unit]
@@ -46,7 +46,8 @@ private object DrawParser extends (Draw ~> GL.DSL) {
                        a.offset)
 
   def apply[A](draw: Draw[A]): GL.DSL[A] = draw match {
-    case BindFramebuffer(f) => GL.bindFramebuffer(f)
+    case BindFramebuffer(f) =>
+      GL.bindFramebuffer(f.frontId) //TODO: flip the framebuffer somehow
     case ClearFrame(bitMask) => GL.clear(bitMask)
     case UseProgram(p) => GL.useProgram(p.id)
     case BindVertexBuffer(v) => GL.bindVertexBuffer(v.id)
@@ -57,3 +58,17 @@ private object DrawParser extends (Draw ~> GL.DSL) {
       GL.drawTriangles(range.start, range.end)
   }
 }
+/**
+Bind 1
+  - read b
+  - write a
+.. Read a
+Bind 2
+ - read a
+ - write b
+//for all fbs, flip
+//for all written textures, flip
+
+
+
+  */

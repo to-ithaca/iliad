@@ -50,6 +50,16 @@ object Load {
            pageSize: Int,
            b: ElementBuffer.Loaded): DSL[ElementBuffer.Update] =
     LoadCopyElementBuffer(ref, data, pageSize, b).free
+
+  def apply(t: Texture.Constructor,
+            d: Option[Texture.Data]): DSL[Texture.Loaded] =
+    LoadTexture(t, d).free
+
+  def apply(r: Renderbuffer.Constructor): DSL[Renderbuffer.Loaded] =
+    LoadRenderbuffer(r).free
+  def apply(f: Framebuffer.Constructor,
+            as: List[(FramebufferAttachment, Framebuffer.AttachmentLoaded)])
+    : DSL[Framebuffer.Loaded] = LoadFramebuffer(f, as).free
 }
 
 sealed trait Load[A]
@@ -91,6 +101,17 @@ case class LoadCopyElementBuffer(ref: ElementData.Ref,
                                  pageSize: Int,
                                  b: ElementBuffer.Loaded)
     extends Load[ElementBuffer.Update]
+
+case class LoadTexture(texture: Texture.Constructor,
+                       data: Option[Texture.Data])
+    extends Load[Texture.Loaded]
+
+case class LoadRenderbuffer(r: Renderbuffer.Constructor)
+    extends Load[Renderbuffer.Loaded]
+case class LoadFramebuffer(
+    f: Framebuffer.Constructor,
+    as: List[(FramebufferAttachment, Framebuffer.AttachmentLoaded)])
+    extends Load[Framebuffer.Loaded]
 
 private object LoadParser extends (Load ~> GL.DSL) {
 
@@ -137,5 +158,18 @@ private object LoadParser extends (Load ~> GL.DSL) {
         .map(
             ElementBuffer.copy(_, b, r, d.size, capacity)
         )
+    case LoadTexture(t, d) =>
+      if (t.isBuffered) GL.makeBufferedTexture(t, d).map {
+        case (f, b) => Texture.Loaded(t, f, Some(b))
+      } else
+        GL.makeSingleTexture(t, d) map (
+            (Texture.Loaded(t, _, None))
+        )
+    case LoadRenderbuffer(r) =>
+      GL.makeRenderbuffer(r).map(Renderbuffer.Loaded(r, _))
+    case LoadFramebuffer(f, as) =>
+      if (f.isBuffered) GL.makeBufferedFramebuffer(as).map {
+        case (front, back) => Framebuffer.Loaded(f, front, Some(back))
+      } else GL.makeSingleFramebuffer(as).map(Framebuffer.Loaded(f, _, None))
   }
 }

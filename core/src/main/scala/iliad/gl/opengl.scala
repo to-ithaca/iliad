@@ -178,6 +178,92 @@ object GL {
                     data,
                     capacity)
 
+  private def textureData(t: Texture.Constructor,
+                          data: Option[Texture.Data],
+                          id: Int): DSL[Unit] =
+    for {
+      _ <- GLBindTexture(id).free
+      _ <- GLTexImage2D(t.format.internal,
+                        t.viewport.width,
+                        t.viewport.height,
+                        t.format.pixel,
+                        t.format.pixelType,
+                        data.map(_.data).getOrElse(null)).free
+    } yield ()
+
+  def makeSingleTexture(t: Texture.Constructor,
+                        data: Option[Texture.Data]): DSL[Int] =
+    for {
+      id <- GLGenTextures(1).free
+      _ <- textureData(t, data, id.head)
+    } yield id.head
+
+  def makeBufferedTexture(t: Texture.Constructor,
+                          data: Option[Texture.Data]): DSL[(Int, Int)] =
+    for {
+      ids <- GLGenTextures(2).free
+      front = ids.head
+      back = ids.tail.head
+      _ <- textureData(t, data, front)
+      _ <- textureData(t, data, back)
+    } yield (front, back)
+
+  def makeRenderbuffer(r: Renderbuffer.Constructor): DSL[Int] =
+    for {
+      ids <- GLGenRenderbuffers(1).free
+      id = ids.head
+      _ <- GLBindRenderbuffer(id).free
+      _ <- GLRenderbufferStorage(r.format, r.viewport.width, r.viewport.height).free
+    } yield id
+
+  private def bindAttachment(a: FramebufferAttachment,
+                             l: Framebuffer.AttachmentLoaded)(
+      f: Texture.Loaded => String Xor Int): DSL[String Xor Unit] = l match {
+    case Renderbuffer.Loaded(_, id) =>
+      GLFramebufferRenderbuffer(a, id).free.map(Xor.right)
+    case t: Texture.Loaded =>
+      f(t).map(id => GLFramebufferTexture2D(a, id).free).sequence
+  }
+
+  private def bindAttachments(
+      as: List[(FramebufferAttachment, Framebuffer.AttachmentLoaded)])(
+      f: Texture.Loaded => String Xor Int): DSL[String Xor Unit] =
+    as.map {
+      case (a, l) => bindAttachment(a, l)(f)
+    }.sequence.map(xors => xors.sequence.map(_ => ()))
+
+  private def makeFramebuffer(
+      as: List[(FramebufferAttachment, Framebuffer.AttachmentLoaded)],
+      id: Int)(f: Texture.Loaded => String Xor Int): DSL[Unit] =
+    for {
+      _ <- bindFramebuffer(id)
+      _ <- bindAttachments(as)(_.frontId.right)
+      _ <- GLDrawBuffers(as.map {
+            case (b: ColorBuffer, _) => Some(b)
+            case _ => None
+          }.flatten).free
+    } yield ()
+
+  def makeSingleFramebuffer(
+      as: List[(FramebufferAttachment, Framebuffer.AttachmentLoaded)])
+    : DSL[Int] =
+    for {
+      ids <- GLGenFramebuffers(1).free
+      id = ids.head
+      _ <- makeFramebuffer(as, id)(_.frontId.right)
+    } yield id
+
+  def makeBufferedFramebuffer(
+      as: List[(FramebufferAttachment, Framebuffer.AttachmentLoaded)])
+    : DSL[(Int, Int)] =
+    for {
+      ids <- GLGenFramebuffers(2).free
+      front = ids.head
+      back = ids.tail.head
+      _ <- makeFramebuffer(as, front)(_.frontId.right)
+      _ <- makeFramebuffer(as, back)(_.backId)
+    } yield (front, back)
+
   def bindFramebuffer(framebuffer: Int): DSL[Unit] =
     GLBindFramebuffer(GL_FRAMEBUFFER, framebuffer).free
   def clear(mask: ChannelBitMask): DSL[Unit] = GLClear(mask).free
@@ -228,7 +314,7 @@ case class GLAttachShader(program: Int, shader: Int) extends GL[Unit]
 case class GLLinkProgram(program: Int) extends GL[Unit]
 case class GLGetAttribLocation(program: Int, name: String) extends GL[Int]
 
-case class GLGenBuffers(number: Int) extends GL[List[Int]]
+case class GLGenBuffers(number: Int) extends GL[Set[Int]]
 case class GLBindBuffer(target: BufferTarget, buffer: Int) extends GL[Unit]
 case class GLBufferData(target: BufferTarget,
                         size: Int,
@@ -247,8 +333,33 @@ case class GLCopyBufferSubData(read: BufferTarget,
                                size: Int)
     extends GL[Unit]
 
+case class GLGenTextures(number: Int) extends GL[Set[Int]]
+case class GLBindTexture(texture: Int) extends GL[Unit]
+case class GLTexImage2D(internalFormat: TextureInternalFormat,
+                        width: Int,
+                        height: Int,
+                        format: TextureFormat,
+                        pixelType: TexturePixelType,
+                        data: Buffer)
+    extends GL[Unit]
+
+case class GLGenRenderbuffers(number: Int) extends GL[Set[Int]]
+case class GLBindRenderbuffer(renderbuffer: Int) extends GL[Unit]
+case class GLRenderbufferStorage(format: RenderbufferInternalFormat,
+                                 width: Int,
+                                 height: Int)
+    extends GL[Unit]
+
+case class GLGenFramebuffers(number: Int) extends GL[Set[Int]]
 case class GLBindFramebuffer(target: FramebufferTarget, framebuffer: Int)
     extends GL[Unit]
+case class GLFramebufferRenderbuffer(channel: FramebufferAttachment,
+                                     renderbuffer: Int)
+    extends GL[Unit]
+case class GLFramebufferTexture2D(channel: FramebufferAttachment, texture: Int)
+    extends GL[Unit]
+case class GLDrawBuffers(buffers: List[ColorBuffer]) extends GL[Unit]
+
 case class GLEnable(capability: Capability) extends GL[Unit]
 case class GLDisable(capability: Capability) extends GL[Unit]
 case class GLColorMask(red: Boolean,

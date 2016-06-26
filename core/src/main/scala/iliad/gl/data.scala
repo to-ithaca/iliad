@@ -166,12 +166,6 @@ object ElementData {
   }
 }
 
-sealed trait Framebuffer
-
-object Framebuffer {
-  object Default extends Framebuffer
-}
-
 case class Model(vertex: Model.VertexRef, element: Model.ElementRef)
 
 object Model {
@@ -179,7 +173,80 @@ object Model {
   case class ElementRef(ref: ElementData.Ref, range: DataRange)
 }
 
-case class DrawOp(model: Model, program: Program.Unlinked, framebuffer: Int) {
+object Texture {
+
+  case class Data(data: Buffer, size: Int)
+
+  case class Format(pixel: TextureFormat,
+                    internal: TextureInternalFormat,
+                    pixelType: TexturePixelType,
+                    bytesPerPixel: Int)
+
+  case class Constructor(name: String,
+                         format: Format,
+                         viewport: Rect[Int],
+                         isBuffered: Boolean)
+      extends Framebuffer.AttachmentConstructor
+
+  case class Loaded(constructor: Constructor,
+                    frontId: Int,
+                    backIdOpt: Option[Int])
+      extends Framebuffer.AttachmentLoaded {
+    def backId: String Xor Int =
+      if (constructor.isBuffered)
+        backIdOpt.toRightXor("Unable to find back id")
+      else frontId.right
+    def flip: Option[Loaded] =
+      backIdOpt.map(b => copy(frontId = b, backIdOpt = Some(frontId)))
+  }
+}
+
+object Renderbuffer {
+  case class Constructor(name: String,
+                         format: RenderbufferInternalFormat,
+                         viewport: Rect[Int])
+      extends Framebuffer.AttachmentConstructor
+  case class Loaded(constructor: Constructor, id: Int)
+      extends Framebuffer.AttachmentLoaded
+}
+
+sealed trait Framebuffer
+
+object Framebuffer {
+  sealed trait LoadedFramebuffer {
+    def frontId: Int
+  }
+
+  object Default extends Framebuffer with LoadedFramebuffer {
+    val frontId: Int = 0
+  }
+
+  sealed trait AttachmentConstructor
+  sealed trait AttachmentLoaded
+  case class Constructor(
+      attachments: List[(FramebufferAttachment, AttachmentConstructor)])
+      extends Framebuffer {
+    def isBuffered: Boolean = attachments.exists {
+      case (_, t: Texture.Constructor) => t.isBuffered
+      case _ => false
+    }
+    def textures = attachments flatMap {
+      case (_, t: Texture.Constructor) => Some(t)
+      case _ => None
+    }
+  }
+  case class Loaded(constructor: Constructor,
+                    frontId: Int,
+                    backId: Option[Int])
+      extends LoadedFramebuffer {
+    def flip: Option[Loaded] =
+      backId.map(b => copy(frontId = b, backId = Some(frontId)))
+  }
+}
+
+case class DrawOp(model: Model,
+                  program: Program.Unlinked,
+                  framebuffer: Framebuffer) {
   val vertexModel: Model.VertexRef = model.vertex
   val vertexData: VertexData.Ref = vertexModel.ref
   val vertexBuffer: VertexBuffer.Constructor = vertexData.buffer

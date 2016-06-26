@@ -139,18 +139,114 @@ object CachedGL {
         } yield ()
     }
 
+  def load(t: Texture.Constructor,
+           d: Option[Texture.Data]): DSL[Texture.Loaded] =
+    Cached.get(t).freekF[CachedGL] flatMap {
+      case Some(tl) => Free.pure(tl)
+      case None =>
+        for {
+          tl <- Load(t, d).freekF[CachedGL]
+          _ <- Cached.put(tl).freekF[CachedGL]
+        } yield tl
+    }
+
+  def renderbuffer(r: Renderbuffer.Constructor): DSL[Renderbuffer.Loaded] =
+    Cached.get(r).freekF[CachedGL] flatMap {
+      case Some(rl) => Free.pure(rl)
+      case None =>
+        for {
+          rl <- Load(r).freekF[CachedGL]
+          _ <- Cached.put(rl).freekF[CachedGL]
+        } yield rl
+    }
+
+  private def attachment(a: Framebuffer.AttachmentConstructor)
+    : DSL[String Xor Framebuffer.AttachmentLoaded] = a match {
+    case t: Texture.Constructor =>
+      Cached
+        .ensure(Cached.get(t), s"Texture missing $t")
+        .freekF[CachedGL]
+        .map(identity)
+    case r: Renderbuffer.Constructor =>
+      Cached
+        .ensure(Cached.get(r), s"Renderbuffer missing $r")
+        .freekF[CachedGL]
+        .map(identity)
+  }
+
+  private def attachments(f: Framebuffer.Constructor): DSL[
+      String Xor List[(FramebufferAttachment, Framebuffer.AttachmentLoaded)]] =
+    f.attachments.map {
+      case (c, a) => XorT(attachment(a)).map(al => c -> al).value
+    }.sequence.map(xors => xors.sequence)
+
+  def load(f: Framebuffer.Constructor): DSL[String Xor Unit] =
+    Cached.get(f).freekF[CachedGL] flatMap {
+      case Some(fl) => Free.pure(().right)
+      case None =>
+        (for {
+          as <- XorT(attachments(f))
+          fl <- xort(Load(f, as).freekF[CachedGL])
+          _ <- xort(Cached.put(fl).freekF[CachedGL])
+        } yield ()).value
+    }
+
   def clear(bitMask: ChannelBitMask): DSL[Unit] =
     Draw.clear(bitMask).freekF[CachedGL]
 
   private def doIfNot(f: Current.DSL[Boolean])(g: DSL[Unit]): DSL[Unit] =
     f.freekF[CachedGL] flatMap (b => if (b) Free.pure(()) else g)
 
-  private def setFramebuffer(framebuffer: Int): DSL[Unit] =
-    doIfNot(Current.contains(framebuffer))(
-        Draw.bindFramebuffer(framebuffer).freekF[CachedGL] >> Current
-          .set(framebuffer)
-          .freekF[CachedGL]
-    )
+  private def setLoaded(f: Framebuffer.LoadedFramebuffer): DSL[Unit] =
+    doIfNot(Current.contains(f))(Draw.bind(f).freekF[CachedGL] >>
+          Current.set(f).freekF[CachedGL])
+
+  private def set(
+      f: Framebuffer): DSL[String Xor Framebuffer.LoadedFramebuffer] =
+    f match {
+      case Framebuffer.Default =>
+        setLoaded(Framebuffer.Default).map(_ => Framebuffer.Default.right)
+      case fc: Framebuffer.Constructor =>
+        (for {
+          fl <- XorT(
+                   Cached
+                     .ensure(Cached.get(fc),
+                             "Framebuffer not loaded. Unable to draw.")
+                     .freekF[CachedGL])
+          _ <- xort(setLoaded(fl))
+        } yield fl).value.map(identity)
+    }
+
+  private def flip(t: Texture.Constructor): DSL[String Xor Unit] =
+    (for {
+      tl <- XorT(
+               Cached
+                 .ensure(Cached.get(t), "Texture not loaded.")
+                 .freekF[CachedGL])
+      _ <- xort(
+              tl.flip
+                .map(next => Cached.put(next).freekF[CachedGL])
+                .sequence
+                .map(_ => ()))
+    } yield ()).value
+
+  private def flip(f: Framebuffer.LoadedFramebuffer): DSL[String Xor Unit] =
+    f match {
+      case Framebuffer.Default => Free.pure(().right)
+      case fl: Framebuffer.Loaded =>
+        (for {
+          _ <- xort(
+                  fl.flip
+                    .map(next => Cached.put(next).freekF[CachedGL])
+                    .sequence
+                    .map(_ => ()))
+          _ <- XorT(
+                  fl.constructor.textures
+                    .map(flip)
+                    .sequence
+                    .map(_.sequence.map(_ => ())))
+        } yield ()).value
+    }
 
   private def set(p: Program.Linked): DSL[Unit] = doIfNot(Current.contains(p))(
       Draw.use(p).freekF[CachedGL] >> Current.set(p).freekF[CachedGL]
@@ -174,7 +270,7 @@ object CachedGL {
 
   def draw(draw: DrawOp): DSL[String Xor Unit] =
     (for {
-      _ <- xort(setFramebuffer(draw.framebuffer))
+      fl <- XorT(set(draw.framebuffer))
       p <- ensure(Cached.get(draw.program),
                   s"Program not loaded. Unable to draw $draw")
       _ <- xort(set(p))
@@ -191,5 +287,6 @@ object CachedGL {
       as <- XorT.fromXor[DSL](p.loaded(draw.attributes))
       _ <- xort(Draw.enable(as, vd.offset(draw.vertexModel)).freekF[CachedGL])
       _ <- xort(Draw(ed.offset(draw.elementModel)).freekF[CachedGL])
+      _ <- XorT(flip(fl))
     } yield ()).value
 }

@@ -12,13 +12,13 @@ import java.nio.IntBuffer
 object GLInterpreter extends (GL.Interpreter[GL.NoEffect]) {
 
   private def genObject(r: Reader[GLES30Library, (Int, IntBuffer) => Unit],
-                        num: Int): Reader[GLES30Library, List[Int]] = r map {
+                        num: Int): Reader[GLES30Library, Set[Int]] = r map {
     f =>
       val ptr = Buffer.capacity[Int](num)
       f(num, ptr)
       val arr = new Array[Int](num)
       ptr.get(arr, 0, num)
-      arr.toList
+      arr.toSet
   }
 
   def apply[A](gl: GL[A]): Reader[GLES30Library, A] = gl match {
@@ -87,9 +87,57 @@ object GLInterpreter extends (GL.Interpreter[GL.NoEffect]) {
                                 readOffset,
                                 writeOffset,
                                 size))
+    case GLGenTextures(number) => genObject(Reader(_.glGenTextures), number)
+    case GLBindTexture(texture) =>
+      Reader(_.glBindTexture(GL_TEXTURE_2D.value, texture))
+    case GLTexImage2D(internalFormat,
+                      width,
+                      height,
+                      format,
+                      pixelType,
+                      data) =>
+      Reader(
+          _.glTexImage2D(GL_TEXTURE_2D.value,
+                         0,
+                         internalFormat.value,
+                         width,
+                         height,
+                         0,
+                         format.value,
+                         pixelType.value,
+                         data))
 
+    case GLGenRenderbuffers(number) =>
+      genObject(Reader(_.glGenRenderbuffers), number)
+    case GLBindRenderbuffer(renderbuffer) =>
+      Reader(_.glBindRenderbuffer(GL_RENDERBUFFER.value, renderbuffer))
+    case GLRenderbufferStorage(format, width, height) =>
+      Reader(
+          _.glRenderbufferStorage(GL_RENDERBUFFER.value,
+                                  format.value,
+                                  width,
+                                  height))
+
+    case GLGenFramebuffers(number) =>
+      genObject(Reader(_.glGenFramebuffers), number)
     case GLBindFramebuffer(target, framebuffer) =>
       Reader(_.glBindFramebuffer(target.value, framebuffer))
+    case GLFramebufferRenderbuffer(channel, renderbuffer) =>
+      Reader(
+          _.glFramebufferRenderbuffer(GL_FRAMEBUFFER.value,
+                                      channel.value,
+                                      GL_RENDERBUFFER.value,
+                                      renderbuffer))
+    case GLFramebufferTexture2D(channel, texture) =>
+      Reader(
+          _.glFramebufferTexture2D(GL_FRAMEBUFFER.value,
+                                   channel.value,
+                                   GL_TEXTURE_2D.value,
+                                   texture,
+                                   0))
+    case GLDrawBuffers(bufs) =>
+      val b = Buffer(bufs.map(_.value): _*)
+      Reader(_.glDrawBuffers(bufs.size, b))
     case GLEnable(cap) => Reader(_.glEnable(cap.value))
     case GLDisable(cap) => Reader(_.glDisable(cap.value))
     case GLColorMask(r, g, b, a) => Reader(_.glColorMask(r, g, b, a))

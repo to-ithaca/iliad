@@ -37,7 +37,10 @@ trait X11GLDependencies extends GLDependencies with IliadApp {
   val GLES30 = iliad.kernel.GLES30
 }
 
-trait X11Bootstrap extends X11EventHandler with X11GLDependencies with LazyLogging {
+trait X11Bootstrap
+    extends X11EventHandler
+    with X11GLDependencies
+    with LazyLogging {
 
   implicit val SS = Strategy.fromFixedDaemonPool(1, "vsync-thread")
   implicit val S = Scheduler.fromFixedDaemonPool(4)
