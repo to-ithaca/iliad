@@ -21,7 +21,7 @@ public interface GLES30Library extends Library {
     void glDisable(int cap);
     int glGetError();
     int glCreateShader(int type);
-    void glShaderSource(int shader, int count, StringArray sources, IntBuffer lengths);
+    void glShaderSource(int shader, int count, String[] sources, IntBuffer lengths);
     void glDeleteShader(int sid);
     void glCompileShader(int sid);
     void glAttachShader(int pid, int sid);

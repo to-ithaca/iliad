@@ -1,6 +1,12 @@
 package iliad
 package syntax
 
+import iliad.std.all._
+import iliad.kernel._
+
+import shapeless._
+import shapeless.ops.nat._
+
 import shapeless._
 
 trait VectorDSyntax extends VectorContextSyntax {

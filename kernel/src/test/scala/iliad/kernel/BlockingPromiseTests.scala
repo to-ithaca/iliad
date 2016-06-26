@@ -27,4 +27,10 @@ class BlockingPromiseTests extends FunSuite with Matchers with Inside {
       case Left(e) => err shouldBe e
     }
   }
+
+  test("blocking promise executes asynchronously") {
+    val p = new BlockingPromise[Int]
+    p.task.unsafeRunAsync(_ => ())
+    p.set(1)
+  }
 }

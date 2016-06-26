@@ -30,6 +30,7 @@ lazy val compilerOptions = Seq(
   )
 )
 
+lazy val monocleVersion = "1.2.2"
 lazy val catsVersion = "0.6.0"
 
 lazy val commonSettings = Seq(
@@ -41,7 +42,7 @@ lazy val commonSettings = Seq(
   libraryDependencies ++= Seq(
     "org.spire-math" %% "imp" % "0.2.0" % "provided",
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4",
-    "co.fs2" %% "fs2-core" % "0.9.0-M2",
+    "co.fs2" %% "fs2-core" % "0.9.0-M3",
     "com.chuusai" %% "shapeless" % "2.2.5",
     "org.spire-math" %% "spire" % "0.11.0",
     "org.typelevel" %% "cats-core" % catsVersion,
@@ -49,7 +50,11 @@ lazy val commonSettings = Seq(
     "org.typelevel" %% "cats-kernel" % catsVersion,
     "org.typelevel" %% "cats-free" % catsVersion,
     "org.typelevel" %% "cats-laws" % catsVersion % "test",
-    "org.slf4j" % "slf4j-api" % "1.7.13"
+    "com.github.julien-truffaut" %% "monocle-core" % monocleVersion,
+    "com.github.julien-truffaut"  %%  "monocle-macro" % monocleVersion,
+    "com.projectseptember" %% "freek" % "0.3.0",
+    "org.slf4j" % "slf4j-api" % "1.7.13",
+    "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0"
   )
 ) ++ compilerOptions
 
@@ -63,6 +68,7 @@ lazy val testSettings = Seq(
 )
 
 lazy val paradiseSettings = Seq(
+  autoCompilerPlugins := true,
   addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full),
   addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.7.1"),
   addCompilerPlugin("com.milessabin" % "si2712fix-plugin" % "1.2.0" cross CrossVersion.full),
@@ -162,5 +168,7 @@ lazy val x11Kernel = (project in file("kernel-x11")).settings(
 
 lazy val root = (project in file(".")).settings(
   buildSettings,
+  paradiseSettings,
+  compilerOptions,
   moduleName := "iliad"
 ).aggregate(macros, core, kernel, win32Kernel, x11Kernel)

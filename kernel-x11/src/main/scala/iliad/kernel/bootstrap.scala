@@ -1,41 +1,79 @@
 package iliad
 package kernel
 
-import iliad.kernel.vectord._
+import scala.reflect._
+import scala.concurrent.duration._
+
 import iliad.kernel.platform.unix.X11
 
 import iliad.kernel._
-import iliad.kernel.GLConstants._
 
 import com.sun.jna.platform.unix.X11._
 import com.sun.jna._
-
 
 import cats._
 import cats.data._
 import cats.implicits._
 
-import org.slf4j._
+import fs2._
+import fs2.async.mutable._
+import fs2.util._
 
-trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
+import com.typesafe.scalalogging._
 
-  private val log = LoggerFactory.getLogger(classOf[X11Bootstrap])
+trait X11GLDependencies extends GLDependencies with IliadApp {
+
+  type NativeDisplay = iliad.kernel.EGL14.EGLNativeDisplayType
+  type NativeWindow = iliad.kernel.EGL14.EGLNativeWindowType
+  type NativePixmap = iliad.kernel.EGL14.EGLNativePixmapType
+  type EGLConfig = iliad.kernel.EGL14.EGLConfig
+  type EGLSurface = iliad.kernel.EGL14.EGLSurface
+  type EGLDisplay = iliad.kernel.EGL14.EGLDisplay
+  type EGLContext = iliad.kernel.EGL14.EGLContext
+
+  val configClassTag = classTag[iliad.kernel.platform.unix.EGLConfig]
+
+  val EGL14 = iliad.kernel.EGL14
+  val GLES30 = iliad.kernel.GLES30
+}
+
+trait X11Bootstrap extends X11EventHandler with X11GLDependencies with LazyLogging {
+
+  implicit val SS = Strategy.fromFixedDaemonPool(1, "vsync-thread")
+  implicit val S = Scheduler.fromFixedDaemonPool(4)
 
   def width: Int
   def height: Int
-  def viewDimensions: Vec2i = v"$width $height"
 
   private val x = iliad.kernel.platform.unix.X11.INSTANCE
 
-  private def openDisplay(): Error Xor Display = Option(x.XOpenDisplay(null)) match {
-    case Some(d) => d.right
-    case scala.None => new Error("Failed to open display").left
+  override val lockDisplay = Some(x.XLockDisplay _)
+  override val unlockDisplay = Some(x.XUnlockDisplay _)
+
+  def vsync(s: Signal[Task, Long]): Unit = {
+    (for {
+      t <- s.get
+      _ <- s.set(t + 5L).schedule(1 second)
+    } yield vsync(s)).unsafeRunAsync(msg => logger.info(msg.toString))
   }
 
-  private def rootWindow(d: Display): Error Xor Window = Option(x.XRootWindow(d, x.XDefaultScreen(d))) match {
-    case Some(w) => w.right
-    case scala.None => new Error("Failed to find root window").left
+  private def initThreads(): Error Xor Unit = {
+    val code = x.XInitThreads()
+    if (code == 0) new Error("Failed to multi thread X11").left
+    else ().right
   }
+
+  private def openDisplay(): Error Xor Display =
+    Option(x.XOpenDisplay(null)) match {
+      case Some(d) => d.right
+      case scala.None => new Error("Failed to open display").left
+    }
+
+  private def rootWindow(d: Display): Error Xor Window =
+    Option(x.XRootWindow(d, x.XDefaultScreen(d))) match {
+      case Some(w) => w.right
+      case scala.None => new Error("Failed to find root window").left
+    }
 
   private def createSimpleWindow(d: Display, root: Window): Error Xor Window = {
     val xOffset = 0
@@ -43,21 +81,28 @@ trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
     val borderWidth = 1
     val border = 1
     val background = 0
-    log.debug("Creating window with width {} height {}", viewDimensions(0), viewDimensions(1))
+    logger.debug(s"Creating window with width $width height $height")
     try {
       x.XCreateSimpleWindow(
-        d, root,
-        xOffset, yOffset, viewDimensions(0), viewDimensions(1),
-        borderWidth, border, background
-      ).right
+            d,
+            root,
+            xOffset,
+            yOffset,
+            width,
+            height,
+            borderWidth,
+            border,
+            background
+        )
+        .right
     } catch {
       case e: Error =>
         new Error(s"Failed to create window: \n ${e.getMessage}").left
-    }    
-}
+    }
+  }
 
   private def addDeletionProtocol(d: Display, w: Window): Error Xor Unit = {
-    log.debug("Adding deletion protocol")
+    logger.debug("Adding deletion protocol")
     val protocol = x.XInternAtom(d, "WM_DELETE_WINDOW", false)
     x.XSetWMProtocols(d, w, Array(protocol), 1) match {
       case 0 => new Error("Unable to set deletion protocol").left
@@ -68,111 +113,63 @@ trait X11Bootstrap extends X11EventHandler { app: IliadApp =>
   private val inputMask = new NativeLong(ExposureMask | ButtonPressMask)
 
   private def addInputDetection(d: Display, w: Window): Unit = {
-    log.debug("Adding input detection")
+    logger.debug("Adding input detection")
     x.XSelectInput(d, w, inputMask)
   }
 
   private def showWindow(d: Display, w: Window): Unit = {
-    log.debug("Showing window")
+    logger.debug("Showing window")
     x.XMapWindow(d, w)
   }
-  
-  private def createWindow : Error Xor (Display, Window) = for {
-    d <- openDisplay()
-    r <- rootWindow(d)
-    w <- createSimpleWindow(d, r)
-    _ <- addDeletionProtocol(d, w)
-    _ = addInputDetection(d, w)
-    _ = showWindow(d, w)
-  } yield (d, w)
+
+  private def createWindow: Error Xor (Display, Window) =
+    for {
+      _ <- initThreads()
+      d <- openDisplay()
+      r <- rootWindow(d)
+      w <- createSimpleWindow(d, r)
+      _ <- addDeletionProtocol(d, w)
+      _ = addInputDetection(d, w)
+      _ = showWindow(d, w)
+    } yield (d, w)
 
   private def destroyWindow(d: Display, w: Window): Unit = {
+    logger.info("closing window")
     x.XDestroyWindow(d, w)
     x.XCloseDisplay(d)
   }
 
-  private def handleAllEvents(d: Display): Boolean = {
+  private def handleEvents(d: Display): Unit = {
     val e = new XEvent()
-    x.XNextEvent(d, e)
-    e.`type` match {
-      case ClientMessage =>
-        log.info("Closing window")
-        false
-      case other => 
-        handleEvent(e)
-        true
+    val hasEvent = x.XCheckMaskEvent(d, inputMask, e)
+    if (hasEvent) {
+      logger.info("received event")
+      handleEvent(e)
     }
   }
 
-  //TODO: tidy this code up
-  def setupEGL(d: Display, w: Window): EGL.Session[EGL14.EGLDisplay, EGL14.EGLConfig, EGL14.EGLSurface, EGL14.EGLContext] = {
-    val eglRunner= EGL.debuggingLogging[EGL14.EGLNativeDisplayType, EGL14.EGLNativeWindowType, EGL14.EGLDisplay, EGL14.EGLConfig, EGL14.EGLSurface, EGL14.EGLContext]
-
-    val writer = eglRunner.setupPrimaryContext(d, w, EGL14.EGL_NO_CONTEXT).run(EGL14).value
-    writer.written.foreach(s => log.info("EGL log {}", s))
-    writer.value match {
-      case Xor.Left(err) =>
-        log.error("Failed to create EGL session - exiting application {}", err)
-        throw new Error(err)
-      case Xor.Right(session) =>
-        log.info("Successfully created EGL session {}", session)
-        session
-    }
+  private def shouldClose(d: Display): Boolean = {
+    x.XCheckTypedEvent(d, ClientMessage, new XEvent())
   }
 
-  def setupGL: Unit = {
-    import iliad.kernel._
-    val gl = GL.debugAndLog(GL.DebuggerConfig(Set.empty), GL.LoggerConfig(Set.empty))
-    val cmds = for {
-      _ <- gl.clear(GL_COLOR_BUFFER_BIT)
-      _ <- gl.clearColor(0f, 1f, 0f, 1f)
-      _ <- gl.clear(GL_COLOR_BUFFER_BIT)
-    } yield ()
-
-    val writer = cmds.run(GLES30).value
-    writer.written.foreach(s => log.info("GL log {}", s))
-
-    writer.value match {
-      case Xor.Left(err) =>
-        log.error("Failed to create GL - exiting application {}", err)
-        throw new IllegalStateException(err)
-      case Xor.Right(_) =>
-        log.info("Successfully called GL commands")
-    }
-  }
-
-  def swapBuffers(display: EGL14.EGLDisplay, surface: EGL14.EGLSurface): Unit = {
-    val eglRunner= EGL.debuggingLogging[EGL14.EGLNativeDisplayType, EGL14.EGLNativeWindowType, EGL14.EGLDisplay, EGL14.EGLConfig, EGL14.EGLSurface, EGL14.EGLContext]
-
-    val writer = eglRunner.swapBuffers(display, surface).run(EGL14).value
-    writer.written.foreach(s => log.info("EGL log {}", s))
-    writer.value match {
-      case Xor.Left(err) =>
-        log.error("Failed to swap EGL buffers - exiting application {}", err)
-        throw new Error(err)
-      case Xor.Right(_) =>
-        log.info("Successfully swapped EGL buffers")
-    }
-
-  }
-
-  def main(args: Array[String]): Unit = {   
+  def main(args: Array[String]): Unit = {
+    println("running app")
     createWindow match {
       case Xor.Right((d, w)) =>
-        log.info("Created window")
-        val session = setupEGL(d, w)
-        setupGL
-        swapBuffers(session.display, session.surface)
-        app.run()
+        logger.info("Created window")
+        session.set((w, d))
+        run()
+
         var shouldDraw = true
-        while(shouldDraw) {
-          shouldDraw = handleAllEvents(d)
+        while (shouldDraw) {
+          x.XLockDisplay(d)
+          handleEvents(d)
+          shouldDraw = !shouldClose(d)
+          x.XUnlockDisplay(d)
         }
         destroyWindow(d, w)
       case Xor.Left(err) =>
-        log.error("Failed to create window - exiting application")
-        throw err
+        session.set(err)
     }
-
   }
 }

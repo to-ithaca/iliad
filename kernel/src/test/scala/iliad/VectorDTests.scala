@@ -1,5 +1,5 @@
 package iliad
-
+/*
 import org.typelevel.discipline.scalatest._
 import org.scalatest._
 
@@ -85,3 +85,4 @@ class VectorDTests extends FunSuite with Discipline {
 
 }
 
+ */

@@ -1,5 +1,5 @@
 package iliad
-
+/*
 import org.scalacheck._
 
 import shapeless._
@@ -29,3 +29,4 @@ trait ArbitraryInstances {
 }
 
 object arbitrary extends ArbitraryInstances
+ */
