@@ -100,8 +100,9 @@ object GL {
       attributes: List[String]): DSL[List[(String, Int)]] =
     traverseKeys(attributes)(a => GLGetAttribLocation(program, a).free)
 
-
-  def getUniformLocations(program: Int, uniforms: List[String]): DSL[List[(String, Int)]] = traverseKeys(uniforms)(u => GLGetUniformLocation(program, u).free)
+  def getUniformLocations(program: Int,
+                          uniforms: List[String]): DSL[List[(String, Int)]] =
+    traverseKeys(uniforms)(u => GLGetUniformLocation(program, u).free)
 
   private val genBuffer: DSL[Int] = GLGenBuffers(1).free.map(_.head)
 
@@ -194,14 +195,14 @@ object GL {
                         data.map(_.data).getOrElse(null)).free
     } yield ()
 
-  def makeSingleTexture(t: Texture.Constructor,
+  def makeSingleTexture(t: Texture.SingleConstructor,
                         data: Option[Texture.Data]): DSL[Int] =
     for {
       id <- GLGenTextures(1).free
       _ <- textureData(t, data, id.head)
     } yield id.head
 
-  def makeBufferedTexture(t: Texture.Constructor,
+  def makeBufferedTexture(t: Texture.DoubleConstructor,
                           data: Option[Texture.Data]): DSL[(Int, Int)] =
     for {
       ids <- GLGenTextures(2).free
@@ -221,26 +222,25 @@ object GL {
 
   private def bindAttachment(a: FramebufferAttachment,
                              l: Framebuffer.AttachmentLoaded)(
-      f: Texture.Loaded => String Xor Int): DSL[String Xor Unit] = l match {
+      f: Texture.Loaded => Int): DSL[Unit] = l match {
     case Renderbuffer.Loaded(_, id) =>
-      GLFramebufferRenderbuffer(a, id).free.map(Xor.right)
-    case t: Texture.Loaded =>
-      f(t).map(id => GLFramebufferTexture2D(a, id).free).sequence
+      GLFramebufferRenderbuffer(a, id).free
+    case t: Texture.Loaded => GLFramebufferTexture2D(a, f(t)).free
   }
 
   private def bindAttachments(
       as: List[(FramebufferAttachment, Framebuffer.AttachmentLoaded)])(
-      f: Texture.Loaded => String Xor Int): DSL[String Xor Unit] =
+      f: Texture.Loaded => Int): DSL[Unit] =
     as.map {
       case (a, l) => bindAttachment(a, l)(f)
-    }.sequence.map(xors => xors.sequence.map(_ => ()))
+    }.sequence.map(_ => ())
 
   private def makeFramebuffer(
       as: List[(FramebufferAttachment, Framebuffer.AttachmentLoaded)],
-      id: Int)(f: Texture.Loaded => String Xor Int): DSL[Unit] =
+      id: Int)(f: Texture.Loaded => Int): DSL[Unit] =
     for {
       _ <- bindFramebuffer(id)
-      _ <- bindAttachments(as)(_.frontId.right)
+      _ <- bindAttachments(as)(f)
       _ <- GLDrawBuffers(as.map {
             case (b: ColorBuffer, _) => Some(b)
             case _ => None
@@ -253,7 +253,7 @@ object GL {
     for {
       ids <- GLGenFramebuffers(1).free
       id = ids.head
-      _ <- makeFramebuffer(as, id)(_.frontId.right)
+      _ <- makeFramebuffer(as, id)(_.frontId)
     } yield id
 
   def makeBufferedFramebuffer(
@@ -263,18 +263,22 @@ object GL {
       ids <- GLGenFramebuffers(2).free
       front = ids.head
       back = ids.tail.head
-      _ <- makeFramebuffer(as, front)(_.frontId.right)
-      _ <- makeFramebuffer(as, back)(_.backId)
+      _ <- makeFramebuffer(as, front)(_.frontId)
+      _ <- makeFramebuffer(as, back) {
+        case t: Texture.SingleLoaded => t.frontId
+        case t: Texture.DoubleLoaded => t.backId
+      }
     } yield (front, back)
 
-  def makeSampler(s: Sampler.Constructor): DSL[Int] = for {
-    ids <- GLGenSamplers(1).free
-    id = ids.head
-    _ <- GLSamplerParameteri(id, GL_TEXTURE_WRAP_S, s.wrapS).free
-    _ <- GLSamplerParameteri(id, GL_TEXTURE_WRAP_S, s.wrapT).free
-    _ <- GLSamplerParameteri(id, GL_TEXTURE_MAG_FILTER, s.magFilter).free
-    _ <- GLSamplerParameteri(id, GL_TEXTURE_MIN_FILTER, s.minFilter).free
-  } yield id
+  def makeSampler(s: Sampler.Constructor): DSL[Int] =
+    for {
+      ids <- GLGenSamplers(1).free
+      id = ids.head
+      _ <- GLSamplerParameteri(id, GL_TEXTURE_WRAP_S, s.wrapS).free
+      _ <- GLSamplerParameteri(id, GL_TEXTURE_WRAP_S, s.wrapT).free
+      _ <- GLSamplerParameteri(id, GL_TEXTURE_MAG_FILTER, s.magFilter).free
+      _ <- GLSamplerParameteri(id, GL_TEXTURE_MIN_FILTER, s.minFilter).free
+    } yield id
 
   def bindFramebuffer(framebuffer: Int): DSL[Unit] =
     GLBindFramebuffer(GL_FRAMEBUFFER, framebuffer).free
@@ -300,13 +304,16 @@ object GL {
                                  offset).free
     } yield ()
 
-
-  def bindTextureUniform(unit: TextureUnit, location: Int, texture: Int, sampler: Int): DSL[Unit] = for {
-    _ <- GLActiveTexture(unit).free
-    _ <- GLBindTexture(texture).free
-    _ <- GLBindSampler(unit, sampler).free
-    _ <- GLUniform1i(location, unit.value - GL_TEXTURE0.value).free
-  } yield ()
+  def bindTextureUniform(unit: TextureUnit,
+                         location: Int,
+                         texture: Int,
+                         sampler: Int): DSL[Unit] =
+    for {
+      _ <- GLActiveTexture(unit).free
+      _ <- GLBindTexture(texture).free
+      _ <- GLBindSampler(unit, sampler).free
+      _ <- GLUniform1i(location, unit.value - GL_TEXTURE0.value).free
+    } yield ()
 
   def drawTriangles(start: Int, end: Int): DSL[Unit] =
     GLDrawElements(GL_TRIANGLES,
@@ -381,7 +388,10 @@ case class GLFramebufferTexture2D(channel: FramebufferAttachment, texture: Int)
 case class GLDrawBuffers(buffers: List[ColorBuffer]) extends GL[Unit]
 
 case class GLGenSamplers(number: Int) extends GL[Set[Int]]
-case class GLSamplerParameteri(sampler: Int, name: SamplerParameter, value: SamplerValue) extends GL[Unit]
+case class GLSamplerParameteri(sampler: Int,
+                               name: SamplerParameter,
+                               value: SamplerValue)
+    extends GL[Unit]
 
 case class GLEnable(capability: Capability) extends GL[Unit]
 case class GLDisable(capability: Capability) extends GL[Unit]

@@ -14,16 +14,18 @@ import monocle.macros._
 import monocle.syntax.all._
 
 object VertexShader {
-  case class Source(text: String, attributes: List[Attribute.Constructor], textures: Map[String, Sampler.Constructor]) {
+  case class Source(text: String,
+                    attributes: List[Attribute.Constructor],
+                    textures: List[(String, Sampler.Constructor)]) {
     def attributeNames: List[String] = attributes.map(_.name)
-    def textureNames: List[String] = textures.map(_._1).toList
+    def textureNames: List[String] = textures.map(_._1)
   }
   case class Compiled(id: Int, source: Source)
 }
 
 object FragmentShader {
-  case class Source(text: String, textures: Map[String, Sampler.Constructor]) {
-    def textureNames: List[String] = textures.map(_._1).toList
+  case class Source(text: String, textures: List[(String, Sampler.Constructor)]) {
+    def textureNames: List[String] = textures.map(_._1)
   }
   case class Compiled(id: Int, source: Source)
 }
@@ -31,11 +33,14 @@ object FragmentShader {
 object Program {
   case class Unlinked(vertex: VertexShader.Source,
                       fragment: FragmentShader.Source) {
-    def textures: Map[String, Sampler.Constructor] = vertex.textures ++ fragment.textures
+    def samplers: Map[String, Sampler.Constructor] =
+      (vertex.textures ++ fragment.textures).toMap
   }
+
   case class Linked(id: Int,
                     unlinked: Unlinked,
-                    attributes: List[(String, Int)], textures: List[(String, Int)]) {
+                    attributes: List[(String, Int)],
+                    textureUniforms: List[(String, Int)]) {
 
     private def loaded(a: Attribute.Constructor): Option[Attribute.Loaded] =
       attributes.find(_._1 == a.name).map {
@@ -48,18 +53,21 @@ object Program {
               loaded(a).toRightXor(s"Location for attribute is undefined: $a"))
         .map(Attribute.LoadedAttributes)
 
-    def textureUniforms(ts: Map[String, Texture.Constructor]): String Xor List[TextureUniform] = 
-      textures.zipWithIndex.map {
-        case ((name, location), index) => 
-          val sampler = unlinked.textures(name)
-          ts.get(name).toRightXor(s"Unable to find uniform for texture $name").map { t => 
-            val unit: TextureUnit = ???
-            TextureUniform(unit, location, t, sampler)
-          }
+    def textureUniforms(ts: Map[String, Texture.Constructor])
+      : String Xor List[TextureUniform] =
+      textureUniforms.zipWithIndex.map {
+        case ((name, location), index) =>
+          ts.get(name)
+            .toRightXor(s"Unable to find uniform for texture $name")
+            .map(t => TextureUniform(Bounded.index[TextureUnit](index), 
+              location, t, unlinked.samplers(name)))
       }.sequence
   }
 
-  case class TextureUniform(unit: TextureUnit, location: Int, texture: Texture.Constructor, sampler: Sampler.Constructor)
+  case class TextureUniform(unit: TextureUnit,
+                            location: Int,
+                            texture: Texture.Constructor,
+                            sampler: Sampler.Constructor)
 }
 
 object Attribute {
@@ -199,22 +207,26 @@ object Texture {
                     pixelType: TexturePixelType,
                     bytesPerPixel: Int)
 
-  case class Constructor(name: String,
-                         format: Format,
-                         viewport: Rect[Int],
-                         isBuffered: Boolean)
-      extends Framebuffer.AttachmentConstructor
+  sealed trait Constructor extends Framebuffer.AttachmentConstructor {
+    def name: String
+    def format: Format
+    def viewport: Rect[Int]
+  }
 
-  case class Loaded(constructor: Constructor,
-                    frontId: Int,
-                    backIdOpt: Option[Int])
-      extends Framebuffer.AttachmentLoaded {
-    def backId: String Xor Int =
-      if (constructor.isBuffered)
-        backIdOpt.toRightXor("Unable to find back id")
-      else frontId.right
-    def flip: Option[Loaded] =
-      backIdOpt.map(b => copy(frontId = b, backIdOpt = Some(frontId)))
+  case class SingleConstructor(name: String,
+                         format: Format,
+                         viewport: Rect[Int])
+      extends Constructor
+  case class DoubleConstructor(name: String, format: Format, viewport: Rect[Int]) extends Constructor
+
+  sealed trait Loaded extends Framebuffer.AttachmentLoaded {
+    def constructor: Constructor
+    def frontId: Int
+  }
+
+  case class SingleLoaded(constructor: SingleConstructor, frontId: Int) extends Loaded
+  case class DoubleLoaded(constructor: DoubleConstructor, frontId: Int, backId: Int) extends Loaded {
+    def flip: DoubleLoaded = copy(frontId = backId, backId = frontId)
   }
 }
 
@@ -227,49 +239,55 @@ object Renderbuffer {
       extends Framebuffer.AttachmentLoaded
 }
 
-sealed trait Framebuffer
+
 
 object Framebuffer {
-  sealed trait LoadedFramebuffer {
-    def frontId: Int
-  }
-
-  object Default extends Framebuffer with LoadedFramebuffer {
-    val frontId: Int = 0
-  }
-
-  sealed trait AttachmentConstructor
-  sealed trait AttachmentLoaded
-  case class Constructor(
-      attachments: List[(FramebufferAttachment, AttachmentConstructor)])
-      extends Framebuffer {
-    def isBuffered: Boolean = attachments.exists {
-      case (_, t: Texture.Constructor) => t.isBuffered
-      case _ => false
-    }
+  sealed trait Constructor {
+    def attachments: List[(FramebufferAttachment, AttachmentConstructor)]
     def textures = attachments flatMap {
       case (_, t: Texture.Constructor) => Some(t)
       case _ => None
     }
   }
-  case class Loaded(constructor: Constructor,
-                    frontId: Int,
-                    backId: Option[Int])
-      extends LoadedFramebuffer {
-    def flip: Option[Loaded] =
-      backId.map(b => copy(frontId = b, backId = Some(frontId)))
+
+  sealed trait AttachmentConstructor
+  sealed trait AttachmentLoaded
+  
+
+  case class SingleConstructor(
+      attachments: List[(FramebufferAttachment, AttachmentConstructor)]) extends Constructor
+
+  case class DoubleConstructor(
+      attachments: List[(FramebufferAttachment, AttachmentConstructor)]) extends Constructor  
+
+  sealed trait Loaded {
+    def frontId: Int
+    def constructor: Constructor
   }
+
+  case class SingleLoaded(constructor: Constructor, frontId: Int) extends Loaded 
+
+  case class DoubleLoaded(constructor: DoubleConstructor, frontId: Int, backId: Int) 
+      extends Loaded {
+    def flip: DoubleLoaded = copy(frontId = backId, backId = frontId)
+  }
+
+  val default = SingleConstructor(Nil)
+  val defaultLoaded = SingleLoaded(default, 0)
 }
 
 object Sampler {
-  case class Constructor(wrapS: TextureWrap, wrapT: TextureWrap, minFilter: TextureMinFilter, magFilter: TextureMagFilter)
+  case class Constructor(wrapS: TextureWrap,
+                         wrapT: TextureWrap,
+                         minFilter: TextureMinFilter,
+                         magFilter: TextureMagFilter)
   case class Loaded(constructor: Constructor, id: Int)
 }
 
 case class DrawOp(model: Model,
-                  program: Program.Unlinked, 
-  textureUniforms: Map[String, Texture.Constructor],
-                  framebuffer: Framebuffer) {
+                  program: Program.Unlinked,
+                  textureUniforms: Map[String, Texture.Constructor],
+                  framebuffer: Framebuffer.Constructor) {
   val vertexModel: Model.VertexRef = model.vertex
   val vertexData: VertexData.Ref = vertexModel.ref
   val vertexBuffer: VertexBuffer.Constructor = vertexData.buffer

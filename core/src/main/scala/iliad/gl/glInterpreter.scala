@@ -72,7 +72,7 @@ object GLInterpreter extends (GL.Interpreter[GL.NoEffect]) {
     case GLLinkProgram(program) => Reader(_.glLinkProgram(program))
     case GLGetAttribLocation(program, name) =>
       Reader(_.glGetAttribLocation(program, name))
-    case GLGetUniformLocation(program, name) => 
+    case GLGetUniformLocation(program, name) =>
       Reader(_.glGetUniformLocation(program, name))
     case GLGenBuffers(number) => genObject(Reader(_.glGenBuffers), number)
     case GLBindBuffer(target, buffer) =>
@@ -139,9 +139,10 @@ object GLInterpreter extends (GL.Interpreter[GL.NoEffect]) {
     case GLDrawBuffers(bufs) =>
       val b = Buffer(bufs.map(_.value): _*)
       Reader(_.glDrawBuffers(bufs.size, b))
-    
+
     case GLGenSamplers(number) => genObject(Reader(_.glGenSamplers), number)
-    case GLSamplerParameteri(sampler, name, value) => Reader(_.glSamplerParameteri(sampler, name.value, value.value))
+    case GLSamplerParameteri(sampler, name, value) =>
+      Reader(_.glSamplerParameteri(sampler, name.value, value.value))
 
     case GLEnable(cap) => Reader(_.glEnable(cap.value))
     case GLDisable(cap) => Reader(_.glDisable(cap.value))
@@ -163,7 +164,8 @@ object GLInterpreter extends (GL.Interpreter[GL.NoEffect]) {
                                   stride,
                                   offset))
     case GLActiveTexture(unit) => Reader(_.glActiveTexture(unit.value))
-    case GLBindSampler(unit, sampler) => Reader(_.glBindSampler(unit.value - GL_TEXTURE0.value, sampler))
+    case GLBindSampler(unit, sampler) =>
+      Reader(_.glBindSampler(unit.value - GL_TEXTURE0.value, sampler))
     case GLUniform1i(location, value) => Reader(_.glUniform1i(location, value))
     case GLDrawElements(mode, count, t, offset) =>
       Reader(_.glDrawElements(mode.value, count, t.value, offset))

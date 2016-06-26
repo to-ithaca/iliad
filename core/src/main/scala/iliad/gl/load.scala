@@ -131,8 +131,11 @@ private object LoadParser extends (Load ~> GL.DSL) {
         id <- GL.makeProgram(vs.id, fs.id)
         _ <- GL.useProgram(id)
         as <- GL.getAttributeLocations(id, vs.source.attributeNames)
-        us <- GL.getUniformLocations(id, vs.source.textureNames ++ fs.source.textureNames)
-      } yield Program.Linked(id, Program.Unlinked(vs.source, fs.source), as, us)
+        us <- GL.getUniformLocations(
+                 id,
+                 vs.source.textureNames ++ fs.source.textureNames)
+      } yield
+        Program.Linked(id, Program.Unlinked(vs.source, fs.source), as, us)
 
     case LoadCreateVertexBuffer(r, d, pageSize, b) =>
       val capacity = roundUp(d.size, pageSize)
@@ -162,20 +165,24 @@ private object LoadParser extends (Load ~> GL.DSL) {
         .map(
             ElementBuffer.copy(_, b, r, d.size, capacity)
         )
-    case LoadTexture(t, d) =>
-      if (t.isBuffered) GL.makeBufferedTexture(t, d).map {
-        case (f, b) => Texture.Loaded(t, f, Some(b))
-      } else
-        GL.makeSingleTexture(t, d) map (
-            (Texture.Loaded(t, _, None))
-        )
+    case LoadTexture(t, d) => t match {
+      case s: Texture.SingleConstructor => 
+        GL.makeSingleTexture(s, d) map ((Texture.SingleLoaded(s, _)))
+      case dd: Texture.DoubleConstructor =>
+        GL.makeBufferedTexture(dd, d).map {
+          case (f, b) => Texture.DoubleLoaded(dd, f, b)
+        }
+    }
     case LoadRenderbuffer(r) =>
       GL.makeRenderbuffer(r).map(Renderbuffer.Loaded(r, _))
     case LoadFramebuffer(f, as) =>
-      if (f.isBuffered) GL.makeBufferedFramebuffer(as).map {
-        case (front, back) => Framebuffer.Loaded(f, front, Some(back))
-      } else GL.makeSingleFramebuffer(as).map(Framebuffer.Loaded(f, _, None))
-    case LoadSampler(s) => 
+      f match {
+        case s: Framebuffer.SingleConstructor => GL.makeSingleFramebuffer(as).map(Framebuffer.SingleLoaded(s, _))
+        case d: Framebuffer.DoubleConstructor => GL.makeBufferedFramebuffer(as) map {
+          case (ff, b) => Framebuffer.DoubleLoaded(d, ff, b)
+        }
+      }
+    case LoadSampler(s) =>
       GL.makeSampler(s).map(Sampler.Loaded(s, _))
   }
 }

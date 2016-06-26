@@ -45,8 +45,7 @@ object Cached {
   def put(b: ElementBuffer.Update): DSL[Unit] =
     ElementBufferPut(b.buffer).free >> ElementDataPut(b.data).free
 
-  def get(t: Texture.Constructor): DSL[Option[Texture.Loaded]] =
-    TextureGet(t).free
+  def get(t: Texture.Constructor): DSL[Option[Texture.Loaded]] = TextureGet(t).free
   def put(t: Texture.Loaded): DSL[Unit] = TexturePut(t).free
 
   def get(r: Renderbuffer.Constructor): DSL[Option[Renderbuffer.Loaded]] =
@@ -57,7 +56,8 @@ object Cached {
     FramebufferGet(f).free
   def put(f: Framebuffer.Loaded): DSL[Unit] = FramebufferPut(f).free
 
-  def get(s: Sampler.Constructor): DSL[Option[Sampler.Loaded]] = SamplerGet(s).free
+  def get(s: Sampler.Constructor): DSL[Option[Sampler.Loaded]] =
+    SamplerGet(s).free
 
   def put(s: Sampler.Loaded): DSL[Unit] = SamplerPut(s).free
 
@@ -75,7 +75,7 @@ object Cached {
       textures: Map[Texture.Constructor, Texture.Loaded],
       renderbuffers: Map[Renderbuffer.Constructor, Renderbuffer.Loaded],
       framebuffers: Map[Framebuffer.Constructor, Framebuffer.Loaded],
-    samplers: Map[Sampler.Constructor, Sampler.Loaded])
+      samplers: Map[Sampler.Constructor, Sampler.Loaded])
 
   object State {
     val empty: State = State(Map.empty,
@@ -87,7 +87,7 @@ object Cached {
                              Map.empty,
                              Map.empty,
                              Map.empty,
-      Map.empty,
+                             Map.empty,
                              Map.empty)
   }
 }
@@ -129,7 +129,8 @@ case class FramebufferGet(f: Framebuffer.Constructor)
     extends Cached[Option[Framebuffer.Loaded]]
 case class FramebufferPut(f: Framebuffer.Loaded) extends Cached[Unit]
 
-case class SamplerGet(s: Sampler.Constructor) extends Cached[Option[Sampler.Loaded]]
+case class SamplerGet(s: Sampler.Constructor)
+    extends Cached[Option[Sampler.Loaded]]
 case class SamplerPut(s: Sampler.Loaded) extends Cached[Unit]
 
 private object CachedParser extends (Cached ~> Cached.Effect) {
@@ -169,7 +170,8 @@ private object CachedParser extends (Cached ~> Cached.Effect) {
       Cached.State,
       Map[Framebuffer.Constructor, Framebuffer.Loaded]] =
     GenLens[Cached.State](_.framebuffers)
-  private val _samplers: Lens[Cached.State, Map[Sampler.Constructor, Sampler.Loaded]] = 
+  private val _samplers: Lens[Cached.State,
+                              Map[Sampler.Constructor, Sampler.Loaded]] =
     GenLens[Cached.State](_.samplers)
 
   def apply[A](cached: Cached[A]): Cached.Effect[A] =
@@ -219,11 +221,10 @@ private object CachedParser extends (Cached ~> Cached.Effect) {
         CatsState.modify(
             _ &|-> _framebuffers ^|-> at(f.constructor) set Some(f))
 
-      case SamplerGet(s) => 
+      case SamplerGet(s) =>
         CatsState.inspect(_ &|-> _samplers ^|-> at(s) get)
       case SamplerPut(s) =>
-        CatsState.modify(
-            _ &|-> _samplers ^|-> at(s.constructor) set Some(s))
- 
+        CatsState.modify(_ &|-> _samplers ^|-> at(s.constructor) set Some(s))
+
     }
 }

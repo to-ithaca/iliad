@@ -13,11 +13,14 @@ object Draw {
   def parse[F[_]: Monad](i: GL.Interpreter[F]): Draw ~> F =
     DrawParser.andThen(GL.interpret(i))
 
-  def bind(f: Framebuffer.LoadedFramebuffer): DSL[Unit] =
+  def bind(f: Framebuffer.Loaded): DSL[Unit] =
     BindFramebuffer(f).free
   def clear(m: ChannelBitMask): DSL[Unit] = ClearFrame(m).free
   def use(p: Program.Linked): DSL[Unit] = UseProgram(p).free
-  def bind(unit: TextureUnit, location: Int, t: Texture.Loaded, s: Sampler.Loaded): DSL[Unit] = 
+  def bind(unit: TextureUnit,
+           location: Int,
+           t: Texture.Loaded,
+           s: Sampler.Loaded): DSL[Unit] =
     BindTextureUniform(unit, location, t, s).free
   def bind(v: VertexBuffer.Loaded): DSL[Unit] = BindVertexBuffer(v).free
   def bind(e: ElementBuffer.Loaded): DSL[Unit] = BindElementBuffer(e).free
@@ -28,10 +31,14 @@ object Draw {
 
 sealed trait Draw[A]
 
-case class BindFramebuffer(f: Framebuffer.LoadedFramebuffer) extends Draw[Unit]
+case class BindFramebuffer(f: Framebuffer.Loaded) extends Draw[Unit]
 case class ClearFrame(bitMask: ChannelBitMask) extends Draw[Unit]
 case class UseProgram(p: Program.Linked) extends Draw[Unit]
-case class BindTextureUniform(unit: TextureUnit, location: Int, t: Texture.Loaded, s: Sampler.Loaded) extends Draw[Unit]
+case class BindTextureUniform(unit: TextureUnit,
+                              location: Int,
+                              t: Texture.Loaded,
+                              s: Sampler.Loaded)
+    extends Draw[Unit]
 case class BindVertexBuffer(v: VertexBuffer.Loaded) extends Draw[Unit]
 case class BindElementBuffer(e: ElementBuffer.Loaded) extends Draw[Unit]
 case class EnableAttributes(as: Attribute.LoadedAttributes, baseOffset: Int)
@@ -53,7 +60,7 @@ private object DrawParser extends (Draw ~> GL.DSL) {
       GL.bindFramebuffer(f.frontId)
     case ClearFrame(bitMask) => GL.clear(bitMask)
     case UseProgram(p) => GL.useProgram(p.id)
-    case BindTextureUniform(unit, location, t, s) => 
+    case BindTextureUniform(unit, location, t, s) =>
       GL.bindTextureUniform(unit, location, t.frontId, s.id)
     case BindVertexBuffer(v) => GL.bindVertexBuffer(v.id)
     case BindElementBuffer(e) => GL.bindElementBuffer(e.id)
@@ -63,17 +70,3 @@ private object DrawParser extends (Draw ~> GL.DSL) {
       GL.drawTriangles(range.start, range.end)
   }
 }
-/**
-Bind 1
-  - read b
-  - write a
-.. Read a
-Bind 2
- - read a
- - write b
-//for all fbs, flip
-//for all written textures, flip
-
-
-
-  */

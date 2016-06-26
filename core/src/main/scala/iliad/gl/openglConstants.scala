@@ -1436,15 +1436,16 @@ case object GL_TEXTURE_IMMUTABLE_LEVELS extends IntConstant(0x82DF)
       }
     }
   }
+ */
 
-  object Texture {
-    val textureBounded = new Bounded[Texture] {
+object TextureUnit {
+    implicit val textureBounded = new Bounded[TextureUnit] {
       val MinValue = GL_TEXTURE0
       val MaxValue = GL_TEXTURE31
     }
 
-    val textureEnum = new Enum[Texture] {
-      def succ(tex: Texture): Texture = tex match {
+    implicit val textureEnum = new Enum[TextureUnit] {
+      def succ(tex: TextureUnit): TextureUnit = tex match {
         case GL_TEXTURE0 => GL_TEXTURE1
         case GL_TEXTURE1 => GL_TEXTURE2
         case GL_TEXTURE2 => GL_TEXTURE3
@@ -1479,7 +1480,7 @@ case object GL_TEXTURE_IMMUTABLE_LEVELS extends IntConstant(0x82DF)
         case GL_TEXTURE31 => GL_TEXTURE0
       }
 
-      def pred(tex: Texture): Texture = tex match {
+      def pred(tex: TextureUnit): TextureUnit = tex match {
         case GL_TEXTURE0 => GL_TEXTURE31
         case GL_TEXTURE1 => GL_TEXTURE0
         case GL_TEXTURE2 => GL_TEXTURE1
@@ -1515,4 +1516,4 @@ case object GL_TEXTURE_IMMUTABLE_LEVELS extends IntConstant(0x82DF)
       }
     }
 }
- */
+
