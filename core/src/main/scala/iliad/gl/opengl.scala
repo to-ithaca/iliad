@@ -100,6 +100,9 @@ object GL {
       attributes: List[String]): DSL[List[(String, Int)]] =
     traverseKeys(attributes)(a => GLGetAttribLocation(program, a).free)
 
+
+  def getUniformLocations(program: Int, uniforms: List[String]): DSL[List[(String, Int)]] = traverseKeys(uniforms)(u => GLGetUniformLocation(program, u).free)
+
   private val genBuffer: DSL[Int] = GLGenBuffers(1).free.map(_.head)
 
   private def makeEmptyBuffer(target: BufferTarget, capacity: Int): DSL[Int] =
@@ -264,6 +267,15 @@ object GL {
       _ <- makeFramebuffer(as, back)(_.backId)
     } yield (front, back)
 
+  def makeSampler(s: Sampler.Constructor): DSL[Int] = for {
+    ids <- GLGenSamplers(1).free
+    id = ids.head
+    _ <- GLSamplerParameteri(id, GL_TEXTURE_WRAP_S, s.wrapS).free
+    _ <- GLSamplerParameteri(id, GL_TEXTURE_WRAP_S, s.wrapT).free
+    _ <- GLSamplerParameteri(id, GL_TEXTURE_MAG_FILTER, s.magFilter).free
+    _ <- GLSamplerParameteri(id, GL_TEXTURE_MIN_FILTER, s.minFilter).free
+  } yield id
+
   def bindFramebuffer(framebuffer: Int): DSL[Unit] =
     GLBindFramebuffer(GL_FRAMEBUFFER, framebuffer).free
   def clear(mask: ChannelBitMask): DSL[Unit] = GLClear(mask).free
@@ -287,6 +299,14 @@ object GL {
                                  stride,
                                  offset).free
     } yield ()
+
+
+  def bindTextureUniform(unit: TextureUnit, location: Int, texture: Int, sampler: Int): DSL[Unit] = for {
+    _ <- GLActiveTexture(unit).free
+    _ <- GLBindTexture(texture).free
+    _ <- GLBindSampler(unit, sampler).free
+    _ <- GLUniform1i(location, unit.value - GL_TEXTURE0.value).free
+  } yield ()
 
   def drawTriangles(start: Int, end: Int): DSL[Unit] =
     GLDrawElements(GL_TRIANGLES,
@@ -313,7 +333,7 @@ case object GLCreateProgram extends GL[Int]
 case class GLAttachShader(program: Int, shader: Int) extends GL[Unit]
 case class GLLinkProgram(program: Int) extends GL[Unit]
 case class GLGetAttribLocation(program: Int, name: String) extends GL[Int]
-
+case class GLGetUniformLocation(program: Int, name: String) extends GL[Int]
 case class GLGenBuffers(number: Int) extends GL[Set[Int]]
 case class GLBindBuffer(target: BufferTarget, buffer: Int) extends GL[Unit]
 case class GLBufferData(target: BufferTarget,
@@ -360,6 +380,9 @@ case class GLFramebufferTexture2D(channel: FramebufferAttachment, texture: Int)
     extends GL[Unit]
 case class GLDrawBuffers(buffers: List[ColorBuffer]) extends GL[Unit]
 
+case class GLGenSamplers(number: Int) extends GL[Set[Int]]
+case class GLSamplerParameteri(sampler: Int, name: SamplerParameter, value: SamplerValue) extends GL[Unit]
+
 case class GLEnable(capability: Capability) extends GL[Unit]
 case class GLDisable(capability: Capability) extends GL[Unit]
 case class GLColorMask(red: Boolean,
@@ -376,6 +399,11 @@ case class GLVertexAttribPointer(location: Int,
                                  stride: Int,
                                  offset: Int)
     extends GL[Unit]
+
+case class GLActiveTexture(unit: TextureUnit) extends GL[Unit]
+case class GLBindSampler(unit: TextureUnit, sampler: Int) extends GL[Unit]
+case class GLUniform1i(location: Int, value: Int) extends GL[Unit]
+
 case class GLDrawElements(mode: PrimitiveType,
                           count: Int,
                           `type`: IndexType,

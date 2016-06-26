@@ -31,7 +31,7 @@ case object GL_COLOR_BUFFER_BIT
     extends BitmaskConstant(0x00004000)
     with ChannelBit
 
-sealed trait TextureNumber extends IntConstant
+sealed trait TextureUnit extends IntConstant
 sealed trait ColorAttachment extends IntConstant with ColorBuffer
 
 sealed trait DrawBuffer extends IntConstant with Parameter
@@ -54,10 +54,10 @@ sealed trait RenderbufferInternalFormat extends IntConstant
 sealed trait TextureTarget extends IntConstant
 sealed trait TextureParameter extends IntConstant
 sealed trait TextureCompareMode extends IntConstant
-sealed trait TextureMinFilter extends IntConstant
-sealed trait TextureMagFilter extends IntConstant
+sealed trait TextureMinFilter extends IntConstant with SamplerValue
+sealed trait TextureMagFilter extends IntConstant with SamplerValue
 sealed trait TextureSwizzle extends IntConstant
-sealed trait TextureWrap extends IntConstant
+sealed trait TextureWrap extends IntConstant with SamplerValue
 sealed trait TextureCompareFunc extends IntConstant
 sealed trait TextureInternalFormat extends IntConstant
 sealed trait TextureSizedInternalFormat extends TextureInternalFormat
@@ -69,6 +69,7 @@ sealed trait PrimitiveType extends IntConstant
 sealed trait IndexType extends IntConstant
 sealed trait Parameter extends IntConstant
 sealed trait SamplerParameter extends IntConstant
+sealed trait SamplerValue extends IntConstant
 sealed trait Channel extends IntConstant
 sealed trait ColorBuffer extends IntConstant
 sealed trait BlendMode extends IntConstant
@@ -438,38 +439,38 @@ case object GL_TEXTURE_CUBE_MAP_NEGATIVE_Z
 case object GL_MAX_CUBE_MAP_TEXTURE_SIZE
     extends IntConstant(0x851C)
     with Parameter
-case object GL_TEXTURE0 extends IntConstant(0x84C0) with TextureNumber
-case object GL_TEXTURE1 extends IntConstant(0x84C1) with TextureNumber
-case object GL_TEXTURE2 extends IntConstant(0x84C2) with TextureNumber
-case object GL_TEXTURE3 extends IntConstant(0x84C3) with TextureNumber
-case object GL_TEXTURE4 extends IntConstant(0x84C4) with TextureNumber
-case object GL_TEXTURE5 extends IntConstant(0x84C5) with TextureNumber
-case object GL_TEXTURE6 extends IntConstant(0x84C6) with TextureNumber
-case object GL_TEXTURE7 extends IntConstant(0x84C7) with TextureNumber
-case object GL_TEXTURE8 extends IntConstant(0x84C8) with TextureNumber
-case object GL_TEXTURE9 extends IntConstant(0x84C9) with TextureNumber
-case object GL_TEXTURE10 extends IntConstant(0x84CA) with TextureNumber
-case object GL_TEXTURE11 extends IntConstant(0x84CB) with TextureNumber
-case object GL_TEXTURE12 extends IntConstant(0x84CC) with TextureNumber
-case object GL_TEXTURE13 extends IntConstant(0x84CD) with TextureNumber
-case object GL_TEXTURE14 extends IntConstant(0x84CE) with TextureNumber
-case object GL_TEXTURE15 extends IntConstant(0x84CF) with TextureNumber
-case object GL_TEXTURE16 extends IntConstant(0x84D0) with TextureNumber
-case object GL_TEXTURE17 extends IntConstant(0x84D1) with TextureNumber
-case object GL_TEXTURE18 extends IntConstant(0x84D2) with TextureNumber
-case object GL_TEXTURE19 extends IntConstant(0x84D3) with TextureNumber
-case object GL_TEXTURE20 extends IntConstant(0x84D4) with TextureNumber
-case object GL_TEXTURE21 extends IntConstant(0x84D5) with TextureNumber
-case object GL_TEXTURE22 extends IntConstant(0x84D6) with TextureNumber
-case object GL_TEXTURE23 extends IntConstant(0x84D7) with TextureNumber
-case object GL_TEXTURE24 extends IntConstant(0x84D8) with TextureNumber
-case object GL_TEXTURE25 extends IntConstant(0x84D9) with TextureNumber
-case object GL_TEXTURE26 extends IntConstant(0x84DA) with TextureNumber
-case object GL_TEXTURE27 extends IntConstant(0x84DB) with TextureNumber
-case object GL_TEXTURE28 extends IntConstant(0x84DC) with TextureNumber
-case object GL_TEXTURE29 extends IntConstant(0x84DD) with TextureNumber
-case object GL_TEXTURE30 extends IntConstant(0x84DE) with TextureNumber
-case object GL_TEXTURE31 extends IntConstant(0x84DF) with TextureNumber
+case object GL_TEXTURE0 extends IntConstant(0x84C0) with TextureUnit
+case object GL_TEXTURE1 extends IntConstant(0x84C1) with TextureUnit
+case object GL_TEXTURE2 extends IntConstant(0x84C2) with TextureUnit
+case object GL_TEXTURE3 extends IntConstant(0x84C3) with TextureUnit
+case object GL_TEXTURE4 extends IntConstant(0x84C4) with TextureUnit
+case object GL_TEXTURE5 extends IntConstant(0x84C5) with TextureUnit
+case object GL_TEXTURE6 extends IntConstant(0x84C6) with TextureUnit
+case object GL_TEXTURE7 extends IntConstant(0x84C7) with TextureUnit
+case object GL_TEXTURE8 extends IntConstant(0x84C8) with TextureUnit
+case object GL_TEXTURE9 extends IntConstant(0x84C9) with TextureUnit
+case object GL_TEXTURE10 extends IntConstant(0x84CA) with TextureUnit
+case object GL_TEXTURE11 extends IntConstant(0x84CB) with TextureUnit
+case object GL_TEXTURE12 extends IntConstant(0x84CC) with TextureUnit
+case object GL_TEXTURE13 extends IntConstant(0x84CD) with TextureUnit
+case object GL_TEXTURE14 extends IntConstant(0x84CE) with TextureUnit
+case object GL_TEXTURE15 extends IntConstant(0x84CF) with TextureUnit
+case object GL_TEXTURE16 extends IntConstant(0x84D0) with TextureUnit
+case object GL_TEXTURE17 extends IntConstant(0x84D1) with TextureUnit
+case object GL_TEXTURE18 extends IntConstant(0x84D2) with TextureUnit
+case object GL_TEXTURE19 extends IntConstant(0x84D3) with TextureUnit
+case object GL_TEXTURE20 extends IntConstant(0x84D4) with TextureUnit
+case object GL_TEXTURE21 extends IntConstant(0x84D5) with TextureUnit
+case object GL_TEXTURE22 extends IntConstant(0x84D6) with TextureUnit
+case object GL_TEXTURE23 extends IntConstant(0x84D7) with TextureUnit
+case object GL_TEXTURE24 extends IntConstant(0x84D8) with TextureUnit
+case object GL_TEXTURE25 extends IntConstant(0x84D9) with TextureUnit
+case object GL_TEXTURE26 extends IntConstant(0x84DA) with TextureUnit
+case object GL_TEXTURE27 extends IntConstant(0x84DB) with TextureUnit
+case object GL_TEXTURE28 extends IntConstant(0x84DC) with TextureUnit
+case object GL_TEXTURE29 extends IntConstant(0x84DD) with TextureUnit
+case object GL_TEXTURE30 extends IntConstant(0x84DE) with TextureUnit
+case object GL_TEXTURE31 extends IntConstant(0x84DF) with TextureUnit
 case object GL_ACTIVE_TEXTURE extends IntConstant(0x84E0) with Parameter
 case object GL_REPEAT extends IntConstant(0x2901) with TextureWrap
 case object GL_CLAMP_TO_EDGE extends IntConstant(0x812F) with TextureWrap

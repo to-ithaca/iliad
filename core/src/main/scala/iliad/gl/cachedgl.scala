@@ -252,6 +252,18 @@ object CachedGL {
       Draw.use(p).freekF[CachedGL] >> Current.set(p).freekF[CachedGL]
   )
 
+  private def set(u: Program.TextureUniform): DSL[String Xor Unit] = (for {
+        t <- XorT(Cached.ensure(Cached.get(u.texture), "Unable to find texture.").freekF[CachedGL])
+        s <- XorT(Cached.ensure(Cached.get(u.sampler), "Unable to find sampler.").freekF[CachedGL]) 
+        _ <- xort(Draw.bind(u.unit, u.location, t, s).freekF[CachedGL])
+    } yield ()).value
+
+  private def set(p: Program.Linked, ts: Map[String, Texture.Constructor]): DSL[String Xor Unit] = 
+    p.textureUniforms(ts) //Xor[String, List[Uniform]]
+      .map(us => us.map(set) //Xor[String, List[DSL[Xor[String, Unit]]]]
+        .sequence.map(_.sequence.map(_ => ()))) //Xor[DSL[Xor[String, Unit]]]
+  .sequence.map(_.flatMap(identity)) //DSL[Xor[String, Unit]]
+
   private def set(vb: VertexBuffer.Loaded): DSL[Unit] =
     doIfNot(Current.contains(vb))(
         Draw.bind(vb).freekF[CachedGL] >> Current.set(vb).freekF[CachedGL]
@@ -274,6 +286,7 @@ object CachedGL {
       p <- ensure(Cached.get(draw.program),
                   s"Program not loaded. Unable to draw $draw")
       _ <- xort(set(p))
+      _ <- XorT(set(p, draw.textureUniforms))
       vb <- ensure(Cached.get(draw.vertexBuffer),
                    s"Vertex buffer not loaded. Unable to draw $draw")
       _ <- xort(set(vb))

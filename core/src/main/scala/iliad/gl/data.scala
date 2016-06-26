@@ -14,23 +14,28 @@ import monocle.macros._
 import monocle.syntax.all._
 
 object VertexShader {
-  case class Source(text: String, attributes: List[Attribute.Constructor]) {
+  case class Source(text: String, attributes: List[Attribute.Constructor], textures: Map[String, Sampler.Constructor]) {
     def attributeNames: List[String] = attributes.map(_.name)
+    def textureNames: List[String] = textures.map(_._1).toList
   }
   case class Compiled(id: Int, source: Source)
 }
 
 object FragmentShader {
-  case class Source(text: String)
+  case class Source(text: String, textures: Map[String, Sampler.Constructor]) {
+    def textureNames: List[String] = textures.map(_._1).toList
+  }
   case class Compiled(id: Int, source: Source)
 }
 
 object Program {
   case class Unlinked(vertex: VertexShader.Source,
-                      fragment: FragmentShader.Source)
+                      fragment: FragmentShader.Source) {
+    def textures: Map[String, Sampler.Constructor] = vertex.textures ++ fragment.textures
+  }
   case class Linked(id: Int,
                     unlinked: Unlinked,
-                    attributes: List[(String, Int)]) {
+                    attributes: List[(String, Int)], textures: List[(String, Int)]) {
 
     private def loaded(a: Attribute.Constructor): Option[Attribute.Loaded] =
       attributes.find(_._1 == a.name).map {
@@ -42,7 +47,19 @@ object Program {
       as.traverse(a =>
               loaded(a).toRightXor(s"Location for attribute is undefined: $a"))
         .map(Attribute.LoadedAttributes)
+
+    def textureUniforms(ts: Map[String, Texture.Constructor]): String Xor List[TextureUniform] = 
+      textures.zipWithIndex.map {
+        case ((name, location), index) => 
+          val sampler = unlinked.textures(name)
+          ts.get(name).toRightXor(s"Unable to find uniform for texture $name").map { t => 
+            val unit: TextureUnit = ???
+            TextureUniform(unit, location, t, sampler)
+          }
+      }.sequence
   }
+
+  case class TextureUniform(unit: TextureUnit, location: Int, texture: Texture.Constructor, sampler: Sampler.Constructor)
 }
 
 object Attribute {
@@ -244,8 +261,14 @@ object Framebuffer {
   }
 }
 
+object Sampler {
+  case class Constructor(wrapS: TextureWrap, wrapT: TextureWrap, minFilter: TextureMinFilter, magFilter: TextureMagFilter)
+  case class Loaded(constructor: Constructor, id: Int)
+}
+
 case class DrawOp(model: Model,
-                  program: Program.Unlinked,
+                  program: Program.Unlinked, 
+  textureUniforms: Map[String, Texture.Constructor],
                   framebuffer: Framebuffer) {
   val vertexModel: Model.VertexRef = model.vertex
   val vertexData: VertexData.Ref = vertexModel.ref

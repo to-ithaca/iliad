@@ -60,6 +60,8 @@ object Load {
   def apply(f: Framebuffer.Constructor,
             as: List[(FramebufferAttachment, Framebuffer.AttachmentLoaded)])
     : DSL[Framebuffer.Loaded] = LoadFramebuffer(f, as).free
+
+  def apply(s: Sampler.Constructor): DSL[Sampler.Loaded] = LoadSampler(s).free
 }
 
 sealed trait Load[A]
@@ -112,6 +114,7 @@ case class LoadFramebuffer(
     f: Framebuffer.Constructor,
     as: List[(FramebufferAttachment, Framebuffer.AttachmentLoaded)])
     extends Load[Framebuffer.Loaded]
+case class LoadSampler(s: Sampler.Constructor) extends Load[Sampler.Loaded]
 
 private object LoadParser extends (Load ~> GL.DSL) {
 
@@ -128,7 +131,8 @@ private object LoadParser extends (Load ~> GL.DSL) {
         id <- GL.makeProgram(vs.id, fs.id)
         _ <- GL.useProgram(id)
         as <- GL.getAttributeLocations(id, vs.source.attributeNames)
-      } yield Program.Linked(id, Program.Unlinked(vs.source, fs.source), as)
+        us <- GL.getUniformLocations(id, vs.source.textureNames ++ fs.source.textureNames)
+      } yield Program.Linked(id, Program.Unlinked(vs.source, fs.source), as, us)
 
     case LoadCreateVertexBuffer(r, d, pageSize, b) =>
       val capacity = roundUp(d.size, pageSize)
@@ -171,5 +175,7 @@ private object LoadParser extends (Load ~> GL.DSL) {
       if (f.isBuffered) GL.makeBufferedFramebuffer(as).map {
         case (front, back) => Framebuffer.Loaded(f, front, Some(back))
       } else GL.makeSingleFramebuffer(as).map(Framebuffer.Loaded(f, _, None))
+    case LoadSampler(s) => 
+      GL.makeSampler(s).map(Sampler.Loaded(s, _))
   }
 }
