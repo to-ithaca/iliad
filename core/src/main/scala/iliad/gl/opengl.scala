@@ -2,8 +2,9 @@ package iliad
 package gl
 
 import iliad.kernel.platform.GLES30Library
-import iliad.CatsExtra._
+
 import iliad.std.int._
+import iliad.std.list._
 
 import cats._
 import cats.data._
@@ -12,6 +13,8 @@ import cats.free._, Free._
 import cats.implicits._
 
 import java.nio.Buffer
+
+import iliad.CatsExtra._
 
 object GL {
 
@@ -220,20 +223,21 @@ object GL {
       _ <- GLRenderbufferStorage(r.format, r.viewport.width, r.viewport.height).free
     } yield id
 
-  private def bindAttachment(a: FramebufferAttachment,
-                             l: Framebuffer.AttachmentLoaded)(
-      f: Texture.Loaded => Int): DSL[Unit] = l match {
-    case Renderbuffer.Loaded(_, id) =>
-      GLFramebufferRenderbuffer(a, id).free
-    case t: Texture.Loaded => GLFramebufferTexture2D(a, f(t)).free
-  }
+  private def bindAttachment(
+      a: FramebufferAttachment,
+      l: Framebuffer.AttachmentLoaded)(f: Texture.Loaded => Int): DSL[Unit] =
+    l match {
+      case Renderbuffer.Loaded(_, id) =>
+        GLFramebufferRenderbuffer(a, id).free
+      case t: Texture.Loaded => GLFramebufferTexture2D(a, f(t)).free
+    }
 
   private def bindAttachments(
       as: List[(FramebufferAttachment, Framebuffer.AttachmentLoaded)])(
       f: Texture.Loaded => Int): DSL[Unit] =
-    as.map {
+    as.traverseUnit {
       case (a, l) => bindAttachment(a, l)(f)
-    }.sequence.map(_ => ())
+    }
 
   private def makeFramebuffer(
       as: List[(FramebufferAttachment, Framebuffer.AttachmentLoaded)],
@@ -241,10 +245,7 @@ object GL {
     for {
       _ <- bindFramebuffer(id)
       _ <- bindAttachments(as)(f)
-      _ <- GLDrawBuffers(as.map {
-            case (b: ColorBuffer, _) => Some(b)
-            case _ => None
-          }.flatten).free
+      _ <- GLDrawBuffers(as.filterClass[ColorBuffer]).free
     } yield ()
 
   def makeSingleFramebuffer(
@@ -265,9 +266,9 @@ object GL {
       back = ids.tail.head
       _ <- makeFramebuffer(as, front)(_.frontId)
       _ <- makeFramebuffer(as, back) {
-        case t: Texture.SingleLoaded => t.frontId
-        case t: Texture.DoubleLoaded => t.backId
-      }
+            case t: Texture.SingleLoaded => t.frontId
+            case t: Texture.DoubleLoaded => t.backId
+          }
     } yield (front, back)
 
   def makeSampler(s: Sampler.Constructor): DSL[Int] =
@@ -312,7 +313,7 @@ object GL {
       _ <- GLActiveTexture(unit).free
       _ <- GLBindTexture(texture).free
       _ <- GLBindSampler(unit, sampler).free
-      _ <- GLUniform1i(location, unit.value - GL_TEXTURE0.value).free
+      _ <- GLUniform1i(location, Bounded.indexOf(unit)).free
     } yield ()
 
   def drawTriangles(start: Int, end: Int): DSL[Unit] =

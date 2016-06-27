@@ -1,6 +1,8 @@
 package iliad
 package gl
 
+import iliad.std.list._
+
 import simulacrum.typeclass
 
 import java.nio.Buffer
@@ -24,7 +26,8 @@ object VertexShader {
 }
 
 object FragmentShader {
-  case class Source(text: String, textures: List[(String, Sampler.Constructor)]) {
+  case class Source(text: String,
+                    textures: List[(String, Sampler.Constructor)]) {
     def textureNames: List[String] = textures.map(_._1)
   }
   case class Compiled(id: Int, source: Source)
@@ -55,13 +58,17 @@ object Program {
 
     def textureUniforms(ts: Map[String, Texture.Constructor])
       : String Xor List[TextureUniform] =
-      textureUniforms.zipWithIndex.map {
+      textureUniforms.zipWithIndex.traverse {
         case ((name, location), index) =>
           ts.get(name)
             .toRightXor(s"Unable to find uniform for texture $name")
-            .map(t => TextureUniform(Bounded.index[TextureUnit](index), 
-              location, t, unlinked.samplers(name)))
-      }.sequence
+            .map(
+                t =>
+                  TextureUniform(Bounded.element[TextureUnit](index),
+                                 location,
+                                 t,
+                                 unlinked.samplers(name)))
+      }
   }
 
   case class TextureUniform(unit: TextureUnit,
@@ -214,18 +221,25 @@ object Texture {
   }
 
   case class SingleConstructor(name: String,
-                         format: Format,
-                         viewport: Rect[Int])
+                               format: Format,
+                               viewport: Rect[Int])
       extends Constructor
-  case class DoubleConstructor(name: String, format: Format, viewport: Rect[Int]) extends Constructor
+  case class DoubleConstructor(name: String,
+                               format: Format,
+                               viewport: Rect[Int])
+      extends Constructor
 
   sealed trait Loaded extends Framebuffer.AttachmentLoaded {
     def constructor: Constructor
     def frontId: Int
   }
 
-  case class SingleLoaded(constructor: SingleConstructor, frontId: Int) extends Loaded
-  case class DoubleLoaded(constructor: DoubleConstructor, frontId: Int, backId: Int) extends Loaded {
+  case class SingleLoaded(constructor: SingleConstructor, frontId: Int)
+      extends Loaded
+  case class DoubleLoaded(constructor: DoubleConstructor,
+                          frontId: Int,
+                          backId: Int)
+      extends Loaded {
     def flip: DoubleLoaded = copy(frontId = backId, backId = frontId)
   }
 }
@@ -239,35 +253,34 @@ object Renderbuffer {
       extends Framebuffer.AttachmentLoaded
 }
 
-
-
 object Framebuffer {
   sealed trait Constructor {
     def attachments: List[(FramebufferAttachment, AttachmentConstructor)]
-    def textures = attachments flatMap {
-      case (_, t: Texture.Constructor) => Some(t)
-      case _ => None
-    }
+    def textures = attachments.map(_._2).filterClass[Texture.Constructor]
   }
 
   sealed trait AttachmentConstructor
   sealed trait AttachmentLoaded
-  
 
   case class SingleConstructor(
-      attachments: List[(FramebufferAttachment, AttachmentConstructor)]) extends Constructor
+      attachments: List[(FramebufferAttachment, AttachmentConstructor)])
+      extends Constructor
 
   case class DoubleConstructor(
-      attachments: List[(FramebufferAttachment, AttachmentConstructor)]) extends Constructor  
+      attachments: List[(FramebufferAttachment, AttachmentConstructor)])
+      extends Constructor
 
   sealed trait Loaded {
     def frontId: Int
     def constructor: Constructor
   }
 
-  case class SingleLoaded(constructor: Constructor, frontId: Int) extends Loaded 
+  case class SingleLoaded(constructor: Constructor, frontId: Int)
+      extends Loaded
 
-  case class DoubleLoaded(constructor: DoubleConstructor, frontId: Int, backId: Int) 
+  case class DoubleLoaded(constructor: DoubleConstructor,
+                          frontId: Int,
+                          backId: Int)
       extends Loaded {
     def flip: DoubleLoaded = copy(frontId = backId, backId = frontId)
   }

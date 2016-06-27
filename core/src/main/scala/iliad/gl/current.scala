@@ -46,15 +46,13 @@ object Current {
 sealed trait Current[A]
 
 case object CurrentProgramGet extends Current[Option[Program.Linked]]
-case object CurrentFramebufferGet
-    extends Current[Option[Framebuffer.Loaded]]
+case object CurrentFramebufferGet extends Current[Option[Framebuffer.Loaded]]
 case object CurrentVertexBufferGet extends Current[Option[VertexBuffer.Loaded]]
 case object CurrentElementBufferGet
     extends Current[Option[ElementBuffer.Loaded]]
 
 case class CurrentProgramSet(p: Program.Linked) extends Current[Unit]
-case class CurrentFramebufferSet(f: Framebuffer.Loaded)
-    extends Current[Unit]
+case class CurrentFramebufferSet(f: Framebuffer.Loaded) extends Current[Unit]
 case class CurrentVertexBufferSet(v: VertexBuffer.Loaded) extends Current[Unit]
 case class CurrentElementBufferSet(e: ElementBuffer.Loaded)
     extends Current[Unit]
@@ -64,8 +62,7 @@ private object CurrentParser extends (Current ~> Current.Effect) {
   private val _program: Lens[Current.State, Option[Program.Linked]] =
     GenLens[Current.State](_.program)
 
-  private val _framebuffer: Lens[Current.State,
-                                 Option[Framebuffer.Loaded]] =
+  private val _framebuffer: Lens[Current.State, Option[Framebuffer.Loaded]] =
     GenLens[Current.State](_.framebuffer)
 
   private val _vertexBuffer: Lens[Current.State, Option[VertexBuffer.Loaded]] =

@@ -165,22 +165,25 @@ private object LoadParser extends (Load ~> GL.DSL) {
         .map(
             ElementBuffer.copy(_, b, r, d.size, capacity)
         )
-    case LoadTexture(t, d) => t match {
-      case s: Texture.SingleConstructor => 
-        GL.makeSingleTexture(s, d) map ((Texture.SingleLoaded(s, _)))
-      case dd: Texture.DoubleConstructor =>
-        GL.makeBufferedTexture(dd, d).map {
-          case (f, b) => Texture.DoubleLoaded(dd, f, b)
-        }
-    }
+    case LoadTexture(t, d) =>
+      t match {
+        case s: Texture.SingleConstructor =>
+          GL.makeSingleTexture(s, d) map ((Texture.SingleLoaded(s, _)))
+        case dd: Texture.DoubleConstructor =>
+          GL.makeBufferedTexture(dd, d).map {
+            case (f, b) => Texture.DoubleLoaded(dd, f, b)
+          }
+      }
     case LoadRenderbuffer(r) =>
       GL.makeRenderbuffer(r).map(Renderbuffer.Loaded(r, _))
     case LoadFramebuffer(f, as) =>
       f match {
-        case s: Framebuffer.SingleConstructor => GL.makeSingleFramebuffer(as).map(Framebuffer.SingleLoaded(s, _))
-        case d: Framebuffer.DoubleConstructor => GL.makeBufferedFramebuffer(as) map {
-          case (ff, b) => Framebuffer.DoubleLoaded(d, ff, b)
-        }
+        case s: Framebuffer.SingleConstructor =>
+          GL.makeSingleFramebuffer(as).map(Framebuffer.SingleLoaded(s, _))
+        case d: Framebuffer.DoubleConstructor =>
+          GL.makeBufferedFramebuffer(as) map {
+            case (ff, b) => Framebuffer.DoubleLoaded(d, ff, b)
+          }
       }
     case LoadSampler(s) =>
       GL.makeSampler(s).map(Sampler.Loaded(s, _))

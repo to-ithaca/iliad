@@ -45,7 +45,8 @@ object Cached {
   def put(b: ElementBuffer.Update): DSL[Unit] =
     ElementBufferPut(b.buffer).free >> ElementDataPut(b.data).free
 
-  def get(t: Texture.Constructor): DSL[Option[Texture.Loaded]] = TextureGet(t).free
+  def get(t: Texture.Constructor): DSL[Option[Texture.Loaded]] =
+    TextureGet(t).free
   def put(t: Texture.Loaded): DSL[Unit] = TexturePut(t).free
 
   def get(r: Renderbuffer.Constructor): DSL[Option[Renderbuffer.Loaded]] =

@@ -1439,81 +1439,80 @@ case object GL_TEXTURE_IMMUTABLE_LEVELS extends IntConstant(0x82DF)
  */
 
 object TextureUnit {
-    implicit val textureBounded = new Bounded[TextureUnit] {
-      val MinValue = GL_TEXTURE0
-      val MaxValue = GL_TEXTURE31
+  implicit val textureBounded = new Bounded[TextureUnit] {
+    val MinValue = GL_TEXTURE0
+    val MaxValue = GL_TEXTURE31
+  }
+
+  implicit val textureEnum = new Enum[TextureUnit] {
+    def succ(tex: TextureUnit): TextureUnit = tex match {
+      case GL_TEXTURE0 => GL_TEXTURE1
+      case GL_TEXTURE1 => GL_TEXTURE2
+      case GL_TEXTURE2 => GL_TEXTURE3
+      case GL_TEXTURE3 => GL_TEXTURE4
+      case GL_TEXTURE4 => GL_TEXTURE5
+      case GL_TEXTURE5 => GL_TEXTURE6
+      case GL_TEXTURE6 => GL_TEXTURE7
+      case GL_TEXTURE7 => GL_TEXTURE8
+      case GL_TEXTURE8 => GL_TEXTURE9
+      case GL_TEXTURE9 => GL_TEXTURE10
+      case GL_TEXTURE10 => GL_TEXTURE11
+      case GL_TEXTURE11 => GL_TEXTURE12
+      case GL_TEXTURE12 => GL_TEXTURE13
+      case GL_TEXTURE13 => GL_TEXTURE14
+      case GL_TEXTURE14 => GL_TEXTURE15
+      case GL_TEXTURE15 => GL_TEXTURE16
+      case GL_TEXTURE16 => GL_TEXTURE17
+      case GL_TEXTURE17 => GL_TEXTURE18
+      case GL_TEXTURE18 => GL_TEXTURE19
+      case GL_TEXTURE19 => GL_TEXTURE20
+      case GL_TEXTURE20 => GL_TEXTURE21
+      case GL_TEXTURE21 => GL_TEXTURE22
+      case GL_TEXTURE22 => GL_TEXTURE23
+      case GL_TEXTURE23 => GL_TEXTURE24
+      case GL_TEXTURE24 => GL_TEXTURE25
+      case GL_TEXTURE25 => GL_TEXTURE26
+      case GL_TEXTURE26 => GL_TEXTURE27
+      case GL_TEXTURE27 => GL_TEXTURE28
+      case GL_TEXTURE28 => GL_TEXTURE29
+      case GL_TEXTURE29 => GL_TEXTURE30
+      case GL_TEXTURE30 => GL_TEXTURE31
+      case GL_TEXTURE31 => GL_TEXTURE0
     }
 
-    implicit val textureEnum = new Enum[TextureUnit] {
-      def succ(tex: TextureUnit): TextureUnit = tex match {
-        case GL_TEXTURE0 => GL_TEXTURE1
-        case GL_TEXTURE1 => GL_TEXTURE2
-        case GL_TEXTURE2 => GL_TEXTURE3
-        case GL_TEXTURE3 => GL_TEXTURE4
-        case GL_TEXTURE4 => GL_TEXTURE5
-        case GL_TEXTURE5 => GL_TEXTURE6
-        case GL_TEXTURE6 => GL_TEXTURE7
-        case GL_TEXTURE7 => GL_TEXTURE8
-        case GL_TEXTURE8 => GL_TEXTURE9
-        case GL_TEXTURE9 => GL_TEXTURE10
-        case GL_TEXTURE10 => GL_TEXTURE11
-        case GL_TEXTURE11 => GL_TEXTURE12
-        case GL_TEXTURE12 => GL_TEXTURE13
-        case GL_TEXTURE13 => GL_TEXTURE14
-        case GL_TEXTURE14 => GL_TEXTURE15
-        case GL_TEXTURE15 => GL_TEXTURE16
-        case GL_TEXTURE16 => GL_TEXTURE17
-        case GL_TEXTURE17 => GL_TEXTURE18
-        case GL_TEXTURE18 => GL_TEXTURE19
-        case GL_TEXTURE19 => GL_TEXTURE20
-        case GL_TEXTURE20 => GL_TEXTURE21
-        case GL_TEXTURE21 => GL_TEXTURE22
-        case GL_TEXTURE22 => GL_TEXTURE23
-        case GL_TEXTURE23 => GL_TEXTURE24
-        case GL_TEXTURE24 => GL_TEXTURE25
-        case GL_TEXTURE25 => GL_TEXTURE26
-        case GL_TEXTURE26 => GL_TEXTURE27
-        case GL_TEXTURE27 => GL_TEXTURE28
-        case GL_TEXTURE28 => GL_TEXTURE29
-        case GL_TEXTURE29 => GL_TEXTURE30
-        case GL_TEXTURE30 => GL_TEXTURE31
-        case GL_TEXTURE31 => GL_TEXTURE0
-      }
-
-      def pred(tex: TextureUnit): TextureUnit = tex match {
-        case GL_TEXTURE0 => GL_TEXTURE31
-        case GL_TEXTURE1 => GL_TEXTURE0
-        case GL_TEXTURE2 => GL_TEXTURE1
-        case GL_TEXTURE3 => GL_TEXTURE2
-        case GL_TEXTURE4 => GL_TEXTURE3
-        case GL_TEXTURE5 => GL_TEXTURE4
-        case GL_TEXTURE6 => GL_TEXTURE5
-        case GL_TEXTURE7 => GL_TEXTURE6
-        case GL_TEXTURE8 => GL_TEXTURE7
-        case GL_TEXTURE9 => GL_TEXTURE8
-        case GL_TEXTURE10 => GL_TEXTURE9
-        case GL_TEXTURE11 => GL_TEXTURE10
-        case GL_TEXTURE12 => GL_TEXTURE11
-        case GL_TEXTURE13 => GL_TEXTURE12
-        case GL_TEXTURE14 => GL_TEXTURE13
-        case GL_TEXTURE15 => GL_TEXTURE14
-        case GL_TEXTURE16 => GL_TEXTURE15
-        case GL_TEXTURE17 => GL_TEXTURE16
-        case GL_TEXTURE18 => GL_TEXTURE17
-        case GL_TEXTURE19 => GL_TEXTURE18
-        case GL_TEXTURE20 => GL_TEXTURE19
-        case GL_TEXTURE21 => GL_TEXTURE20
-        case GL_TEXTURE22 => GL_TEXTURE21
-        case GL_TEXTURE23 => GL_TEXTURE22
-        case GL_TEXTURE24 => GL_TEXTURE23
-        case GL_TEXTURE25 => GL_TEXTURE24
-        case GL_TEXTURE26 => GL_TEXTURE25
-        case GL_TEXTURE27 => GL_TEXTURE26
-        case GL_TEXTURE28 => GL_TEXTURE27
-        case GL_TEXTURE29 => GL_TEXTURE28
-        case GL_TEXTURE30 => GL_TEXTURE29
-        case GL_TEXTURE31 => GL_TEXTURE30
-      }
+    def pred(tex: TextureUnit): TextureUnit = tex match {
+      case GL_TEXTURE0 => GL_TEXTURE31
+      case GL_TEXTURE1 => GL_TEXTURE0
+      case GL_TEXTURE2 => GL_TEXTURE1
+      case GL_TEXTURE3 => GL_TEXTURE2
+      case GL_TEXTURE4 => GL_TEXTURE3
+      case GL_TEXTURE5 => GL_TEXTURE4
+      case GL_TEXTURE6 => GL_TEXTURE5
+      case GL_TEXTURE7 => GL_TEXTURE6
+      case GL_TEXTURE8 => GL_TEXTURE7
+      case GL_TEXTURE9 => GL_TEXTURE8
+      case GL_TEXTURE10 => GL_TEXTURE9
+      case GL_TEXTURE11 => GL_TEXTURE10
+      case GL_TEXTURE12 => GL_TEXTURE11
+      case GL_TEXTURE13 => GL_TEXTURE12
+      case GL_TEXTURE14 => GL_TEXTURE13
+      case GL_TEXTURE15 => GL_TEXTURE14
+      case GL_TEXTURE16 => GL_TEXTURE15
+      case GL_TEXTURE17 => GL_TEXTURE16
+      case GL_TEXTURE18 => GL_TEXTURE17
+      case GL_TEXTURE19 => GL_TEXTURE18
+      case GL_TEXTURE20 => GL_TEXTURE19
+      case GL_TEXTURE21 => GL_TEXTURE20
+      case GL_TEXTURE22 => GL_TEXTURE21
+      case GL_TEXTURE23 => GL_TEXTURE22
+      case GL_TEXTURE24 => GL_TEXTURE23
+      case GL_TEXTURE25 => GL_TEXTURE24
+      case GL_TEXTURE26 => GL_TEXTURE25
+      case GL_TEXTURE27 => GL_TEXTURE26
+      case GL_TEXTURE28 => GL_TEXTURE27
+      case GL_TEXTURE29 => GL_TEXTURE28
+      case GL_TEXTURE30 => GL_TEXTURE29
+      case GL_TEXTURE31 => GL_TEXTURE30
     }
+  }
 }
-

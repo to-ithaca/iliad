@@ -165,7 +165,7 @@ object GLInterpreter extends (GL.Interpreter[GL.NoEffect]) {
                                   offset))
     case GLActiveTexture(unit) => Reader(_.glActiveTexture(unit.value))
     case GLBindSampler(unit, sampler) =>
-      Reader(_.glBindSampler(unit.value - GL_TEXTURE0.value, sampler))
+      Reader(_.glBindSampler(Bounded.indexOf(unit), sampler))
     case GLUniform1i(location, value) => Reader(_.glUniform1i(location, value))
     case GLDrawElements(mode, count, t, offset) =>
       Reader(_.glDrawElements(mode.value, count, t.value, offset))
