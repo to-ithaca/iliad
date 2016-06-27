@@ -31,15 +31,11 @@ case object GL_COLOR_BUFFER_BIT
     extends BitmaskConstant(0x00004000)
     with ChannelBit
 
-sealed trait Texture extends IntConstant
-sealed trait ColorAttachment
-    extends IntConstant
-    with ColorBuffer
-    with ColorOutputTarget
+sealed trait TextureUnit extends IntConstant
+sealed trait ColorAttachment extends IntConstant with ColorBuffer
 
 sealed trait DrawBuffer extends IntConstant with Parameter
 sealed trait Capability extends IntConstant with Parameter
-
 sealed trait ChannelBit extends IntConstant
 sealed trait BlitFilter extends IntConstant
 sealed trait ShaderType extends IntConstant
@@ -58,10 +54,10 @@ sealed trait RenderbufferInternalFormat extends IntConstant
 sealed trait TextureTarget extends IntConstant
 sealed trait TextureParameter extends IntConstant
 sealed trait TextureCompareMode extends IntConstant
-sealed trait TextureMinFilter extends IntConstant
-sealed trait TextureMagFilter extends IntConstant
+sealed trait TextureMinFilter extends IntConstant with SamplerValue
+sealed trait TextureMagFilter extends IntConstant with SamplerValue
 sealed trait TextureSwizzle extends IntConstant
-sealed trait TextureWrap extends IntConstant
+sealed trait TextureWrap extends IntConstant with SamplerValue
 sealed trait TextureCompareFunc extends IntConstant
 sealed trait TextureInternalFormat extends IntConstant
 sealed trait TextureSizedInternalFormat extends TextureInternalFormat
@@ -73,7 +69,7 @@ sealed trait PrimitiveType extends IntConstant
 sealed trait IndexType extends IntConstant
 sealed trait Parameter extends IntConstant
 sealed trait SamplerParameter extends IntConstant
-sealed trait ColorOutputTarget extends IntConstant
+sealed trait SamplerValue extends IntConstant
 sealed trait Channel extends IntConstant
 sealed trait ColorBuffer extends IntConstant
 sealed trait BlendMode extends IntConstant
@@ -135,7 +131,6 @@ case object GL_CURRENT_VERTEX_ATTRIB extends IntConstant(0x8626)
 case object GL_FRONT extends IntConstant(0x0404) with CullFaceMode
 case object GL_BACK
     extends IntConstant(0x0405)
-    with ColorOutputTarget
     with ColorBuffer
     with CullFaceMode
 case object GL_FRONT_AND_BACK extends IntConstant(0x0408) with CullFaceMode
@@ -444,38 +439,38 @@ case object GL_TEXTURE_CUBE_MAP_NEGATIVE_Z
 case object GL_MAX_CUBE_MAP_TEXTURE_SIZE
     extends IntConstant(0x851C)
     with Parameter
-case object GL_TEXTURE0 extends IntConstant(0x84C0) with Texture
-case object GL_TEXTURE1 extends IntConstant(0x84C1) with Texture
-case object GL_TEXTURE2 extends IntConstant(0x84C2) with Texture
-case object GL_TEXTURE3 extends IntConstant(0x84C3) with Texture
-case object GL_TEXTURE4 extends IntConstant(0x84C4) with Texture
-case object GL_TEXTURE5 extends IntConstant(0x84C5) with Texture
-case object GL_TEXTURE6 extends IntConstant(0x84C6) with Texture
-case object GL_TEXTURE7 extends IntConstant(0x84C7) with Texture
-case object GL_TEXTURE8 extends IntConstant(0x84C8) with Texture
-case object GL_TEXTURE9 extends IntConstant(0x84C9) with Texture
-case object GL_TEXTURE10 extends IntConstant(0x84CA) with Texture
-case object GL_TEXTURE11 extends IntConstant(0x84CB) with Texture
-case object GL_TEXTURE12 extends IntConstant(0x84CC) with Texture
-case object GL_TEXTURE13 extends IntConstant(0x84CD) with Texture
-case object GL_TEXTURE14 extends IntConstant(0x84CE) with Texture
-case object GL_TEXTURE15 extends IntConstant(0x84CF) with Texture
-case object GL_TEXTURE16 extends IntConstant(0x84D0) with Texture
-case object GL_TEXTURE17 extends IntConstant(0x84D1) with Texture
-case object GL_TEXTURE18 extends IntConstant(0x84D2) with Texture
-case object GL_TEXTURE19 extends IntConstant(0x84D3) with Texture
-case object GL_TEXTURE20 extends IntConstant(0x84D4) with Texture
-case object GL_TEXTURE21 extends IntConstant(0x84D5) with Texture
-case object GL_TEXTURE22 extends IntConstant(0x84D6) with Texture
-case object GL_TEXTURE23 extends IntConstant(0x84D7) with Texture
-case object GL_TEXTURE24 extends IntConstant(0x84D8) with Texture
-case object GL_TEXTURE25 extends IntConstant(0x84D9) with Texture
-case object GL_TEXTURE26 extends IntConstant(0x84DA) with Texture
-case object GL_TEXTURE27 extends IntConstant(0x84DB) with Texture
-case object GL_TEXTURE28 extends IntConstant(0x84DC) with Texture
-case object GL_TEXTURE29 extends IntConstant(0x84DD) with Texture
-case object GL_TEXTURE30 extends IntConstant(0x84DE) with Texture
-case object GL_TEXTURE31 extends IntConstant(0x84DF) with Texture
+case object GL_TEXTURE0 extends IntConstant(0x84C0) with TextureUnit
+case object GL_TEXTURE1 extends IntConstant(0x84C1) with TextureUnit
+case object GL_TEXTURE2 extends IntConstant(0x84C2) with TextureUnit
+case object GL_TEXTURE3 extends IntConstant(0x84C3) with TextureUnit
+case object GL_TEXTURE4 extends IntConstant(0x84C4) with TextureUnit
+case object GL_TEXTURE5 extends IntConstant(0x84C5) with TextureUnit
+case object GL_TEXTURE6 extends IntConstant(0x84C6) with TextureUnit
+case object GL_TEXTURE7 extends IntConstant(0x84C7) with TextureUnit
+case object GL_TEXTURE8 extends IntConstant(0x84C8) with TextureUnit
+case object GL_TEXTURE9 extends IntConstant(0x84C9) with TextureUnit
+case object GL_TEXTURE10 extends IntConstant(0x84CA) with TextureUnit
+case object GL_TEXTURE11 extends IntConstant(0x84CB) with TextureUnit
+case object GL_TEXTURE12 extends IntConstant(0x84CC) with TextureUnit
+case object GL_TEXTURE13 extends IntConstant(0x84CD) with TextureUnit
+case object GL_TEXTURE14 extends IntConstant(0x84CE) with TextureUnit
+case object GL_TEXTURE15 extends IntConstant(0x84CF) with TextureUnit
+case object GL_TEXTURE16 extends IntConstant(0x84D0) with TextureUnit
+case object GL_TEXTURE17 extends IntConstant(0x84D1) with TextureUnit
+case object GL_TEXTURE18 extends IntConstant(0x84D2) with TextureUnit
+case object GL_TEXTURE19 extends IntConstant(0x84D3) with TextureUnit
+case object GL_TEXTURE20 extends IntConstant(0x84D4) with TextureUnit
+case object GL_TEXTURE21 extends IntConstant(0x84D5) with TextureUnit
+case object GL_TEXTURE22 extends IntConstant(0x84D6) with TextureUnit
+case object GL_TEXTURE23 extends IntConstant(0x84D7) with TextureUnit
+case object GL_TEXTURE24 extends IntConstant(0x84D8) with TextureUnit
+case object GL_TEXTURE25 extends IntConstant(0x84D9) with TextureUnit
+case object GL_TEXTURE26 extends IntConstant(0x84DA) with TextureUnit
+case object GL_TEXTURE27 extends IntConstant(0x84DB) with TextureUnit
+case object GL_TEXTURE28 extends IntConstant(0x84DC) with TextureUnit
+case object GL_TEXTURE29 extends IntConstant(0x84DD) with TextureUnit
+case object GL_TEXTURE30 extends IntConstant(0x84DE) with TextureUnit
+case object GL_TEXTURE31 extends IntConstant(0x84DF) with TextureUnit
 case object GL_ACTIVE_TEXTURE extends IntConstant(0x84E0) with Parameter
 case object GL_REPEAT extends IntConstant(0x2901) with TextureWrap
 case object GL_CLAMP_TO_EDGE extends IntConstant(0x812F) with TextureWrap
@@ -575,7 +570,6 @@ case object GL_STENCIL_ATTACHMENT
 case object GL_NONE
     extends IntConstant(0)
     with TextureCompareMode
-    with ColorOutputTarget
     with ColorBuffer
 case object GL_FRAMEBUFFER_COMPLETE
     extends IntConstant(0x8CD5)
@@ -1442,83 +1436,83 @@ case object GL_TEXTURE_IMMUTABLE_LEVELS extends IntConstant(0x82DF)
       }
     }
   }
-
-  object Texture {
-    val textureBounded = new Bounded[Texture] {
-      val MinValue = GL_TEXTURE0
-      val MaxValue = GL_TEXTURE31
-    }
-
-    val textureEnum = new Enum[Texture] {
-      def succ(tex: Texture): Texture = tex match {
-        case GL_TEXTURE0 => GL_TEXTURE1
-        case GL_TEXTURE1 => GL_TEXTURE2
-        case GL_TEXTURE2 => GL_TEXTURE3
-        case GL_TEXTURE3 => GL_TEXTURE4
-        case GL_TEXTURE4 => GL_TEXTURE5
-        case GL_TEXTURE5 => GL_TEXTURE6
-        case GL_TEXTURE6 => GL_TEXTURE7
-        case GL_TEXTURE7 => GL_TEXTURE8
-        case GL_TEXTURE8 => GL_TEXTURE9
-        case GL_TEXTURE9 => GL_TEXTURE10
-        case GL_TEXTURE10 => GL_TEXTURE11
-        case GL_TEXTURE11 => GL_TEXTURE12
-        case GL_TEXTURE12 => GL_TEXTURE13
-        case GL_TEXTURE13 => GL_TEXTURE14
-        case GL_TEXTURE14 => GL_TEXTURE15
-        case GL_TEXTURE15 => GL_TEXTURE16
-        case GL_TEXTURE16 => GL_TEXTURE17
-        case GL_TEXTURE17 => GL_TEXTURE18
-        case GL_TEXTURE18 => GL_TEXTURE19
-        case GL_TEXTURE19 => GL_TEXTURE20
-        case GL_TEXTURE20 => GL_TEXTURE21
-        case GL_TEXTURE21 => GL_TEXTURE22
-        case GL_TEXTURE22 => GL_TEXTURE23
-        case GL_TEXTURE23 => GL_TEXTURE24
-        case GL_TEXTURE24 => GL_TEXTURE25
-        case GL_TEXTURE25 => GL_TEXTURE26
-        case GL_TEXTURE26 => GL_TEXTURE27
-        case GL_TEXTURE27 => GL_TEXTURE28
-        case GL_TEXTURE28 => GL_TEXTURE29
-        case GL_TEXTURE29 => GL_TEXTURE30
-        case GL_TEXTURE30 => GL_TEXTURE31
-        case GL_TEXTURE31 => GL_TEXTURE0
-      }
-
-      def pred(tex: Texture): Texture = tex match {
-        case GL_TEXTURE0 => GL_TEXTURE31
-        case GL_TEXTURE1 => GL_TEXTURE0
-        case GL_TEXTURE2 => GL_TEXTURE1
-        case GL_TEXTURE3 => GL_TEXTURE2
-        case GL_TEXTURE4 => GL_TEXTURE3
-        case GL_TEXTURE5 => GL_TEXTURE4
-        case GL_TEXTURE6 => GL_TEXTURE5
-        case GL_TEXTURE7 => GL_TEXTURE6
-        case GL_TEXTURE8 => GL_TEXTURE7
-        case GL_TEXTURE9 => GL_TEXTURE8
-        case GL_TEXTURE10 => GL_TEXTURE9
-        case GL_TEXTURE11 => GL_TEXTURE10
-        case GL_TEXTURE12 => GL_TEXTURE11
-        case GL_TEXTURE13 => GL_TEXTURE12
-        case GL_TEXTURE14 => GL_TEXTURE13
-        case GL_TEXTURE15 => GL_TEXTURE14
-        case GL_TEXTURE16 => GL_TEXTURE15
-        case GL_TEXTURE17 => GL_TEXTURE16
-        case GL_TEXTURE18 => GL_TEXTURE17
-        case GL_TEXTURE19 => GL_TEXTURE18
-        case GL_TEXTURE20 => GL_TEXTURE19
-        case GL_TEXTURE21 => GL_TEXTURE20
-        case GL_TEXTURE22 => GL_TEXTURE21
-        case GL_TEXTURE23 => GL_TEXTURE22
-        case GL_TEXTURE24 => GL_TEXTURE23
-        case GL_TEXTURE25 => GL_TEXTURE24
-        case GL_TEXTURE26 => GL_TEXTURE25
-        case GL_TEXTURE27 => GL_TEXTURE26
-        case GL_TEXTURE28 => GL_TEXTURE27
-        case GL_TEXTURE29 => GL_TEXTURE28
-        case GL_TEXTURE30 => GL_TEXTURE29
-        case GL_TEXTURE31 => GL_TEXTURE30
-      }
-    }
-}
  */
+
+object TextureUnit {
+  implicit val textureBounded = new Bounded[TextureUnit] {
+    val MinValue = GL_TEXTURE0
+    val MaxValue = GL_TEXTURE31
+  }
+
+  implicit val textureEnum = new Enum[TextureUnit] {
+    def succ(tex: TextureUnit): TextureUnit = tex match {
+      case GL_TEXTURE0 => GL_TEXTURE1
+      case GL_TEXTURE1 => GL_TEXTURE2
+      case GL_TEXTURE2 => GL_TEXTURE3
+      case GL_TEXTURE3 => GL_TEXTURE4
+      case GL_TEXTURE4 => GL_TEXTURE5
+      case GL_TEXTURE5 => GL_TEXTURE6
+      case GL_TEXTURE6 => GL_TEXTURE7
+      case GL_TEXTURE7 => GL_TEXTURE8
+      case GL_TEXTURE8 => GL_TEXTURE9
+      case GL_TEXTURE9 => GL_TEXTURE10
+      case GL_TEXTURE10 => GL_TEXTURE11
+      case GL_TEXTURE11 => GL_TEXTURE12
+      case GL_TEXTURE12 => GL_TEXTURE13
+      case GL_TEXTURE13 => GL_TEXTURE14
+      case GL_TEXTURE14 => GL_TEXTURE15
+      case GL_TEXTURE15 => GL_TEXTURE16
+      case GL_TEXTURE16 => GL_TEXTURE17
+      case GL_TEXTURE17 => GL_TEXTURE18
+      case GL_TEXTURE18 => GL_TEXTURE19
+      case GL_TEXTURE19 => GL_TEXTURE20
+      case GL_TEXTURE20 => GL_TEXTURE21
+      case GL_TEXTURE21 => GL_TEXTURE22
+      case GL_TEXTURE22 => GL_TEXTURE23
+      case GL_TEXTURE23 => GL_TEXTURE24
+      case GL_TEXTURE24 => GL_TEXTURE25
+      case GL_TEXTURE25 => GL_TEXTURE26
+      case GL_TEXTURE26 => GL_TEXTURE27
+      case GL_TEXTURE27 => GL_TEXTURE28
+      case GL_TEXTURE28 => GL_TEXTURE29
+      case GL_TEXTURE29 => GL_TEXTURE30
+      case GL_TEXTURE30 => GL_TEXTURE31
+      case GL_TEXTURE31 => GL_TEXTURE0
+    }
+
+    def pred(tex: TextureUnit): TextureUnit = tex match {
+      case GL_TEXTURE0 => GL_TEXTURE31
+      case GL_TEXTURE1 => GL_TEXTURE0
+      case GL_TEXTURE2 => GL_TEXTURE1
+      case GL_TEXTURE3 => GL_TEXTURE2
+      case GL_TEXTURE4 => GL_TEXTURE3
+      case GL_TEXTURE5 => GL_TEXTURE4
+      case GL_TEXTURE6 => GL_TEXTURE5
+      case GL_TEXTURE7 => GL_TEXTURE6
+      case GL_TEXTURE8 => GL_TEXTURE7
+      case GL_TEXTURE9 => GL_TEXTURE8
+      case GL_TEXTURE10 => GL_TEXTURE9
+      case GL_TEXTURE11 => GL_TEXTURE10
+      case GL_TEXTURE12 => GL_TEXTURE11
+      case GL_TEXTURE13 => GL_TEXTURE12
+      case GL_TEXTURE14 => GL_TEXTURE13
+      case GL_TEXTURE15 => GL_TEXTURE14
+      case GL_TEXTURE16 => GL_TEXTURE15
+      case GL_TEXTURE17 => GL_TEXTURE16
+      case GL_TEXTURE18 => GL_TEXTURE17
+      case GL_TEXTURE19 => GL_TEXTURE18
+      case GL_TEXTURE20 => GL_TEXTURE19
+      case GL_TEXTURE21 => GL_TEXTURE20
+      case GL_TEXTURE22 => GL_TEXTURE21
+      case GL_TEXTURE23 => GL_TEXTURE22
+      case GL_TEXTURE24 => GL_TEXTURE23
+      case GL_TEXTURE25 => GL_TEXTURE24
+      case GL_TEXTURE26 => GL_TEXTURE25
+      case GL_TEXTURE27 => GL_TEXTURE26
+      case GL_TEXTURE28 => GL_TEXTURE27
+      case GL_TEXTURE29 => GL_TEXTURE28
+      case GL_TEXTURE30 => GL_TEXTURE29
+      case GL_TEXTURE31 => GL_TEXTURE30
+    }
+  }
+}

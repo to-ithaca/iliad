@@ -13,10 +13,15 @@ object Draw {
   def parse[F[_]: Monad](i: GL.Interpreter[F]): Draw ~> F =
     DrawParser.andThen(GL.interpret(i))
 
-  def bindFramebuffer(framebuffer: Int): DSL[Unit] =
-    BindFramebuffer(framebuffer).free
+  def bind(f: Framebuffer.Loaded): DSL[Unit] =
+    BindFramebuffer(f).free
   def clear(m: ChannelBitMask): DSL[Unit] = ClearFrame(m).free
   def use(p: Program.Linked): DSL[Unit] = UseProgram(p).free
+  def bind(unit: TextureUnit,
+           location: Int,
+           t: Texture.Loaded,
+           s: Sampler.Loaded): DSL[Unit] =
+    BindTextureUniform(unit, location, t, s).free
   def bind(v: VertexBuffer.Loaded): DSL[Unit] = BindVertexBuffer(v).free
   def bind(e: ElementBuffer.Loaded): DSL[Unit] = BindElementBuffer(e).free
   def enable(as: Attribute.LoadedAttributes, baseOffset: Int): DSL[Unit] =
@@ -26,9 +31,14 @@ object Draw {
 
 sealed trait Draw[A]
 
-case class BindFramebuffer(id: Int) extends Draw[Unit]
+case class BindFramebuffer(f: Framebuffer.Loaded) extends Draw[Unit]
 case class ClearFrame(bitMask: ChannelBitMask) extends Draw[Unit]
 case class UseProgram(p: Program.Linked) extends Draw[Unit]
+case class BindTextureUniform(unit: TextureUnit,
+                              location: Int,
+                              t: Texture.Loaded,
+                              s: Sampler.Loaded)
+    extends Draw[Unit]
 case class BindVertexBuffer(v: VertexBuffer.Loaded) extends Draw[Unit]
 case class BindElementBuffer(e: ElementBuffer.Loaded) extends Draw[Unit]
 case class EnableAttributes(as: Attribute.LoadedAttributes, baseOffset: Int)
@@ -46,9 +56,12 @@ private object DrawParser extends (Draw ~> GL.DSL) {
                        a.offset)
 
   def apply[A](draw: Draw[A]): GL.DSL[A] = draw match {
-    case BindFramebuffer(f) => GL.bindFramebuffer(f)
+    case BindFramebuffer(f) =>
+      GL.bindFramebuffer(f.frontId)
     case ClearFrame(bitMask) => GL.clear(bitMask)
     case UseProgram(p) => GL.useProgram(p.id)
+    case BindTextureUniform(unit, location, t, s) =>
+      GL.bindTextureUniform(unit, location, t.frontId, s.id)
     case BindVertexBuffer(v) => GL.bindVertexBuffer(v.id)
     case BindElementBuffer(e) => GL.bindElementBuffer(e.id)
     case EnableAttributes(as, baseOffset) =>

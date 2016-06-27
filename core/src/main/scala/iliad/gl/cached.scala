@@ -45,6 +45,23 @@ object Cached {
   def put(b: ElementBuffer.Update): DSL[Unit] =
     ElementBufferPut(b.buffer).free >> ElementDataPut(b.data).free
 
+  def get(t: Texture.Constructor): DSL[Option[Texture.Loaded]] =
+    TextureGet(t).free
+  def put(t: Texture.Loaded): DSL[Unit] = TexturePut(t).free
+
+  def get(r: Renderbuffer.Constructor): DSL[Option[Renderbuffer.Loaded]] =
+    RenderbufferGet(r).free
+  def put(r: Renderbuffer.Loaded): DSL[Unit] = RenderbufferPut(r).free
+
+  def get(f: Framebuffer.Constructor): DSL[Option[Framebuffer.Loaded]] =
+    FramebufferGet(f).free
+  def put(f: Framebuffer.Loaded): DSL[Unit] = FramebufferPut(f).free
+
+  def get(s: Sampler.Constructor): DSL[Option[Sampler.Loaded]] =
+    SamplerGet(s).free
+
+  def put(s: Sampler.Loaded): DSL[Unit] = SamplerPut(s).free
+
   def ensure[A, L](dsl: DSL[Option[A]], l: => L): DSL[L Xor A] =
     dsl.map(_.toRightXor(l))
 
@@ -55,10 +72,18 @@ object Cached {
       vertexData: Map[VertexData.Ref, VertexData.Loaded],
       elementData: Map[ElementData.Ref, ElementData.Loaded],
       vertexBuffers: Map[VertexBuffer.Constructor, VertexBuffer.Loaded],
-      elementBuffers: Map[ElementBuffer.Constructor, ElementBuffer.Loaded])
+      elementBuffers: Map[ElementBuffer.Constructor, ElementBuffer.Loaded],
+      textures: Map[Texture.Constructor, Texture.Loaded],
+      renderbuffers: Map[Renderbuffer.Constructor, Renderbuffer.Loaded],
+      framebuffers: Map[Framebuffer.Constructor, Framebuffer.Loaded],
+      samplers: Map[Sampler.Constructor, Sampler.Loaded])
 
   object State {
     val empty: State = State(Map.empty,
+                             Map.empty,
+                             Map.empty,
+                             Map.empty,
+                             Map.empty,
                              Map.empty,
                              Map.empty,
                              Map.empty,
@@ -93,6 +118,22 @@ case class ElementBufferGet(c: ElementBuffer.Constructor)
     extends Cached[Option[ElementBuffer.Loaded]]
 case class ElementBufferPut(e: ElementBuffer.Loaded) extends Cached[Unit]
 
+case class TextureGet(t: Texture.Constructor)
+    extends Cached[Option[Texture.Loaded]]
+case class TexturePut(t: Texture.Loaded) extends Cached[Unit]
+
+case class RenderbufferGet(r: Renderbuffer.Constructor)
+    extends Cached[Option[Renderbuffer.Loaded]]
+case class RenderbufferPut(r: Renderbuffer.Loaded) extends Cached[Unit]
+
+case class FramebufferGet(f: Framebuffer.Constructor)
+    extends Cached[Option[Framebuffer.Loaded]]
+case class FramebufferPut(f: Framebuffer.Loaded) extends Cached[Unit]
+
+case class SamplerGet(s: Sampler.Constructor)
+    extends Cached[Option[Sampler.Loaded]]
+case class SamplerPut(s: Sampler.Loaded) extends Cached[Unit]
+
 private object CachedParser extends (Cached ~> Cached.Effect) {
   private val _vertexShaders: Lens[
       Cached.State,
@@ -119,6 +160,20 @@ private object CachedParser extends (Cached ~> Cached.Effect) {
       Cached.State,
       Map[ElementBuffer.Constructor, ElementBuffer.Loaded]] =
     GenLens[Cached.State](_.elementBuffers)
+  private val _textures: Lens[Cached.State,
+                              Map[Texture.Constructor, Texture.Loaded]] =
+    GenLens[Cached.State](_.textures)
+  private val _renderbuffers: Lens[
+      Cached.State,
+      Map[Renderbuffer.Constructor, Renderbuffer.Loaded]] =
+    GenLens[Cached.State](_.renderbuffers)
+  private val _framebuffers: Lens[
+      Cached.State,
+      Map[Framebuffer.Constructor, Framebuffer.Loaded]] =
+    GenLens[Cached.State](_.framebuffers)
+  private val _samplers: Lens[Cached.State,
+                              Map[Sampler.Constructor, Sampler.Loaded]] =
+    GenLens[Cached.State](_.samplers)
 
   def apply[A](cached: Cached[A]): Cached.Effect[A] =
     cached match {
@@ -152,5 +207,25 @@ private object CachedParser extends (Cached ~> Cached.Effect) {
       case ElementBufferPut(b) =>
         CatsState.modify(
             _ &|-> _elementBuffers ^|-> at(b.constructor) set Some(b))
+      case TextureGet(t) =>
+        CatsState.inspect(_ &|-> _textures ^|-> at(t) get)
+      case TexturePut(t) =>
+        CatsState.modify(_ &|-> _textures ^|-> at(t.constructor) set Some(t))
+      case RenderbufferGet(r) =>
+        CatsState.inspect(_ &|-> _renderbuffers ^|-> at(r) get)
+      case RenderbufferPut(r) =>
+        CatsState.modify(
+            _ &|-> _renderbuffers ^|-> at(r.constructor) set Some(r))
+      case FramebufferGet(f) =>
+        CatsState.inspect(_ &|-> _framebuffers ^|-> at(f) get)
+      case FramebufferPut(f) =>
+        CatsState.modify(
+            _ &|-> _framebuffers ^|-> at(f.constructor) set Some(f))
+
+      case SamplerGet(s) =>
+        CatsState.inspect(_ &|-> _samplers ^|-> at(s) get)
+      case SamplerPut(s) =>
+        CatsState.modify(_ &|-> _samplers ^|-> at(s.constructor) set Some(s))
+
     }
 }

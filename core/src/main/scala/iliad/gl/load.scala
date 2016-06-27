@@ -50,6 +50,18 @@ object Load {
            pageSize: Int,
            b: ElementBuffer.Loaded): DSL[ElementBuffer.Update] =
     LoadCopyElementBuffer(ref, data, pageSize, b).free
+
+  def apply(t: Texture.Constructor,
+            d: Option[Texture.Data]): DSL[Texture.Loaded] =
+    LoadTexture(t, d).free
+
+  def apply(r: Renderbuffer.Constructor): DSL[Renderbuffer.Loaded] =
+    LoadRenderbuffer(r).free
+  def apply(f: Framebuffer.Constructor,
+            as: List[(FramebufferAttachment, Framebuffer.AttachmentLoaded)])
+    : DSL[Framebuffer.Loaded] = LoadFramebuffer(f, as).free
+
+  def apply(s: Sampler.Constructor): DSL[Sampler.Loaded] = LoadSampler(s).free
 }
 
 sealed trait Load[A]
@@ -92,6 +104,18 @@ case class LoadCopyElementBuffer(ref: ElementData.Ref,
                                  b: ElementBuffer.Loaded)
     extends Load[ElementBuffer.Update]
 
+case class LoadTexture(texture: Texture.Constructor,
+                       data: Option[Texture.Data])
+    extends Load[Texture.Loaded]
+
+case class LoadRenderbuffer(r: Renderbuffer.Constructor)
+    extends Load[Renderbuffer.Loaded]
+case class LoadFramebuffer(
+    f: Framebuffer.Constructor,
+    as: List[(FramebufferAttachment, Framebuffer.AttachmentLoaded)])
+    extends Load[Framebuffer.Loaded]
+case class LoadSampler(s: Sampler.Constructor) extends Load[Sampler.Loaded]
+
 private object LoadParser extends (Load ~> GL.DSL) {
 
   private def roundUp(size: Int, baseCapacity: Int): Int =
@@ -107,7 +131,11 @@ private object LoadParser extends (Load ~> GL.DSL) {
         id <- GL.makeProgram(vs.id, fs.id)
         _ <- GL.useProgram(id)
         as <- GL.getAttributeLocations(id, vs.source.attributeNames)
-      } yield Program.Linked(id, Program.Unlinked(vs.source, fs.source), as)
+        us <- GL.getUniformLocations(
+                 id,
+                 vs.source.textureNames ++ fs.source.textureNames)
+      } yield
+        Program.Linked(id, Program.Unlinked(vs.source, fs.source), as, us)
 
     case LoadCreateVertexBuffer(r, d, pageSize, b) =>
       val capacity = roundUp(d.size, pageSize)
@@ -137,5 +165,27 @@ private object LoadParser extends (Load ~> GL.DSL) {
         .map(
             ElementBuffer.copy(_, b, r, d.size, capacity)
         )
+    case LoadTexture(t, d) =>
+      t match {
+        case s: Texture.SingleConstructor =>
+          GL.makeSingleTexture(s, d) map ((Texture.SingleLoaded(s, _)))
+        case dd: Texture.DoubleConstructor =>
+          GL.makeBufferedTexture(dd, d).map {
+            case (f, b) => Texture.DoubleLoaded(dd, f, b)
+          }
+      }
+    case LoadRenderbuffer(r) =>
+      GL.makeRenderbuffer(r).map(Renderbuffer.Loaded(r, _))
+    case LoadFramebuffer(f, as) =>
+      f match {
+        case s: Framebuffer.SingleConstructor =>
+          GL.makeSingleFramebuffer(as).map(Framebuffer.SingleLoaded(s, _))
+        case d: Framebuffer.DoubleConstructor =>
+          GL.makeBufferedFramebuffer(as) map {
+            case (ff, b) => Framebuffer.DoubleLoaded(d, ff, b)
+          }
+      }
+    case LoadSampler(s) =>
+      GL.makeSampler(s).map(Sampler.Loaded(s, _))
   }
 }

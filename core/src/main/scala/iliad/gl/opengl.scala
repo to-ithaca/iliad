@@ -2,8 +2,9 @@ package iliad
 package gl
 
 import iliad.kernel.platform.GLES30Library
-import iliad.CatsExtra._
+
 import iliad.std.int._
+import iliad.std.list._
 
 import cats._
 import cats.data._
@@ -12,6 +13,8 @@ import cats.free._, Free._
 import cats.implicits._
 
 import java.nio.Buffer
+
+import iliad.CatsExtra._
 
 object GL {
 
@@ -100,6 +103,10 @@ object GL {
       attributes: List[String]): DSL[List[(String, Int)]] =
     traverseKeys(attributes)(a => GLGetAttribLocation(program, a).free)
 
+  def getUniformLocations(program: Int,
+                          uniforms: List[String]): DSL[List[(String, Int)]] =
+    traverseKeys(uniforms)(u => GLGetUniformLocation(program, u).free)
+
   private val genBuffer: DSL[Int] = GLGenBuffers(1).free.map(_.head)
 
   private def makeEmptyBuffer(target: BufferTarget, capacity: Int): DSL[Int] =
@@ -178,6 +185,102 @@ object GL {
                     data,
                     capacity)
 
+  private def textureData(t: Texture.Constructor,
+                          data: Option[Texture.Data],
+                          id: Int): DSL[Unit] =
+    for {
+      _ <- GLBindTexture(id).free
+      _ <- GLTexImage2D(t.format.internal,
+                        t.viewport.width,
+                        t.viewport.height,
+                        t.format.pixel,
+                        t.format.pixelType,
+                        data.map(_.data).getOrElse(null)).free
+    } yield ()
+
+  def makeSingleTexture(t: Texture.SingleConstructor,
+                        data: Option[Texture.Data]): DSL[Int] =
+    for {
+      id <- GLGenTextures(1).free
+      _ <- textureData(t, data, id.head)
+    } yield id.head
+
+  def makeBufferedTexture(t: Texture.DoubleConstructor,
+                          data: Option[Texture.Data]): DSL[(Int, Int)] =
+    for {
+      ids <- GLGenTextures(2).free
+      front = ids.head
+      back = ids.tail.head
+      _ <- textureData(t, data, front)
+      _ <- textureData(t, data, back)
+    } yield (front, back)
+
+  def makeRenderbuffer(r: Renderbuffer.Constructor): DSL[Int] =
+    for {
+      ids <- GLGenRenderbuffers(1).free
+      id = ids.head
+      _ <- GLBindRenderbuffer(id).free
+      _ <- GLRenderbufferStorage(r.format, r.viewport.width, r.viewport.height).free
+    } yield id
+
+  private def bindAttachment(
+      a: FramebufferAttachment,
+      l: Framebuffer.AttachmentLoaded)(f: Texture.Loaded => Int): DSL[Unit] =
+    l match {
+      case Renderbuffer.Loaded(_, id) =>
+        GLFramebufferRenderbuffer(a, id).free
+      case t: Texture.Loaded => GLFramebufferTexture2D(a, f(t)).free
+    }
+
+  private def bindAttachments(
+      as: List[(FramebufferAttachment, Framebuffer.AttachmentLoaded)])(
+      f: Texture.Loaded => Int): DSL[Unit] =
+    as.traverseUnit {
+      case (a, l) => bindAttachment(a, l)(f)
+    }
+
+  private def makeFramebuffer(
+      as: List[(FramebufferAttachment, Framebuffer.AttachmentLoaded)],
+      id: Int)(f: Texture.Loaded => Int): DSL[Unit] =
+    for {
+      _ <- bindFramebuffer(id)
+      _ <- bindAttachments(as)(f)
+      _ <- GLDrawBuffers(as.filterClass[ColorBuffer]).free
+    } yield ()
+
+  def makeSingleFramebuffer(
+      as: List[(FramebufferAttachment, Framebuffer.AttachmentLoaded)])
+    : DSL[Int] =
+    for {
+      ids <- GLGenFramebuffers(1).free
+      id = ids.head
+      _ <- makeFramebuffer(as, id)(_.frontId)
+    } yield id
+
+  def makeBufferedFramebuffer(
+      as: List[(FramebufferAttachment, Framebuffer.AttachmentLoaded)])
+    : DSL[(Int, Int)] =
+    for {
+      ids <- GLGenFramebuffers(2).free
+      front = ids.head
+      back = ids.tail.head
+      _ <- makeFramebuffer(as, front)(_.frontId)
+      _ <- makeFramebuffer(as, back) {
+            case t: Texture.SingleLoaded => t.frontId
+            case t: Texture.DoubleLoaded => t.backId
+          }
+    } yield (front, back)
+
+  def makeSampler(s: Sampler.Constructor): DSL[Int] =
+    for {
+      ids <- GLGenSamplers(1).free
+      id = ids.head
+      _ <- GLSamplerParameteri(id, GL_TEXTURE_WRAP_S, s.wrapS).free
+      _ <- GLSamplerParameteri(id, GL_TEXTURE_WRAP_S, s.wrapT).free
+      _ <- GLSamplerParameteri(id, GL_TEXTURE_MAG_FILTER, s.magFilter).free
+      _ <- GLSamplerParameteri(id, GL_TEXTURE_MIN_FILTER, s.minFilter).free
+    } yield id
+
   def bindFramebuffer(framebuffer: Int): DSL[Unit] =
     GLBindFramebuffer(GL_FRAMEBUFFER, framebuffer).free
   def clear(mask: ChannelBitMask): DSL[Unit] = GLClear(mask).free
@@ -200,6 +303,17 @@ object GL {
                                  false,
                                  stride,
                                  offset).free
+    } yield ()
+
+  def bindTextureUniform(unit: TextureUnit,
+                         location: Int,
+                         texture: Int,
+                         sampler: Int): DSL[Unit] =
+    for {
+      _ <- GLActiveTexture(unit).free
+      _ <- GLBindTexture(texture).free
+      _ <- GLBindSampler(unit, sampler).free
+      _ <- GLUniform1i(location, Bounded.indexOf(unit)).free
     } yield ()
 
   def drawTriangles(start: Int, end: Int): DSL[Unit] =
@@ -227,8 +341,8 @@ case object GLCreateProgram extends GL[Int]
 case class GLAttachShader(program: Int, shader: Int) extends GL[Unit]
 case class GLLinkProgram(program: Int) extends GL[Unit]
 case class GLGetAttribLocation(program: Int, name: String) extends GL[Int]
-
-case class GLGenBuffers(number: Int) extends GL[List[Int]]
+case class GLGetUniformLocation(program: Int, name: String) extends GL[Int]
+case class GLGenBuffers(number: Int) extends GL[Set[Int]]
 case class GLBindBuffer(target: BufferTarget, buffer: Int) extends GL[Unit]
 case class GLBufferData(target: BufferTarget,
                         size: Int,
@@ -247,8 +361,39 @@ case class GLCopyBufferSubData(read: BufferTarget,
                                size: Int)
     extends GL[Unit]
 
+case class GLGenTextures(number: Int) extends GL[Set[Int]]
+case class GLBindTexture(texture: Int) extends GL[Unit]
+case class GLTexImage2D(internalFormat: TextureInternalFormat,
+                        width: Int,
+                        height: Int,
+                        format: TextureFormat,
+                        pixelType: TexturePixelType,
+                        data: Buffer)
+    extends GL[Unit]
+
+case class GLGenRenderbuffers(number: Int) extends GL[Set[Int]]
+case class GLBindRenderbuffer(renderbuffer: Int) extends GL[Unit]
+case class GLRenderbufferStorage(format: RenderbufferInternalFormat,
+                                 width: Int,
+                                 height: Int)
+    extends GL[Unit]
+
+case class GLGenFramebuffers(number: Int) extends GL[Set[Int]]
 case class GLBindFramebuffer(target: FramebufferTarget, framebuffer: Int)
     extends GL[Unit]
+case class GLFramebufferRenderbuffer(channel: FramebufferAttachment,
+                                     renderbuffer: Int)
+    extends GL[Unit]
+case class GLFramebufferTexture2D(channel: FramebufferAttachment, texture: Int)
+    extends GL[Unit]
+case class GLDrawBuffers(buffers: List[ColorBuffer]) extends GL[Unit]
+
+case class GLGenSamplers(number: Int) extends GL[Set[Int]]
+case class GLSamplerParameteri(sampler: Int,
+                               name: SamplerParameter,
+                               value: SamplerValue)
+    extends GL[Unit]
+
 case class GLEnable(capability: Capability) extends GL[Unit]
 case class GLDisable(capability: Capability) extends GL[Unit]
 case class GLColorMask(red: Boolean,
@@ -265,6 +410,11 @@ case class GLVertexAttribPointer(location: Int,
                                  stride: Int,
                                  offset: Int)
     extends GL[Unit]
+
+case class GLActiveTexture(unit: TextureUnit) extends GL[Unit]
+case class GLBindSampler(unit: TextureUnit, sampler: Int) extends GL[Unit]
+case class GLUniform1i(location: Int, value: Int) extends GL[Unit]
+
 case class GLDrawElements(mode: PrimitiveType,
                           count: Int,
                           `type`: IndexType,

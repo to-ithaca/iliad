@@ -1,6 +1,8 @@
 package iliad
 package gl
 
+import iliad.std.list._
+
 import simulacrum.typeclass
 
 import java.nio.Buffer
@@ -14,23 +16,34 @@ import monocle.macros._
 import monocle.syntax.all._
 
 object VertexShader {
-  case class Source(text: String, attributes: List[Attribute.Constructor]) {
+  case class Source(text: String,
+                    attributes: List[Attribute.Constructor],
+                    textures: List[(String, Sampler.Constructor)]) {
     def attributeNames: List[String] = attributes.map(_.name)
+    def textureNames: List[String] = textures.map(_._1)
   }
   case class Compiled(id: Int, source: Source)
 }
 
 object FragmentShader {
-  case class Source(text: String)
+  case class Source(text: String,
+                    textures: List[(String, Sampler.Constructor)]) {
+    def textureNames: List[String] = textures.map(_._1)
+  }
   case class Compiled(id: Int, source: Source)
 }
 
 object Program {
   case class Unlinked(vertex: VertexShader.Source,
-                      fragment: FragmentShader.Source)
+                      fragment: FragmentShader.Source) {
+    def samplers: Map[String, Sampler.Constructor] =
+      (vertex.textures ++ fragment.textures).toMap
+  }
+
   case class Linked(id: Int,
                     unlinked: Unlinked,
-                    attributes: List[(String, Int)]) {
+                    attributes: List[(String, Int)],
+                    textureUniforms: List[(String, Int)]) {
 
     private def loaded(a: Attribute.Constructor): Option[Attribute.Loaded] =
       attributes.find(_._1 == a.name).map {
@@ -42,7 +55,26 @@ object Program {
       as.traverse(a =>
               loaded(a).toRightXor(s"Location for attribute is undefined: $a"))
         .map(Attribute.LoadedAttributes)
+
+    def textureUniforms(ts: Map[String, Texture.Constructor])
+      : String Xor List[TextureUniform] =
+      textureUniforms.zipWithIndex.traverse {
+        case ((name, location), index) =>
+          ts.get(name)
+            .toRightXor(s"Unable to find uniform for texture $name")
+            .map(
+                t =>
+                  TextureUniform(Bounded.element[TextureUnit](index),
+                                 location,
+                                 t,
+                                 unlinked.samplers(name)))
+      }
   }
+
+  case class TextureUniform(unit: TextureUnit,
+                            location: Int,
+                            texture: Texture.Constructor,
+                            sampler: Sampler.Constructor)
 }
 
 object Attribute {
@@ -166,12 +198,6 @@ object ElementData {
   }
 }
 
-sealed trait Framebuffer
-
-object Framebuffer {
-  object Default extends Framebuffer
-}
-
 case class Model(vertex: Model.VertexRef, element: Model.ElementRef)
 
 object Model {
@@ -179,7 +205,102 @@ object Model {
   case class ElementRef(ref: ElementData.Ref, range: DataRange)
 }
 
-case class DrawOp(model: Model, program: Program.Unlinked, framebuffer: Int) {
+object Texture {
+
+  case class Data(data: Buffer, size: Int)
+
+  case class Format(pixel: TextureFormat,
+                    internal: TextureInternalFormat,
+                    pixelType: TexturePixelType,
+                    bytesPerPixel: Int)
+
+  sealed trait Constructor extends Framebuffer.AttachmentConstructor {
+    def name: String
+    def format: Format
+    def viewport: Rect[Int]
+  }
+
+  case class SingleConstructor(name: String,
+                               format: Format,
+                               viewport: Rect[Int])
+      extends Constructor
+  case class DoubleConstructor(name: String,
+                               format: Format,
+                               viewport: Rect[Int])
+      extends Constructor
+
+  sealed trait Loaded extends Framebuffer.AttachmentLoaded {
+    def constructor: Constructor
+    def frontId: Int
+  }
+
+  case class SingleLoaded(constructor: SingleConstructor, frontId: Int)
+      extends Loaded
+  case class DoubleLoaded(constructor: DoubleConstructor,
+                          frontId: Int,
+                          backId: Int)
+      extends Loaded {
+    def flip: DoubleLoaded = copy(frontId = backId, backId = frontId)
+  }
+}
+
+object Renderbuffer {
+  case class Constructor(name: String,
+                         format: RenderbufferInternalFormat,
+                         viewport: Rect[Int])
+      extends Framebuffer.AttachmentConstructor
+  case class Loaded(constructor: Constructor, id: Int)
+      extends Framebuffer.AttachmentLoaded
+}
+
+object Framebuffer {
+  sealed trait Constructor {
+    def attachments: List[(FramebufferAttachment, AttachmentConstructor)]
+    def textures = attachments.map(_._2).filterClass[Texture.Constructor]
+  }
+
+  sealed trait AttachmentConstructor
+  sealed trait AttachmentLoaded
+
+  case class SingleConstructor(
+      attachments: List[(FramebufferAttachment, AttachmentConstructor)])
+      extends Constructor
+
+  case class DoubleConstructor(
+      attachments: List[(FramebufferAttachment, AttachmentConstructor)])
+      extends Constructor
+
+  sealed trait Loaded {
+    def frontId: Int
+    def constructor: Constructor
+  }
+
+  case class SingleLoaded(constructor: Constructor, frontId: Int)
+      extends Loaded
+
+  case class DoubleLoaded(constructor: DoubleConstructor,
+                          frontId: Int,
+                          backId: Int)
+      extends Loaded {
+    def flip: DoubleLoaded = copy(frontId = backId, backId = frontId)
+  }
+
+  val default = SingleConstructor(Nil)
+  val defaultLoaded = SingleLoaded(default, 0)
+}
+
+object Sampler {
+  case class Constructor(wrapS: TextureWrap,
+                         wrapT: TextureWrap,
+                         minFilter: TextureMinFilter,
+                         magFilter: TextureMagFilter)
+  case class Loaded(constructor: Constructor, id: Int)
+}
+
+case class DrawOp(model: Model,
+                  program: Program.Unlinked,
+                  textureUniforms: Map[String, Texture.Constructor],
+                  framebuffer: Framebuffer.Constructor) {
   val vertexModel: Model.VertexRef = model.vertex
   val vertexData: VertexData.Ref = vertexModel.ref
   val vertexBuffer: VertexBuffer.Constructor = vertexData.buffer
