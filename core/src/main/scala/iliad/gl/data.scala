@@ -20,8 +20,8 @@ object VertexShader {
   case class Source(text: String,
                     attributes: List[Attribute.Constructor],
                     textures: List[(String, Sampler.Constructor)]) {
-    def attributeNames: List[String] = attributes.map(_.name)
-    def textureNames: List[String] = textures.map(_._1)
+    val attributeNames: List[String] = attributes.map(_.name)
+    val textureNames: List[String] = textures.map(_._1)
   }
   case class Compiled(id: Int, source: Source)
 }
@@ -29,7 +29,7 @@ object VertexShader {
 object FragmentShader {
   case class Source(text: String,
                     textures: List[(String, Sampler.Constructor)]) {
-    def textureNames: List[String] = textures.map(_._1)
+    val textureNames: List[String] = textures.map(_._1)
   }
   case class Compiled(id: Int, source: Source)
 }
@@ -37,8 +37,9 @@ object FragmentShader {
 object Program {
   case class Unlinked(vertex: VertexShader.Source,
                       fragment: FragmentShader.Source) {
-    def samplers: Map[String, Sampler.Constructor] =
+    val samplers: Map[String, Sampler.Constructor] =
       (vertex.textures ++ fragment.textures).toMap
+    val textureNames: List[String] = vertex.textureNames ::: fragment.textureNames
   }
 
   case class Linked(id: Int,
@@ -221,13 +222,9 @@ object Texture {
     def viewport: Vec2i
   }
 
-  case class SingleConstructor(name: String,
-                               format: Format,
-                               viewport: Vec2i)
+  case class SingleConstructor(name: String, format: Format, viewport: Vec2i)
       extends Constructor
-  case class DoubleConstructor(name: String,
-                               format: Format,
-                               viewport: Vec2i)
+  case class DoubleConstructor(name: String, format: Format, viewport: Vec2i)
       extends Constructor
 
   sealed trait Loaded extends Framebuffer.AttachmentLoaded {
@@ -295,21 +292,33 @@ object Sampler {
                          wrapT: TextureWrap,
                          minFilter: TextureMinFilter,
                          magFilter: TextureMagFilter)
+
+  object Constructor {
+    val image: Constructor =
+      Constructor(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR)
+  }
   case class Loaded(constructor: Constructor, id: Int)
 }
 
 case class ColorMask(r: Boolean, g: Boolean, b: Boolean, a: Boolean)
 
+object ColorMask {
+  val none: ColorMask = ColorMask(true, true, true, true)
+}
+
+object Capabilities {
+  val depth: List[Capability] = List(GL_DEPTH_TEST)
+}
+
 //TODO: add colorMask etc. to state and draw
 case class DrawOp(model: Model,
                   program: Program.Unlinked,
                   textureUniforms: Map[String, Texture.Constructor],
-                  framebuffer: Framebuffer.Constructor, 
-  colorMask: ColorMask,
-primitive: PrimitiveType,
-capabilities: Set[Capability],
-numInstances: Int
-) {
+                  framebuffer: Framebuffer.Constructor,
+                  colorMask: ColorMask,
+                  primitive: PrimitiveType,
+                  capabilities: Set[Capability],
+                  numInstances: Int) {
   val vertexModel: Model.VertexRef = model.vertex
   val vertexData: VertexData.Ref = vertexModel.ref
   val vertexBuffer: VertexBuffer.Constructor = vertexData.buffer

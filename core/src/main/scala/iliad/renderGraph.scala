@@ -1,29 +1,37 @@
 package iliad
 
-import iliad.kernel._
 import iliad.syntax.all._
 import iliad.gl._
 
-
 import cats._
+import cats.data._
+import cats.implicits._
 
-import shapeless._
+import iliad.CatsExtra._
 
-object RenderGraph {
+object RenderModel {
 
   object Texture {
     sealed trait Uniform
-    case class Constructor(name: String, format: gl.Texture.Format, viewport: Vec2i) 
+    case class Constructor(name: String,
+                           format: gl.Texture.Format,
+                           viewport: Vec2i)
         extends Output.Constructor
-    case class Instance(name: String, constructor: Constructor) 
-        extends Uniform with Output.Instance
+    case class Instance(name: String, constructor: Constructor)
+        extends Uniform
+        with Output.Instance
 
-    case class Image(name: String, format: gl.Texture.Format, viewport: Vec2i) extends Uniform
+    case class Image(name: String, format: gl.Texture.Format, viewport: Vec2i)
+        extends Uniform
   }
 
   object Renderbuffer {
-    case class Constructor(name: String, format: RenderbufferInternalFormat, viewport: Vec2i) extends Output.Constructor
-    case class Instance(name: String, constructor: Constructor) extends Output.Instance
+    case class Constructor(name: String,
+                           format: RenderbufferInternalFormat,
+                           viewport: Vec2i)
+        extends Output.Constructor
+    case class Instance(name: String, constructor: Constructor)
+        extends Output.Instance
   }
 
   object Output {
@@ -36,91 +44,286 @@ object RenderGraph {
     sealed trait Instance
 
     case object OnScreen extends Constructor with Instance
-    case class OffScreenConstructor(buffers: List[(FramebufferAttachment, Output.Constructor)]) 
-        extends Constructor 
+    case class OffScreenConstructor(
+        buffers: List[(FramebufferAttachment, Output.Constructor)])
+        extends Constructor
 
-    case class OffScreenInstance(instances: List[(FramebufferAttachment, Output.Instance)]) extends Instance
+    case class OffScreenInstance(
+        instances: List[(FramebufferAttachment, Output.Instance)])
+        extends Instance
   }
 
   object Model {
     case class Constructor(name: String)
-    case class Instance(name: String, constructor: Constructor, model: gl.Model)
+    case class Instance(name: String,
+                        constructor: Constructor,
+                        model: gl.Model)
   }
 
   sealed trait Node
+  object Node {
+    sealed trait Constructor {
+      def name: String
+      def framebuffer: Framebuffer.Constructor
+    }
+    sealed trait Instance {
+      def constructor: Constructor
+    }
+  }
 
   object Draw {
     case class Constructor(
-      name: String,
-      program: Program.Unlinked,
-      primitive: PrimitiveType,
-      capabilities: List[Capability],
-      colorMask: ColorMask,
-      isInstanced: Boolean,
-      model: Model.Constructor,
-      framebuffer: Framebuffer.Constructor
+        name: String,
+        program: Program.Unlinked,
+        primitive: PrimitiveType,
+        capabilities: List[Capability],
+        colorMask: ColorMask,
+        isInstanced: Boolean,
+        model: Model.Constructor,
+        framebuffer: Framebuffer.Constructor
     ) extends Node.Constructor
 
     case class Piped(
-      node: Constructor,
-      uniforms: Map[String, Texture.Constructor]
-    )
+        constructor: Constructor,
+        uniforms: List[(String, Texture.Constructor)]
+    ) {
+      def textureNames: List[String] = uniforms.map(_._1)
+    }
 
     case class Instance(
-      node: Constructor,
-      uniforms: Map[String, Texture.Uniform],
-      model: Model.Instance,
-      framebuffer: Framebuffer.Instance,
-      numInstances: Int
-    ) extends Node.Instance
+        piped: Piped,
+        uniforms: Map[String, Texture.Uniform],
+        model: Model.Instance,
+        framebuffer: Framebuffer.Instance,
+        numInstances: Int
+    ) extends Node.Instance {
+      def constructor: Constructor = piped.constructor
+      def imageNames =
+        constructor.program.textureNames.filterNot(piped.textureNames.toSet)
+    }
   }
 
   object Clear {
     case class Constructor(
-      mask: ChannelBitMask,
-      framebuffer: Framebuffer.Constructor
+        name: String,
+        mask: ChannelBitMask,
+        framebuffer: Framebuffer.Constructor
     ) extends Node.Constructor
 
     case class Instance(
-      node: Constructor,
-      framebuffer: Framebuffer.Instance
+        constructor: Constructor,
+        framebuffer: Framebuffer.Instance
     ) extends Node.Instance
   }
 
-  object Node {
-    sealed trait Constructor
-    sealed trait Instance
+  sealed trait Link {
+    def start: Node.Constructor
+    def end: Node.Constructor
   }
-
-  sealed trait Link 
   object Link {
 
     case class Pipe(start: Draw.Constructor,
-                  end: Draw.Constructor,
-                  uniforms: Map[String, Texture.Constructor]) extends Link
-    case class Order(start: Node, end: Node) extends Link
+                    end: Draw.Constructor,
+                    uniforms: Map[String, Texture.Constructor])
+        extends Link
+    case class Order(start: Node.Constructor, end: Node.Constructor)
+        extends Link
   }
 
   //TODO: find out what to do with this
   //case class Valve(start: Node.Draw, links: List[Link.Pipe])
 
- 
-  case class Constructor(nodes: List[Node], links: List[Link])
-  case class Instance(constructor: Constructor, nodes: List[Node.Instance])
+  object Graph {
+
+    case class Constructor(nodes: List[Node.Constructor], links: List[Link]) {
+      def put(n: Node.Constructor): Constructor = ???
+      def put(l: Link): Constructor = ???
+      def constructed: Constructed = Constructed(nodes.toSet, links.toSet)
+    }
+
+    object Constructor {
+      val empty: Constructor = Constructor(Nil, Nil)
+    }
+
+    case class Constructed(nodes: Set[Node.Constructor], links: Set[Link]) {
+
+      def start: Set[Node.Constructor] =
+        nodes.filter(n => !links.exists(_.end == n))
+
+      def next(ns: Set[Node.Constructor]): Set[Node.Constructor] =
+        links.filter(l => ns.contains(l.start)).map(_.end)
+
+      def end: Set[Node.Constructor] =
+        nodes.filter(n => !links.exists(_.start == n))
+
+      def instance: Instance = Instance(this, Nil)
+    }
+
+    case class Instance(constructed: Constructed, nodes: List[Node.Instance])
+  }
 }
 
+object GraphConstruction {
+  import RenderModel._
 
-/**
- * Rules:
- * - all nodes must be linked to other nodes.  There can be no orphan nodes.
- * - node names must be unique
- * - two nodes can have zero or one link connecting them
- * - all end nodes should draw to the screen
- *
- * => it is always possible to find the start nodes
- * => there are certain valid valve combinations
-  * */
+  def put(n: Node.Constructor): State[Graph.Constructor, Unit] =
+    State.modify(_.put(n))
+  def put(l: Link): State[Graph.Constructor, Unit] =
+    State.modify(_.put(l))
+}
 
+object GraphValidation {
+  import RenderModel._
+
+  type Validate[A] = ReaderT[ValidatedNel[String, ?], Graph.Constructed, A]
+
+  private val nodesConnected: Validate[Unit] = ReaderT { g =>
+    def go(start: Set[Node.Constructor],
+           connected: Set[Node.Constructor],
+           remaining: Set[Node.Constructor]): ValidatedNel[String, Unit] = {
+      if (remaining.isEmpty) ().valid
+      else {
+        val next = g.next(start)
+        if (next.isEmpty)
+          s"The following group is disconnected ${remaining}".invalidNel
+        else go(next, connected ++ next, remaining -- next)
+      }
+    }
+
+    go(g.start, Set.empty, g.nodes)
+  }
+
+  private val linksUnique: Validate[Unit] = ReaderT { g =>
+    val dupes = g.links
+      .groupBy(l => (l.start, l.end))
+      .filter {
+        case (_, ls) => ls.size > 1
+      }
+      .map(_._2)
+    if (dupes.nonEmpty)
+      s"The following links are duplicates ${dupes.mkString("\n")}".invalidNel
+    else ().valid
+  }
+
+  private val nodesUnique: Validate[Unit] = ReaderT { g =>
+    val dupes = g.nodes
+      .groupBy(_.name)
+      .filter {
+        case (_, ns) => ns.size > 1
+      }
+      .map(_._2)
+    if (dupes.nonEmpty)
+      s"The following nodes are non-unique ${dupes.mkString("\n")}".invalidNel
+    else ().valid
+  }
+  private val endNodesOnScreen: Validate[Unit] = ReaderT { g =>
+    val offScreen = g.end.filter(_.framebuffer match {
+      case Framebuffer.OnScreen => false
+      case _ => true
+    })
+    if (offScreen.nonEmpty)
+      s"The following end nodes are off screen ${offScreen}".invalidNel
+    else ().valid
+  }
+  //TODO: check that pipes have valid textures / uniforms
+
+  private val checks: Validate[Unit] =
+    nodesUnique *> linksUnique *> nodesConnected *> endNodesOnScreen
+
+  def validate(g: Graph.Constructed): ValidatedNel[String, Unit] =
+    checks.run(g)
+}
+
+object GraphInstantiation {
+  import RenderModel._
+
+  type RValidated[A] = ReaderT[ValidatedNel[String, ?], Graph.Instance, A]
+
+  def hasAllInputTextueres(n: Draw.Instance): ValidatedNel[String, Unit] =
+    n.piped.uniforms.traverseUnit {
+      case (name, cons) =>
+        n.uniforms.get(name) match {
+          case Some(u: Texture.Instance) =>
+            if (u.constructor == cons) ().valid
+            else
+              s"Uniform texture $name has inconsistent texture instance $u for node $n".invalidNel
+          case Some(u: Texture.Image) =>
+            s"Uniform texture $name is image $u instead of texture instance $cons for $n".invalidNel
+          case None =>
+            s"No texture provided for uniform $name of node $n".invalidNel
+        }
+    }
+
+  def hasAllImageTextures(n: Draw.Instance): ValidatedNel[String, Unit] =
+    n.imageNames.traverseUnit { name =>
+      n.uniforms.get(name) match {
+        case Some(u: Texture.Image) => ().valid
+        case Some(u: Texture.Instance) =>
+          s"Uniform image $name is texture instead of image for node $n".invalidNel
+        case None =>
+          s"No image provided for uniform $name of node $n".invalidNel
+      }
+    }
+
+  def hasAllAttributes(n: Draw.Instance): ValidatedNel[String, Unit] =
+    n.constructor.program.vertex.attributes.traverseUnit { a =>
+      if (n.model.model.vertex.ref.buffer.attributes.contains(a)) ().valid
+      else s"Attribute $a is not present for node $n".invalidNel
+    }
+
+  def hasAllNodes(ns: List[Node.Instance]): RValidated[Unit] = ReaderT { g =>
+    val unfilled = g.constructed.links.flatMap { l =>
+      if (ns.exists(_.constructor == l.start) && !ns.exists(
+              _.constructor == l.end)) {
+        Some(l.end)
+      } else if (ns.exists(_.constructor == l.end) && !ns.exists(
+                     _.constructor == l.start)) {
+        Some(l.start)
+      } else None
+    }
+    if (unfilled.nonEmpty)
+      s"instance has unfilled nodes ${unfilled}".invalidNel
+    else ().valid
+  }
+
+  def put(nodes: List[Node.Instance])
+    : StateT[ValidatedNel[String, ?], Graph.Instance, Unit] = ???
+}
+
+object GraphRunner {
+  import RenderModel._
+  def run(graph: Graph.Instance): List[DrawOp] = ???
+}
+/*
+object TestGraph {
+
+  val cons = RenderGraph.Constructor.empty
+
+  val vsh = VertexShader.Source("text", List(GLAttribute[Vec2f].attribute("position")), Nil)
+  val fsh = FragmentShader.Source("text", List("image" -> Sampler.Constructor.image))
+  val program = Program.Unlinked(vsh, fsh)
+  val model = RenderGraph.Model.Constructor("model")
+  val draw = RenderGraph.Draw.Constructor("basic", program, 
+    GL_TRIANGLES,
+    Capabilities.depth,
+    ColorMask.none,
+    false,
+    model,
+    RenderGraph.Framebuffer.OnScreen
+  )
+  val instance = cons.put(draw).instance
+}
+ */
+/* We need a state to build up a graph
+   We run the state to get the final graph instance
+   We validate the instance
+   We add a node instance to the graph instance
+   We take the graph instance and convert it into a list of draw ops
+   We run the draw ops
+   We get the load commands out
+
+   Q: Where is the validation?
+ **/
 /*
 object RenderMap {
 
@@ -293,4 +496,3 @@ What we have missed:
 
 //constraints can be added in afterwards
  */
-
