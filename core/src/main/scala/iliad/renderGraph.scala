@@ -2,50 +2,113 @@ package iliad
 
 import iliad.kernel._
 import iliad.syntax.all._
+import iliad.gl._
+
 
 import cats._
 
 import shapeless._
-/*
-object RenderMap {
 
-  /** Node on the renderMap.  Represents a drawElements call */
+object RenderGraph {
+
+  object Texture {
+    sealed trait Uniform
+    case class Constructor(name: String, format: gl.Texture.Format, viewport: Vec2i) 
+        extends Output.Constructor
+    case class Instance(name: String, constructor: Constructor) 
+        extends Uniform with Output.Instance
+
+    case class Image(name: String, format: gl.Texture.Format, viewport: Vec2i) extends Uniform
+  }
+
+  object Renderbuffer {
+    case class Constructor(name: String, format: RenderbufferInternalFormat, viewport: Vec2i) extends Output.Constructor
+    case class Instance(name: String, constructor: Constructor) extends Output.Instance
+  }
+
+  object Output {
+    sealed trait Constructor
+    sealed trait Instance
+  }
+
+  object Framebuffer {
+    sealed trait Constructor
+    sealed trait Instance
+
+    case object OnScreen extends Constructor with Instance
+    case class OffScreenConstructor(buffers: List[(FramebufferAttachment, Output.Constructor)]) 
+        extends Constructor 
+
+    case class OffScreenInstance(instances: List[(FramebufferAttachment, Output.Instance)]) extends Instance
+  }
+
+  object Model {
+    case class Constructor(name: String)
+    case class Instance(name: String, constructor: Constructor, model: gl.Model)
+  }
+
   sealed trait Node
 
-  case class ProgramNode(
+  object Draw {
+    case class Constructor(
       name: String,
-      program: Program,
+      program: Program.Unlinked,
       primitive: PrimitiveType,
       capabilities: List[Capability],
-      isInstanced: Boolean,
-      channelBitMask: ChannelBitMask,
       colorMask: ColorMask,
-      isOnScreen: Boolean
-  )
-      extends Node
+      isInstanced: Boolean,
+      model: Model.Constructor,
+      framebuffer: Framebuffer.Constructor
+    ) extends Node.Constructor
 
-  case class ClearNode(
-      name: String,
-      outputs: Map[ColorAttachment, ShaderOutputTemplate],
-      channelBitMask: ChannelBitMask,
-      isOnScreen: Boolean
-  )
-      extends Node
+    case class Piped(
+      node: Constructor,
+      uniforms: Map[String, Texture.Constructor]
+    )
 
-  /** Link on the renderMap.  Links a node to another node via textures */
-  case class Link(start: Node,
-                  end: Node,
-                  uniforms: Map[String, TextureTemplate],
-                  outputs: List[ShaderOutputTemplate])
+    case class Instance(
+      node: Constructor,
+      uniforms: Map[String, Texture.Uniform],
+      model: Model.Instance,
+      framebuffer: Framebuffer.Instance,
+      numInstances: Int
+    ) extends Node.Instance
+  }
 
-  /** Switches between multiple links.  All links have the same start node */
-  case class Valve(links: List[Link])
+  object Clear {
+    case class Constructor(
+      mask: ChannelBitMask,
+      framebuffer: Framebuffer.Constructor
+    ) extends Node.Constructor
+
+    case class Instance(
+      node: Constructor,
+      framebuffer: Framebuffer.Instance
+    ) extends Node.Instance
+  }
+
+  object Node {
+    sealed trait Constructor
+    sealed trait Instance
+  }
+
+  sealed trait Link 
+  object Link {
+
+    case class Pipe(start: Draw.Constructor,
+                  end: Draw.Constructor,
+                  uniforms: Map[String, Texture.Constructor]) extends Link
+    case class Order(start: Node, end: Node) extends Link
+  }
+
+  //TODO: find out what to do with this
+  //case class Valve(start: Node.Draw, links: List[Link.Pipe])
+
+ 
+  case class Constructor(nodes: List[Node], links: List[Link])
+  case class Instance(constructor: Constructor, nodes: List[Node.Instance])
 }
 
-/** A group of nodes and links */
-case class RenderMap(nodes: List[RenderMap.Node],
-                     links: List[RenderMap.Link],
-                     valves: List[RenderMap.Valve])
 
 /**
  * Rules:
@@ -56,15 +119,19 @@ case class RenderMap(nodes: List[RenderMap.Node],
  *
  * => it is always possible to find the start nodes
  * => there are certain valid valve combinations
- *
- * --------------
- * Q: how do we deal with recursion?  Pipe the outputs of one node to the inputs of another in the next loop?
- * i.e. particles writes textureP and reads textureB
- * body reads textureP and writes textureB
- *
- * we know to flip textureB after writing to it, because anything else will only read from the new texture.
- * => So we link back via doubleTextures
- * --------------
+  * */
+
+/*
+object RenderMap {
+
+  /** Switches between multiple links.  All links have the same start node */
+  case class Valve(links: List[Link])
+}
+
+/** A group of nodes and links */
+case class RenderMap(nodes: List[RenderMap.Node],
+                     links: List[RenderMap.Link],
+                     valves: List[RenderMap.Valve])
  *
  * Any other difficult questions....
  *
@@ -93,6 +160,8 @@ case class RenderMap(nodes: List[RenderMap.Node],
  *
  * Consider we have multilpe light sources.
  */
+
+/*
 trait Loadable {
   def loadCommands[F[_]]: GL.IO[F, Unit]
 }
@@ -224,3 +293,4 @@ What we have missed:
 
 //constraints can be added in afterwards
  */
+
