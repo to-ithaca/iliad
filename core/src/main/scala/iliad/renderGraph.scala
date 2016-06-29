@@ -1,6 +1,7 @@
 package iliad
 
 import iliad.syntax.all._
+import iliad.std.list._
 import iliad.gl._
 
 import cats._
@@ -15,7 +16,8 @@ object RenderModel {
     sealed trait Uniform
     case class Constructor(name: String,
                            format: gl.Texture.Format,
-                           viewport: Vec2i)
+                           viewport: Vec2i,
+                           isDouble: Boolean)
         extends Output.Constructor
     case class Instance(name: String, constructor: Constructor)
         extends Uniform
@@ -76,7 +78,7 @@ object RenderModel {
         name: String,
         program: Program.Unlinked,
         primitive: PrimitiveType,
-        capabilities: List[Capability],
+        capabilities: Set[Capability],
         colorMask: ColorMask,
         isInstanced: Boolean,
         model: Model.Constructor,
@@ -239,7 +241,7 @@ object GraphInstantiation {
 
   type RValidated[A] = ReaderT[ValidatedNel[String, ?], Graph.Instance, A]
 
-  def hasAllInputTextueres(n: Draw.Instance): ValidatedNel[String, Unit] =
+  def hasAllInputTextures(n: Draw.Instance): ValidatedNel[String, Unit] =
     n.piped.uniforms.traverseUnit {
       case (name, cons) =>
         n.uniforms.get(name) match {
@@ -286,13 +288,88 @@ object GraphInstantiation {
     else ().valid
   }
 
-  def put(nodes: List[Node.Instance])
-    : StateT[ValidatedNel[String, ?], Graph.Instance, Unit] = ???
+  def lift(v: ValidatedNel[String, Unit]): RValidated[Unit] =
+    KleisliExtra.lift(v)
+
+  def checks(ns: List[Node.Instance])
+    : ReaderT[Xor[NonEmptyList[String], ?], Graph.Instance, Unit] = {
+    val vs = lift(ns.filterClass[Draw.Instance].traverseUnit(hasAllAttributes)) *>
+        lift(ns.filterClass[Draw.Instance].traverseUnit(hasAllImageTextures)) *>
+        lift(ns.filterClass[Draw.Instance].traverseUnit(hasAllInputTextures)) *>
+        hasAllNodes(ns)
+
+    vs.transform(
+        new (ValidatedNel[String, ?] ~> Xor[NonEmptyList[String], ?]) {
+      def apply[A](v: ValidatedNel[String, A]): NonEmptyList[String] Xor A =
+        v.toXor
+    })
+  }
+  def put(ns: List[Node.Instance])
+    : StateT[Xor[NonEmptyList[String], ?], Graph.Instance, Unit] = {
+    StateTExtra.modifyT(checks(ns).run)
+  }
 }
 
 object GraphRunner {
-  import RenderModel._
-  def run(graph: Graph.Instance): List[DrawOp] = ???
+
+  //TODO: names are not unique here!
+  private def transform(t: RenderModel.Texture.Instance): Texture.Constructor =
+    if (t.constructor.isDouble)
+      Texture.DoubleConstructor(t.name,
+                                t.constructor.format,
+                                t.constructor.viewport)
+    else
+      Texture.SingleConstructor(t.name,
+                                t.constructor.format,
+                                t.constructor.viewport)
+
+  private def transform(
+      r: RenderModel.Renderbuffer.Instance): Renderbuffer.Constructor =
+    Renderbuffer
+      .Constructor(r.name, r.constructor.format, r.constructor.viewport)
+
+  private def transform(i: RenderModel.Texture.Image): Texture.Constructor =
+    Texture.SingleConstructor(i.name, i.format, i.viewport)
+
+  private def transform(ts: Map[String, RenderModel.Texture.Uniform])
+    : Map[String, Texture.Constructor] = ts.mapValues {
+    case t: RenderModel.Texture.Instance => transform(t)
+    case i: RenderModel.Texture.Image => transform(i)
+  }
+
+  private def transform(
+      i: RenderModel.Output.Instance): Framebuffer.AttachmentConstructor =
+    i match {
+      case t: RenderModel.Texture.Instance => transform(t)
+      case r: RenderModel.Renderbuffer.Instance => transform(r)
+    }
+
+  private def hasDoubleTexture(
+      is: List[(FramebufferAttachment, RenderModel.Output.Instance)]) =
+    is.map(_._2)
+      .filterClass[RenderModel.Texture.Instance]
+      .exists(_.constructor.isDouble)
+
+  private def transform(
+      f: RenderModel.Framebuffer.Instance): Framebuffer.Constructor =
+    f match {
+      case RenderModel.Framebuffer.OnScreen => Framebuffer.default
+      case RenderModel.Framebuffer.OffScreenInstance(is) =>
+        val as = is.map { case (c, a) => (c, transform(a)) }
+        if (hasDoubleTexture(is))
+          Framebuffer.DoubleConstructor(as)
+        else Framebuffer.SingleConstructor(as)
+    }
+
+  private def transform(n: RenderModel.Draw.Instance): DrawOp =
+    DrawOp(n.model.model,
+           n.constructor.program,
+           transform(n.uniforms),
+           transform(n.framebuffer),
+           n.constructor.colorMask,
+           n.constructor.primitive,
+           n.constructor.capabilities,
+           n.numInstances)
 }
 /*
 object TestGraph {

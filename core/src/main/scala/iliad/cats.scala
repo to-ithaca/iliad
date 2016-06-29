@@ -1,6 +1,7 @@
 package iliad
 
 import cats._
+import cats.data._
 import cats.free._
 import cats.implicits._
 
@@ -29,4 +30,16 @@ final class TraverseOps[F[_]: Traverse, A](fa: F[A]) {
 
 final class SequenceOps[F[_]: Traverse, G[_]: Applicative, A](fga: F[G[A]]) {
   def sequenceUnit: G[Unit] = fga.sequence.map(_ => ())
+}
+
+object StateTExtra {
+  def modifyT[F[_]: Applicative, S, A](f: S => F[A]): StateT[F, S, A] =
+    StateT(s => f(s).map(s -> _))
+
+  def pureT[F[_]: Applicative, S, A](fa: F[A]): StateT[F, S, A] =
+    StateT(s => fa.map(a => s -> a))
+}
+
+object KleisliExtra {
+  def lift[F[_], A, B](fb: F[B]): Kleisli[F, A, B] = Kleisli(_ => fb)
 }
