@@ -3,15 +3,15 @@ package gl
 
 import iliad.syntax.all._
 import iliad.std.list._
+import iliad.std.set._
 
 import cats._
-import cats.free._
 import cats.data._
 import cats.implicits._
 
 import iliad.CatsExtra._
 
-object RenderModel {
+object GraphModel {
 
   object Output {
     sealed trait Constructor
@@ -58,7 +58,7 @@ object RenderModel {
 
       val hasDoubleTexture: Boolean = instances
         .map(_._2)
-        .filterClass[RenderModel.Texture.Instance]
+        .filterClass[Texture.Instance]
         .exists(_.constructor.isDouble)
     }
   }
@@ -147,8 +147,8 @@ object RenderModel {
   object Graph {
 
     case class Constructor(nodes: List[Node.Constructor], links: List[Link]) {
-      def put(n: Node.Constructor): Constructor = ???
-      def put(l: Link): Constructor = ???
+      def put(n: Node.Constructor): Constructor = copy(nodes = n :: nodes)
+      def put(l: Link): Constructor = copy(links = l :: links)
       def constructed: Constructed = Constructed(nodes.toSet, links.toSet)
     }
 
@@ -173,229 +173,6 @@ object RenderModel {
     case class Instance(constructed: Constructed, nodes: List[Node.Instance])
   }
 }
-
-object GraphConstruction {
-  import RenderModel._
-
-  def put(n: Node.Constructor): State[Graph.Constructor, Unit] =
-    State.modify(_.put(n))
-  def put(l: Link): State[Graph.Constructor, Unit] =
-    State.modify(_.put(l))
-
-  type RValidated = ReaderT[ValidatedNel[String, ?], Graph.Constructed, Unit]
-
-  private val nodesConnected: RValidated = ReaderT { g =>
-    def go(start: Set[Node.Constructor],
-           connected: Set[Node.Constructor],
-           remaining: Set[Node.Constructor]): ValidatedNel[String, Unit] = {
-      if (remaining.isEmpty) ().valid
-      else {
-        val next = g.next(start)
-        if (next.isEmpty)
-          s"The following group is disconnected ${remaining}".invalidNel
-        else go(next, connected ++ next, remaining -- next)
-      }
-    }
-
-    go(g.start, Set.empty, g.nodes)
-  }
-
-  private val linksUnique: RValidated = ReaderT { g =>
-    val dupes = g.links
-      .groupBy(l => (l.start, l.end))
-      .filter {
-        case (_, ls) => ls.size > 1
-      }
-      .map(_._2)
-    if (dupes.nonEmpty)
-      s"The following links are duplicates ${dupes.mkString("\n")}".invalidNel
-    else ().valid
-  }
-
-  private val nodesUnique: RValidated = ReaderT { g =>
-    val dupes = g.nodes
-      .groupBy(_.name)
-      .filter {
-        case (_, ns) => ns.size > 1
-      }
-      .map(_._2)
-    if (dupes.nonEmpty)
-      s"The following nodes are non-unique ${dupes.mkString("\n")}".invalidNel
-    else ().valid
-  }
-
-  private val endNodesOnScreen: RValidated = ReaderT { g =>
-    val offScreen = g.end.filter(_.framebuffer match {
-      case Framebuffer.OnScreen => false
-      case _ => true
-    })
-    if (offScreen.nonEmpty)
-      s"The following end nodes are off screen ${offScreen}".invalidNel
-    else ().valid
-  }
-  //TODO: check that pipes have valid textures / uniforms
-
-  def validate(g: Graph.Constructed): ValidatedNel[String, Unit] =
-    (nodesUnique *> linksUnique *> nodesConnected *> endNodesOnScreen).apply(g)
-}
-
-object GraphInstantiation {
-  import RenderModel._
-
-  type RValidated[A] = ReaderT[ValidatedNel[String, ?], Graph.Instance, A]
-
-  private def textures(n: Draw.Instance): ValidatedNel[String, Unit] =
-    n.piped.uniforms.traverseUnit {
-      case (name, cons) =>
-        n.uniforms.get(name) match {
-          case Some(u: Texture.Instance) =>
-            if (u.constructor == cons) ().valid
-            else
-              s"Uniform texture $name has inconsistent texture instance $u for node $n".invalidNel
-          case Some(u: Texture.Image) =>
-            s"Uniform texture $name is image $u instead of texture instance $cons for $n".invalidNel
-          case None =>
-            s"No texture provided for uniform $name of node $n".invalidNel
-        }
-    }
-
-  private def images(n: Draw.Instance): ValidatedNel[String, Unit] =
-    n.imageNames.traverseUnit { name =>
-      n.uniforms.get(name) match {
-        case Some(u: Texture.Image) => ().valid
-        case Some(u: Texture.Instance) =>
-          s"Uniform image $name is texture instead of image for node $n".invalidNel
-        case None =>
-          s"No image provided for uniform $name of node $n".invalidNel
-      }
-    }
-
-  private def attributes(n: Draw.Instance): ValidatedNel[String, Unit] =
-    n.constructor.program.vertex.attributes.traverseUnit { a =>
-      if (n.model.model.vertex.ref.buffer.attributes.contains(a)) ().valid
-      else s"Attribute $a is not present for node $n".invalidNel
-    }
-
-  private def filledNodes(ns: List[Node.Instance]): RValidated[Unit] =
-    ReaderT { g =>
-      val unfilled = g.constructed.links.flatMap { l =>
-        if (ns.exists(_.constructor == l.start) && !ns.exists(
-                _.constructor == l.end)) {
-          Some(l.end)
-        } else if (ns.exists(_.constructor == l.end) && !ns.exists(
-                       _.constructor == l.start)) {
-          Some(l.start)
-        } else None
-      }
-      if (unfilled.nonEmpty)
-        s"instance has unfilled nodes ${unfilled}".invalidNel
-      else ().valid
-    }
-
-  private def lift(v: ValidatedNel[String, Unit]): RValidated[Unit] =
-    KleisliExtra.lift(v)
-
-  private def checks(ns: List[Node.Instance])
-    : ReaderT[Xor[NonEmptyList[String], ?], Graph.Instance, Unit] = {
-    val vs = lift(ns.filterClass[Draw.Instance].traverseUnit(attributes)) *>
-        lift(ns.filterClass[Draw.Instance].traverseUnit(images)) *>
-        lift(ns.filterClass[Draw.Instance].traverseUnit(textures)) *>
-        filledNodes(ns)
-
-    vs.transform(
-        new (ValidatedNel[String, ?] ~> Xor[NonEmptyList[String], ?]) {
-      def apply[A](v: ValidatedNel[String, A]): NonEmptyList[String] Xor A =
-        v.toXor
-    })
-  }
-
-  def put(ns: List[Node.Instance])
-    : StateT[Xor[NonEmptyList[String], ?], Graph.Instance, Unit] =
-    StateTExtra.modifyT(checks(ns).run)
-}
-
-object GraphRunner {
-  import iliad.gl.{RenderModel => RM}
-  import iliad.{gl => GL}
-
-  sealed trait To[A]
-  type DSL[A] = Free[To, A]
-
-  private def transform(t: RM.Texture.Instance): DSL[GL.Texture.Constructor] =
-    if (t.constructor.isDouble) DoubleTexture(t).free
-    else SingleTexture(t).free
-
-  private def transform(
-      i: RM.Output.Instance): DSL[GL.Framebuffer.AttachmentConstructor] =
-    i match {
-      case t: RM.Texture.Instance => transform(t)
-      case r: RM.Renderbuffer.Instance => Renderbuffer(r).free.widen
-    }
-
-  private def transform(
-      f: RM.Framebuffer.Instance): DSL[GL.Framebuffer.Constructor] =
-    f match {
-      case RM.Framebuffer.OnScreen => OnScreenFramebuffer.free
-      case ff @ RM.Framebuffer.OffScreenInstance(is) =>
-        is.traverse { case (c, a) => transform(a).map(c -> _) }.map { as =>
-          if (ff.hasDoubleTexture) Framebuffer.DoubleConstructor(as)
-          else Framebuffer.SingleConstructor(as)
-        }
-    }
-
-  private def transform(ts: Map[String, RM.Texture.Uniform])
-    : DSL[Map[String, GL.Texture.Constructor]] =
-    ts.mapValues {
-      case t: RM.Texture.Instance => transform(t)
-      case i: RM.Texture.Image => Image(i).free
-    }.sequence
-
-  def apply(n: RM.Draw.Instance): DSL[GL.DrawOp] =
-    for {
-      f <- transform(n.framebuffer)
-      us <- transform(n.uniforms)
-    } yield
-      GL.DrawOp(n.model.model,
-                n.constructor.program,
-                us,
-                f,
-                n.constructor.colorMask,
-                n.constructor.primitive,
-                n.constructor.capabilities,
-                n.numInstances)
-
-  def parse[A](dsl: DSL[A]): A = dsl.foldMap(Interpreter)
-
-  case class DoubleTexture(t: RM.Texture.Instance)
-      extends To[GL.Texture.Constructor]
-  case class SingleTexture(t: RM.Texture.Instance)
-      extends To[GL.Texture.Constructor]
-  case class Image(i: RM.Texture.Image) extends To[GL.Texture.Constructor]
-  case class Renderbuffer(r: RM.Renderbuffer.Instance)
-      extends To[GL.Renderbuffer.Constructor]
-  case object OnScreenFramebuffer extends To[GL.Framebuffer.Constructor]
-
-  object Interpreter extends (To ~> Id) {
-    def apply[A](t: To[A]): Id[A] = t match {
-      case DoubleTexture(t) =>
-        GL.Texture.DoubleConstructor(s"${t.name}-${t.constructor.name}",
-                                     t.constructor.format,
-                                     t.constructor.viewport)
-      case SingleTexture(t) =>
-        GL.Texture.SingleConstructor(s"${t.name}-${t.constructor.name}",
-                                     t.constructor.format,
-                                     t.constructor.viewport)
-      case Image(i) =>
-        GL.Texture.SingleConstructor(i.name, i.format, i.viewport)
-      case Renderbuffer(r) =>
-        GL.Renderbuffer.Constructor(s"${r.name}-${r.constructor.name}",
-                                    r.constructor.format,
-                                    r.constructor.viewport)
-      case OnScreenFramebuffer => GL.Framebuffer.default
-    }
-  }
-}
-
 /*
 object TestGraph {
 
