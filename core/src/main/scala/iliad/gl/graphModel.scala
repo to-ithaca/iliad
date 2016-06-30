@@ -77,6 +77,7 @@ object GraphModel {
       def framebuffer: Framebuffer.Constructor
     }
     sealed trait Instance {
+      def name: String
       def constructor: Constructor
     }
   }
@@ -110,6 +111,7 @@ object GraphModel {
       def constructor: Constructor = piped.constructor
       val imageNames =
         constructor.program.textureNames.filterNot(piped.textureNames.toSet)
+      def name: String = ???
     }
   }
 
@@ -123,7 +125,9 @@ object GraphModel {
     case class Instance(
         constructor: Constructor,
         framebuffer: Framebuffer.Instance
-    ) extends Node.Instance
+    ) extends Node.Instance {
+      def name: String = ???
+    }
   }
 
   sealed trait Link {
@@ -139,6 +143,8 @@ object GraphModel {
 
     case class Order(start: Node.Constructor, end: Node.Constructor)
         extends Link
+
+    case class Instance(start: Node.Instance, end: Node.Instance)
   }
 
   //TODO: find out what to do with this
@@ -167,10 +173,13 @@ object GraphModel {
       def end: Set[Node.Constructor] =
         nodes.filter(n => !links.exists(_.start == n))
 
-      def instance: Instance = Instance(this, Nil)
+      def instance: Instance = Instance(this, Nil, Nil)
     }
 
-    case class Instance(constructed: Constructed, nodes: List[Node.Instance])
+    case class Instance(constructed: Constructed, nodes: List[Node.Instance], 
+      links: List[Link.Instance]) {
+      def start: Seq[Node.Instance] = ???
+    }
   }
 }
 /*

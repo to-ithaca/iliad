@@ -53,6 +53,7 @@ lazy val commonSettings = Seq(
     "com.github.julien-truffaut" %% "monocle-core" % monocleVersion,
     "com.github.julien-truffaut"  %%  "monocle-macro" % monocleVersion,
     "com.projectseptember" %% "freek" % "0.3.0",
+    "oncue.quiver" %% "core" % "5.3.57",
     "org.slf4j" % "slf4j-api" % "1.7.13",
     "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0"
   )

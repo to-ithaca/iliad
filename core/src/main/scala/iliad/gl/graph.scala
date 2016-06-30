@@ -74,10 +74,18 @@ object GraphConstruction {
       }
     }
   }
-  //TODO: check that pipes have valid textures / uniforms
+
+  private def pipeUniforms: GValidated = ReaderT { g =>
+    g.links.toList.filterClass[Link.Pipe].traverseUnit { p =>
+      val unmatched = p.uniforms.keys.filterNot(p.end.program.textureNames.contains)
+      if (unmatched.nonEmpty)
+        s"Pipe $p references uniforms $unmatched which are not in end node".invalidNel
+          else ().valid
+      }
+    }
 
   def validate(g: Graph.Constructed): ValidatedNel[String, Unit] =
-    (nodesUnique *> linksUnique *> nodesConnected *> endNodesOnScreen).apply(g)
+    (nodesUnique *> linksUnique *> nodesConnected *> endNodesOnScreen *> pipeTextures *> pipeUniforms).apply(g)
 }
 
 object GraphInstantiation {
@@ -153,4 +161,29 @@ object GraphInstantiation {
   def put(ns: List[Node.Instance])
     : StateT[Xor[NonEmptyList[String], ?], Graph.Instance, Unit] =
     StateTExtra.modifyT(checks(ns).run)
+}
+
+
+import quiver.{LNode, LEdge, Decomp}
+import QuiverExtra._
+
+object GraphTraversal {
+  import iliad.gl.{GraphModel => GM}
+
+  type QGraph = quiver.Graph[GM.Node.Instance, String, Unit]
+
+  private def addNodes(g: GM.Graph.Instance): State[QGraph, Unit] = State.modify ( qg => 
+    g.nodes.foldLeft(qg)((next, n) => next.addNode(LNode(n, n.name)))
+  )
+
+  private def addEdges(g: GM.Graph.Instance): State[QGraph, Unit] = State.modify ( qg => 
+    g.links.foldLeft(qg)((next, l) => next.addEdge(LEdge(l.start, l.end, ())))
+  )
+
+  private def qGraph(g: GM.Graph.Instance): QGraph = 
+    (addNodes(g) >> addEdges(g)).run(quiver.empty[GM.Node.Instance, String, Unit]).value._1
+
+  def apply(g: GM.Graph.Instance): Vector[GM.Node.Instance] = {
+    qGraph(g).ordered
+  }
 }
