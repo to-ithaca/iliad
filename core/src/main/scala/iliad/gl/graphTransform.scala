@@ -57,9 +57,10 @@ object GraphTransform {
                 n.constructor.capabilities,
                 n.numInstances)
 
-  def apply(c: GM.Clear.Instance): DSL[GL.ClearOp] = for {
-    f <- transform(c.framebuffer)
-  } yield GL.ClearOp(c.constructor.mask, f)
+  def apply(c: GM.Clear.Instance): DSL[GL.ClearOp] =
+    for {
+      f <- transform(c.framebuffer)
+    } yield GL.ClearOp(c.constructor.mask, f)
 
   def parse[A](dsl: DSL[A]): A = dsl.foldMap(Interpreter)
 

@@ -267,10 +267,11 @@ object CachedGL {
       _ <- XorT(flip(fl))
     } yield ()).value
 
-  def clear(c: ClearOp): DSL[String Xor Unit] = (for {
-    fl <- ensure(Cached.get(c.framebuffer),
-        "Framebuffer not loaded. Unable to draw.")
-    _ <- xort(set(fl))
-    _ <- xort(Draw.clear(c.bitMask).freekF[CachedGL])
-  } yield ()).value
+  def clear(c: ClearOp): DSL[String Xor Unit] =
+    (for {
+      fl <- ensure(Cached.get(c.framebuffer),
+                   "Framebuffer not loaded. Unable to draw.")
+      _ <- xort(set(fl))
+      _ <- xort(Draw.clear(c.bitMask).freekF[CachedGL])
+    } yield ()).value
 }

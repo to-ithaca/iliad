@@ -328,5 +328,5 @@ case class DrawOp(model: Model,
   val elementBuffer: ElementBuffer.Constructor = elementData.buffer
 }
 
-case class ClearOp(bitMask: ChannelBitMask, 
-  framebuffer: Framebuffer.Constructor)
+case class ClearOp(bitMask: ChannelBitMask,
+                   framebuffer: Framebuffer.Constructor)

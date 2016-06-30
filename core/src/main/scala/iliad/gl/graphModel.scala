@@ -3,13 +3,13 @@ package gl
 
 import iliad.syntax.all._
 import iliad.std.list._
-import iliad.std.set._
 
 import cats._
 import cats.data._
 import cats.implicits._
 
-import iliad.CatsExtra._
+import quiver.{LNode, LEdge, Decomp}
+import QuiverExtra._
 
 object GraphModel {
 
@@ -50,7 +50,10 @@ object GraphModel {
 
     case class OffScreenConstructor(
         buffers: List[(FramebufferAttachment, Output.Constructor)])
-        extends Constructor
+        extends Constructor {
+      def textures: List[Texture.Constructor] =
+        buffers.map(_._2).filterClass[Texture.Constructor]
+    }
 
     case class OffScreenInstance(
         instances: List[(FramebufferAttachment, Output.Instance)])
@@ -75,10 +78,12 @@ object GraphModel {
     sealed trait Constructor {
       def name: String
       def framebuffer: Framebuffer.Constructor
+      def lNode: LNode[Constructor, String] = LNode(this, name)
     }
     sealed trait Instance {
       def name: String
       def constructor: Constructor
+      def lNode: LNode[Instance, String] = LNode(this, name)
     }
   }
 
@@ -111,7 +116,12 @@ object GraphModel {
       def constructor: Constructor = piped.constructor
       val imageNames =
         constructor.program.textureNames.filterNot(piped.textureNames.toSet)
-      def name: String = ???
+      def name: String = toString
+      def vertexAttribs: List[Attribute.Constructor] =
+        constructor.program.vertex.attributes
+      def modelAttribs: List[Attribute.Constructor] =
+        model.model.vertex.ref.buffer.attributes
+
     }
   }
 
@@ -126,62 +136,79 @@ object GraphModel {
         constructor: Constructor,
         framebuffer: Framebuffer.Instance
     ) extends Node.Instance {
-      def name: String = ???
+      def name: String = toString
     }
   }
 
   sealed trait Link {
     def start: Node.Constructor
     def end: Node.Constructor
+    def lEdge: LEdge[Node.Constructor, Link] = LEdge(start, end, this)
   }
   object Link {
 
     case class Pipe(start: Draw.Constructor,
                     end: Draw.Constructor,
                     uniforms: Map[String, Texture.Constructor])
-        extends Link
+        extends Link {
+      def textures: Set[Texture.Constructor] = uniforms.values.toSet
+      def uniformNames: Set[String] = uniforms.keySet
+      def endTextureNames: List[String] = end.program.textureNames
+    }
 
     case class Order(start: Node.Constructor, end: Node.Constructor)
         extends Link
 
-    case class Instance(start: Node.Instance, end: Node.Instance)
+    case class Instance(start: Node.Instance, end: Node.Instance) {
+      def lEdge: LEdge[Node.Instance, Unit] = LEdge(start, end, ())
+    }
   }
 
   //TODO: find out what to do with this
   //case class Valve(start: Node.Draw, links: List[Link.Pipe])
 
   object Graph {
+    type Constructor = quiver.Graph[Node.Constructor, String, Link]
+    type QGraph = quiver.Graph[Node.Instance, String, Unit]
 
-    case class Constructor(nodes: List[Node.Constructor], links: List[Link]) {
-      def put(n: Node.Constructor): Constructor = copy(nodes = n :: nodes)
-      def put(l: Link): Constructor = copy(links = l :: links)
-      def constructed: Constructed = Constructed(nodes.toSet, links.toSet)
+    val emptyConstructor: Constructor =
+      quiver.empty[Node.Constructor, String, Link]
+
+    case class Constructed(nodes: Set[Node.Constructor],
+                           links: Set[Link],
+                           start: Set[Node.Constructor],
+                           end: Set[Node.Constructor]) {
+      def instance: Instance =
+        Instance(this, quiver.empty[Node.Instance, String, Unit])
     }
 
-    object Constructor {
-      val empty: Constructor = Constructor(Nil, Nil)
+    object Constructed {
+      def fromConstructor(g: Constructor): Constructed = Constructed(
+          g.nodes.toSet,
+          g.labEdges.map(_.label).toSet,
+          g.roots.toSet,
+          g.leaves.toSet
+      )
     }
 
-    case class Constructed(nodes: Set[Node.Constructor], links: Set[Link]) {
+    case class Instance(constructed: Constructed, graph: QGraph) {
 
-      def start: Set[Node.Constructor] =
-        nodes.filter(n => !links.exists(_.end == n))
+      private def addNodes(ns: List[Node.Instance]): State[QGraph, Unit] =
+        State.modify(qg => ns.foldLeft(qg)((next, n) => next.addNode(n.lNode)))
 
-      def next(ns: Set[Node.Constructor]): Set[Node.Constructor] =
-        links.filter(l => ns.contains(l.start)).map(_.end)
+      private def addEdges(ls: List[Link.Instance]): State[QGraph, Unit] =
+        State.modify(qg => ls.foldLeft(qg)((next, l) => next.addEdge(l.lEdge)))
 
-      def end: Set[Node.Constructor] =
-        nodes.filter(n => !links.exists(_.start == n))
+      def put(ns: List[Node.Instance], ls: List[Link.Instance]): Instance = {
+        val next = (addNodes(ns) >> addEdges(ls)).run(graph).value._1
+        copy(graph = next)
+      }
 
-      def instance: Instance = Instance(this, Nil, Nil)
-    }
-
-    case class Instance(constructed: Constructed, nodes: List[Node.Instance], 
-      links: List[Link.Instance]) {
-      def start: Seq[Node.Instance] = ???
+      def ordered: Vector[Node.Instance] = graph.ordered
     }
   }
 }
+
 /*
 object TestGraph {
 

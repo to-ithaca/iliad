@@ -33,10 +33,10 @@ final class SequenceOps[F[_]: Traverse, G[_]: Applicative, A](fga: F[G[A]]) {
 }
 
 object StateTExtra {
-  def modifyT[F[_]: Applicative, S, A](f: S => F[A]): StateT[F, S, A] =
+  def inspect[F[_]: Applicative, S, A](f: S => F[A]): StateT[F, S, A] =
     StateT(s => f(s).map(s -> _))
 
-  def pureT[F[_]: Applicative, S, A](fa: F[A]): StateT[F, S, A] =
+  def lift[F[_]: Applicative, S, A](fa: F[A]): StateT[F, S, A] =
     StateT(s => fa.map(a => s -> a))
 }
 
