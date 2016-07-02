@@ -20,6 +20,10 @@ import com.typesafe.scalalogging._
 
 trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
 
+  def graphConstructor: State[GraphModel.Graph.Constructor, Unit]
+  //def worldStream: Stream[Task,  
+    //StateT[Xor[NonEmptyList[String], ?], GraphModel.Graph.Instance, Unit]]
+
   private val EGLP: EGLPRG[NativeDisplay,
                            NativeWindow,
                            EGLDisplay,

@@ -191,8 +191,8 @@ object GL {
     for {
       _ <- GLBindTexture(id).free
       _ <- GLTexImage2D(t.format.internal,
-                        t.viewport.width,
-                        t.viewport.height,
+                        t.viewport.x,
+                        t.viewport.y,
                         t.format.pixel,
                         t.format.pixelType,
                         data.map(_.data).getOrElse(null)).free
@@ -220,7 +220,7 @@ object GL {
       ids <- GLGenRenderbuffers(1).free
       id = ids.head
       _ <- GLBindRenderbuffer(id).free
-      _ <- GLRenderbufferStorage(r.format, r.viewport.width, r.viewport.height).free
+      _ <- GLRenderbufferStorage(r.format, r.viewport.x, r.viewport.y).free
     } yield id
 
   private def bindAttachment(

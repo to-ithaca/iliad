@@ -175,9 +175,6 @@ object CachedGL {
         } yield ()).value
     }
 
-  def clear(bitMask: ChannelBitMask): DSL[Unit] =
-    Draw.clear(bitMask).freekF[CachedGL]
-
   private def ensure(f: Current.DSL[Boolean])(g: => DSL[Unit]): DSL[Unit] =
     f.freekF[CachedGL] flatMap (b => if (b) Free.pure(()) else g)
 
@@ -268,5 +265,13 @@ object CachedGL {
       _ <- xort(Draw.enable(as, vd.offset(draw.vertexModel)).freekF[CachedGL])
       _ <- xort(Draw(ed.offset(draw.elementModel)).freekF[CachedGL])
       _ <- XorT(flip(fl))
+    } yield ()).value
+
+  def clear(c: ClearOp): DSL[String Xor Unit] =
+    (for {
+      fl <- ensure(Cached.get(c.framebuffer),
+                   "Framebuffer not loaded. Unable to draw.")
+      _ <- xort(set(fl))
+      _ <- xort(Draw.clear(c.bitMask).freekF[CachedGL])
     } yield ()).value
 }
