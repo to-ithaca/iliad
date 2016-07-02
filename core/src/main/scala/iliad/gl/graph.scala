@@ -70,7 +70,12 @@ object GraphConstruction {
 
   def validate(g: Graph.Constructed): ValidatedNel[String, Unit] =
     (nodesUnique *> linksUnique *>
-          endNodesOnScreen *> pipeTextures *> pipeUniforms).apply(g)
+      endNodesOnScreen *> pipeTextures *> pipeUniforms).apply(g)
+
+  def construct(s: State[Graph.Constructor, Unit]): ValidatedNel[String, Unit] = {
+    val g = s.runS(Graph.emptyConstructor).value
+    validate(Graph.Constructed.fromConstructor(g))
+  }
 }
 
 object GraphInstantiation {

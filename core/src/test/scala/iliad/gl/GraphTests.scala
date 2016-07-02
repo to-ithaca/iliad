@@ -8,22 +8,49 @@ import org.scalacheck.Arbitrary._
 
 import shapeless._
 
+import cats._
+import cats.implicits._
+
+import CatsExtra._
+import GraphConstruction._
+import gen._
+
 class GraphTests extends FunSuite with Matchers with GraphModelArbitraries
     with GeneratorDrivenPropertyChecks {
 
   test("graph is invalid if a leaf node is offscreen") {
-    forAll(arbitrary[GraphModel.Draw.Constructor]) { (n) =>
-      val graph = GraphConstruction.put(n).run(GraphModel.Graph.emptyConstructor).value._1
-      val validated = GraphConstruction.validate(GraphModel.Graph.Constructed.fromConstructor(graph))
-      n.framebuffer match {
-        case GraphModel.Framebuffer.OnScreen => validated.isValid shouldBe true
-        case _ => validated.isValid shouldBe false
-      }
+    forAll(arbitrary[GraphModel.Draw.Constructor].filterNot(onScreen)) { (n) =>
+      val validated = construct(put(n))
+      validated.isValid shouldBe false
+    }
+  }
+
+  test("graph is valid if a leaf node is onscreen") {
+    forAll(arbitrary[GraphModel.Draw.Constructor].filter(onScreen)) { (n) =>
+      val validated = construct(put(n))
+      validated.isValid shouldBe true
+    }
+  }
+
+  test("graph is valid if nodes have unique names") {
+    forAll(validDrawConstructorsArbitrary.arbitrary) { (ns) =>
+      val validated = construct(ns.traverseUnit(n => put(n)))
+      validated.isValid shouldBe true
     }
   }
 }
 
+object gen extends GenInstances
 
+trait GenInstances {
+  implicit def toGenOps[A](g: Gen[A]): GenOps[A] =
+    new GenOps(g)
+}
+
+final class GenOps[A](g: Gen[A]) {
+  def filterNot(f: A => Boolean): Gen[A] =
+    g.filter(a => !f(a))
+}
 
 trait GLArbitraries {
 
@@ -152,14 +179,11 @@ trait GraphModelArbitraries extends GLArbitraries with iliad.ArbitraryInstances 
         arbitrary[GraphModel.Renderbuffer.Constructor],
         arbitrary[GraphModel.Texture.Constructor]))
 
-  def offScreenFramebufferArbitrary:
-      Arbitrary[GraphModel.Framebuffer.OffScreenConstructor] =
-    Arbitrary(arbitrary[Map[FramebufferAttachment, GraphModel.Output.Constructor]].map(os =>
-      GraphModel.Framebuffer.OffScreenConstructor(os.toList)))
-
   implicit val framebufferArbitrary: Arbitrary[GraphModel.Framebuffer.Constructor] =
     Arbitrary(
-      Gen.oneOf(offScreenFramebufferArbitrary.arbitrary,
+      Gen.oneOf(
+        arbitrary[Map[FramebufferAttachment, GraphModel.Output.Constructor]].map(os =>
+          GraphModel.Framebuffer.OffScreenConstructor(os.toList)),
       Gen.oneOf(Seq(GraphModel.Framebuffer.OnScreen))))
 
   implicit val drawConstructorArbitrary:
@@ -174,5 +198,31 @@ trait GraphModelArbitraries extends GLArbitraries with iliad.ArbitraryInstances 
       m <- arbitrary[GraphModel.Model.Constructor]
       f <- arbitrary[GraphModel.Framebuffer.Constructor]
     } yield GraphModel.Draw.Constructor(n, prg, prm, cs, cm, inst, m, f)
+  }
+
+  val validDrawConstructorsArbitrary:
+      Arbitrary[List[GraphModel.Draw.Constructor]] = Arbitrary {
+    for {
+      count <- Gen.choose(1, 3)
+      ns <- Gen.buildableOfN[Set[String],String](count,arbitrary[String]).map(_.toList)
+      prgs <- Gen.listOfN(count, arbitrary[Program.Unlinked])
+      prms <- Gen.listOfN(count, arbitrary[PrimitiveType])
+      css <- Gen.listOfN(count, arbitrary[Set[Capability]])
+      cms <- Gen.listOfN(count, arbitrary[ColorMask])
+      insts <- Gen.listOfN(count, arbitrary[Boolean])
+      ms <- Gen.listOfN(count, arbitrary[GraphModel.Model.Constructor])
+      fs <- Gen.listOfN(count, arbitrary[GraphModel.Framebuffer.Constructor].filter({
+        case GraphModel.Framebuffer.OnScreen => true
+        case _ => false
+      }))
+    } yield (ns zip prgs zip prms zip css zip cms zip insts zip ms zip fs).map {
+      case (((((((n, prg), prm), cs), cm), inst), m), f) =>
+        GraphModel.Draw.Constructor(n, prg, prm, cs, cm, inst, m, f)
+    }
+  }
+
+  def onScreen(n: GraphModel.Draw.Constructor): Boolean = n.framebuffer match {
+    case GraphModel.Framebuffer.OnScreen => true
+    case _ => false
   }
 }
