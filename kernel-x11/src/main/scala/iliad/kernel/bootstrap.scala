@@ -53,12 +53,18 @@ trait X11Bootstrap
   override val lockDisplay = Some(x.XLockDisplay _)
   override val unlockDisplay = Some(x.XUnlockDisplay _)
 
-  def vsync(s: Signal[Task, Long]): Unit = {
+  private def vsync(s: Signal[Task, Long]): Unit = {
     (for {
       t <- s.get
       _ <- s.set(t + 5L).schedule(1 second)
     } yield vsync(s)).unsafeRunAsync(msg => logger.info(msg.toString))
   }
+
+  def vsync: Stream[Task, Long] =
+    Stream.eval(async.signalOf[Task, Long](0L)).flatMap { s =>
+      vsync(s)
+      s.discrete
+    }
 
   private def initThreads(): Error Xor Unit = {
     val code = x.XInitThreads()

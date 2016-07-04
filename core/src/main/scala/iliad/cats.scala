@@ -13,6 +13,8 @@ object CatsExtra {
     new SequenceOps(fga)
   implicit def traverseOps[F[_]: Traverse, A](fa: F[A]): TraverseOps[F, A] =
     new TraverseOps(fa)
+  implicit def xortOps[F[_], A, B](xort: XorT[F, A, B]): XorTOps[F, A, B] =
+    new XorTOps(xort)
 }
 
 final class FreeOps[F[_], A](f: Free[F, A]) {
@@ -42,4 +44,9 @@ object StateTExtra {
 
 object KleisliExtra {
   def lift[F[_], A, B](fb: F[B]): Kleisli[F, A, B] = Kleisli(_ => fb)
+}
+
+final class XorTOps[F[_], A, B](xort: XorT[F, A, B]) {
+  def transformF[G[_]](f: F[A Xor B] => G[A Xor B]): XorT[G, A, B] =
+    XorT(f(xort.value))
 }

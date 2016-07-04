@@ -23,7 +23,7 @@ trait ScreenDependencies {
   def lockDisplay: Option[NativeDisplay => Unit] = None
   def unlockDisplay: Option[NativeDisplay => Unit] = None
 
-  def vsync(s: Signal[Task, Long]): Unit
+  def vsync: fs2.Stream[Task, Long]
 }
 
 trait GLDependencies extends ScreenDependencies {

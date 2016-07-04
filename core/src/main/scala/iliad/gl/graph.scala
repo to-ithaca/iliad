@@ -72,9 +72,9 @@ object GraphConstruction {
     (nodesUnique *> linksUnique *>
       endNodesOnScreen *> pipeTextures *> pipeUniforms).apply(g)
 
-  def construct(s: State[Graph.Constructor, Unit]): ValidatedNel[String, Unit] = {
-    val g = s.runS(Graph.emptyConstructor).value
-    validate(Graph.Constructed.fromConstructor(g))
+  def construct(s: State[Graph.Constructor, Unit]): ValidatedNel[String, Graph.Constructed] = {
+    val g = Graph.Constructed.fromConstructor(s.runS(Graph.emptyConstructor).value)
+    validate(g).map(_ => g)
   }
 }
 

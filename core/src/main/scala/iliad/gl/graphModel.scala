@@ -23,7 +23,10 @@ object GraphModel {
     case class Constructor(name: String,
                            format: gl.Texture.Format,
                            viewport: Vec2i,
-                           isDouble: Boolean)
+      isDouble: Boolean)
+    //TODO: is isDouble something we need to know at this point?
+    //Can it be put on the graphConstructor instead, through traversal?
+
         extends Output.Constructor
     case class Instance(name: String, constructor: Constructor)
         extends Uniform

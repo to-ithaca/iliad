@@ -242,8 +242,8 @@ object CachedGL {
 
   private def xort[A](dsl: DSL[A]): XorT[DSL, String, A] = XorT.right(dsl)
 
-  def draw(draw: DrawOp): DSL[String Xor Unit] =
-    (for {
+  def draw(draw: DrawOp): XorT[DSL, String, Unit] = 
+    for {
       fl <- ensure(Cached.get(draw.framebuffer),
                    "Framebuffer not loaded. Unable to draw.")
       _ <- xort(set(fl))
@@ -265,13 +265,13 @@ object CachedGL {
       _ <- xort(Draw.enable(as, vd.offset(draw.vertexModel)).freekF[CachedGL])
       _ <- xort(Draw(ed.offset(draw.elementModel)).freekF[CachedGL])
       _ <- XorT(flip(fl))
-    } yield ()).value
+    } yield ()
 
-  def clear(c: ClearOp): DSL[String Xor Unit] =
-    (for {
+  def clear(c: ClearOp): XorT[DSL, String, Unit] =
+    for {
       fl <- ensure(Cached.get(c.framebuffer),
                    "Framebuffer not loaded. Unable to draw.")
       _ <- xort(set(fl))
       _ <- xort(Draw.clear(c.bitMask).freekF[CachedGL])
-    } yield ()).value
+    } yield ()
 }
