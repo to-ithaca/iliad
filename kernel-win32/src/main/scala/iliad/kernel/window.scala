@@ -64,6 +64,7 @@ trait Win32GLDependencies extends GLDependencies {
   val configClassTag: ClassTag[EGLConfig] = classTag[EGLConfig]
   val EGL14 = iliad.kernel.EGL14
   val GLES30 = iliad.kernel.GLES30
+  val pageSize: Int = 1024
 }
 
 abstract class Win32Bootstrap(name: String, val width: Int, val height: Int)

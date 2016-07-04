@@ -23,8 +23,6 @@ import CatsExtra._
 trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
 
   def graph: State[GraphModel.Graph.Constructor, Unit]
-  def addGraphCmds(q: Queue[Task, Graphics.DSL[Unit]]): Unit
-  def pageSize: Int = 1024
 
   def graphConstructor: Stream[Task, GraphModel.Graph.Constructed] = Stream.eval {
     GraphConstruction.construct(graph) match {
@@ -139,36 +137,6 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
     s: EGLSurface): Stream[Task, Boolean] =
     Stream.eval(eglExecute(nd, EGLP.swapBuffers(d, s)))
 
-/*
-  private def transformXS[F[_]: cats.Monad, S, L, R](x: XorT[StateT[XorT[F, L, ?], S,?], L, R]):
-      StateT[XorT[F, L, ?], S, R] =
-    x.value.transformF {
-      (fa: XorT[F, L, (S, Xor[L, R])]) =>
-      fa.flatMap {
-        case (s, xx) => XorT.fromXor(xx.map(a => (s, a)))
-      }
-    }
-
-
-  private def executeGL: Pipe[Task, XorT[CachedGL.DSL[?], String, Unit], Unit] =
-    _.map { gl =>
-      val interpreter = CachedGL.runner(iliad.gl.GL.debugLog)
-      val xs = gl.transformF(_.interpret(interpreter).run(GLES30))
-      transformXS(xs)
-    }.mapAccumulate((Cached.State.empty, Current.State.empty).right[Error]) {
-      (prev, cmd) =>
-          val next = prev.flatMap { s =>
-            val (ls, x) = cmd.runS(s).value.run
-            ls.foreach(logger.debug(_))
-            x.leftMap(new Error(_))
-          }
-          (next, next.bimap(Task.fail, _ => Task.now(())).merge[Task[Unit]])
-      }
-      .map(_._2)
-      .evalMap(identity)
- */
-// type Pipe2[F[_],-I,-I2,+O] = (Stream[F,I], Stream[F,I2]) => Stream[F,O]
-
   private def aggregateRight[F[_]: Async, A, B]: Pipe2[F, A, B, (A, Vector[B])] =
     (fa, fb) =>
     (fa either fb).mapAccumulate(Vector.empty[B]) { (bs, i) =>
@@ -219,20 +187,7 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
           (gl through setUpAsync(EGLStrategy)).mapAccumulate(
             (gc.instance, (Cached.State.empty, Current.State.empty)).right[Error]) {
             (prev, cmds) =>
-            val next = prev.flatMap(drawFrame(cmds))
-            // val next = prev.flatMap {
-            //   case (graph, glState) =>
-            //     val interpreter = Graphics.runner(pageSize)
-            //     val free = cmds.traverse(_.interpret(interpreter))
-            //       .run(graph)
-            //       .value
-            //     glExecute(free, glState).flatMap {
-            //       case (midGlState, (nextGraph, _)) =>
-            //         val free = GraphTransform.parse(GraphTransform(nextGraph.ordered.toList)).sequenceUnit.value
-            //         glExecute(free, midGlState).map {
-            //           case (nextGlState, _) => (nextGraph, nextGlState)
-            //         }
-            
+            val next = prev.flatMap(drawFrame(cmds))           
             (next, next.bimap(Task.fail, _ => Task.now(())).merge[Task[Unit]])
           }.map(_._2)
             .evalMap(identity).flatMap { _ =>
@@ -242,90 +197,3 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
       }
     }
 }
-
-/*
-object Test extends App {
-  import scala.concurrent.duration._
-
-  implicit val TStrategy = Strategy.fromFixedDaemonPool(1, "t-thread")
-  implicit val TScheduler = Scheduler.fromFixedDaemonPool(4)
-
-  case class SubMiddle(i: Int)
-  case class Middle(i: Int)
-  case class Initial(m: Middle)
-
-  case class Input(i: Int)
-
-  def increment(s: SubMiddle, m: Middle): SubMiddle = {
-    println(s"incrementing $s by $m")
-    s.copy(i = s.i + m.i)
-  }
-
-  def increment(m: Middle, i: List[Input]): Middle = {
-    println(s"incrementing $m by $i")
-    val add = i.map(_.i).sum
-    m.copy(i = m.i + add)
-  }
-
-  val signal: Stream[Task, Signal[Task, Long]] = Stream.eval(async.signalOf[Task, Long](0L))
-  val queue: Stream[Task, Queue[Task, Input]] = Stream.eval(async.boundedQueue[Task, Input](10))
-
-  def vsync(s: Signal[Task, Long]): Unit = {
-    (for {
-      t <- s.get
-      _ <- s.set(t + 5L).schedule(1 second)
-    } yield vsync(s)).unsafeRunAsync(msg => ()) 
-  }
-
-  def addInput(q: Queue[Task, Input]): Unit = {
-    q.enqueue1(Input(3)).unsafeRunAsync(msg => ())
-  }
-
-  val inputs: Stream[Task, List[Input]] = Stream.eval(Task.delay {
-    println("inputting")
-    Input(3)
-  }).mapAccumulate(List.empty[Input]){(l, i) =>
-    val nn = i :: l
-    (nn, nn)
-  }.map(_._2)
-
-  val initialise: Stream[Task, Initial] = Stream.eval(Task.now {
-    println("initializing stream")
-    Initial(Middle(0))
-  })
-  sealed trait Collecting {
-    def is: List[Input]
-  }
-  case class Collect(is: List[Input]) extends Collecting
-  case class Both(t: Long, is: List[Input]) extends Collecting
-
-   val rs2 = initialise.flatMap { init =>
-    queue.flatMap { q =>
-      println("queue")
-      addInput(q)
-      signal.flatMap { s =>
-        println("signal")
-        vsync(s)
-        s.discrete either q.dequeue
-      }
-    }.mapAccumulate(Collect(Nil).asInstanceOf[Collecting]) { (c, e) =>
-     e.toXor match {
-       case Xor.Left(t) => (Both(t, Nil), Both(t, c.is))
-       case Xor.Right(i) => (Collect(c.is :+ i), Collect(c.is :+ i))
-     }
-   }.map(_._2).filter({
-     case c: Collect => false
-     case c: Both => true
-   }).mapAccumulate(init.m){ (m, b) =>
-      println(s"got $b")
-     val n = increment(m, b.is)
-     (n, n)
-   }.map(_._1).mapAccumulate(SubMiddle(0)){ (s, m) =>
-     val n = increment(s, m)
-     (n, n)
-    }
-   }
-
-  rs2.run.unsafeRunFor(10 seconds)
-}
- */
