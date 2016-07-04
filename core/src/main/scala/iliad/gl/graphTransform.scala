@@ -67,8 +67,8 @@ object GraphTransform {
     } yield GL.ClearOp(c.constructor.mask, f)
 
   def apply(ns: List[GM.Node.Instance]): DSL[List[XorT[CachedGL.DSL, String, Unit]]] = ns.traverse {
-    case d: GM.Draw.Instance => transform(d).map(CachedGL.draw)
-    case c: GM.Clear.Instance => transform(c).map(CachedGL.clear)
+    case d: GM.Draw.Instance => transform(d).map(o => XorT(CachedGL.draw(o)))
+    case c: GM.Clear.Instance => transform(c).map(o => XorT(CachedGL.clear(o)))
   }
 
   def parse[A](dsl: DSL[A]): A = dsl.foldMap(Interpreter)
