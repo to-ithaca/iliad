@@ -53,6 +53,95 @@ object Graphics {
 
   def show(ns: List[GraphModel.Node.Instance]): DSL[Unit] =
     Show(ns).free.freekF[Graphics]
+
+
+  abstract class DrawType(val primitive: PrimitiveType)
+  object DrawType {
+    case object Triangles extends DrawType(GL_TRIANGLES)
+    case object Points extends DrawType(GL_POINTS)
+  }
+
+  abstract class Dimension(val capabilities: Set[Capability])
+  object Dimension {
+    case object D2 extends Dimension(Set.empty)
+    case object D3 extends Dimension(Set(GL_DEPTH_TEST))
+  }
+
+  def model(name: String): GraphModel.Model.Constructor =
+    GraphModel.Model.Constructor(name)
+
+  def vsh(source: String,
+    attributes: List[Attribute.Constructor],
+    textures: List[(String, Sampler.Constructor)]
+  ): VertexShader.Source
+  = VertexShader.Source(source, attributes, textures)
+
+  def fsh(source: String, textures: List[(String, Sampler.Constructor)]):
+      FragmentShader.Source =
+    FragmentShader.Source(source, textures)
+
+  def program(v: VertexShader.Source, f: FragmentShader.Source): Program.Unlinked =
+    Program.Unlinked(v, f)
+
+  def onScreenDraw(name: String,
+    program: Program.Unlinked,
+    model: GraphModel.Model.Constructor,
+    drawType: DrawType,
+    dimension: Dimension
+  ): GraphModel.Draw.Constructor =
+    GraphModel.Draw.Constructor(
+      name,
+      program,
+      drawType.primitive,
+      dimension.capabilities,
+      ColorMask.none,
+      false,
+      model,
+      GraphModel.Framebuffer.OnScreen
+    )
+
+  def onScreenDraw(cons: GraphModel.Draw.Constructor,
+    uniforms: Map[String, GraphModel.Texture.Uniform],
+    model: GraphModel.Model.Instance): GraphModel.Draw.Instance =
+    GraphModel.Draw.Instance(
+      cons, uniforms, model,
+      GraphModel.Framebuffer.OnScreen,
+      1)
+
+
+  def offScreenDraw(name: String,
+    program: Program.Unlinked,
+    model: GraphModel.Model.Constructor,
+    drawType: DrawType,
+    dimension: Dimension,
+    outputs: List[(FramebufferAttachment, GraphModel.Output.Constructor)]
+  ): GraphModel.Draw.Constructor =
+    GraphModel.Draw.Constructor(
+      name,
+      program,
+      drawType.primitive,
+      dimension.capabilities,
+      ColorMask.none,
+      false,
+      model,
+      GraphModel.Framebuffer.OffScreenConstructor(outputs)
+    )
+
+  def onScreenClear(name: String): GraphModel.Clear.Constructor =
+    GraphModel.Clear.Constructor(
+      name,
+      ChannelBitMask.BitMask(Set(GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT)),
+      GraphModel.Framebuffer.OnScreen
+    )
+
+  def onScreenClear(cons: GraphModel.Clear.Constructor): GraphModel.Clear.Instance =
+    GraphModel.Clear.Instance(
+      cons,
+      GraphModel.Framebuffer.OnScreen
+    )
+
+  def order(s: GraphModel.Node.Constructor, e: GraphModel.Node.Constructor): GraphModel.Link
+  = GraphModel.Link.Order(s, e)
 }
 
 object GraphCmd {

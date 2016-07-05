@@ -83,29 +83,45 @@ object GraphInstantiation {
 
   type GValidated[A] = ReaderT[ValidatedNel[String, ?], Graph.Instance, A]
 
-  private def textures(n: Draw.Instance): ValidatedNel[String, Unit] =
-    n.piped.uniforms.traverseUnit {
-      case (name, cons) =>
-        n.uniforms.get(name) match {
-          case Some(u: Texture.Instance) =>
-            if (u.constructor == cons) ().valid
-            else
-              s"Uniform texture $name has inconsistent texture instance $u for node $n".invalidNel
-          case Some(u: Texture.Image) =>
-            s"Uniform texture $name is image $u instead of texture instance $cons for $n".invalidNel
-          case None =>
-            s"No texture provided for uniform $name of node $n".invalidNel
-        }
+  private def framebufferOutput(c: Output.Constructor, o: Output.Instance): ValidatedNel[String, Unit] =
+    (c, o) match {
+      case (rc: Renderbuffer.Constructor, ri: Renderbuffer.Instance) =>
+        if(ri.constructor == rc) ().valid
+        else s"Renderbuffer instance does not match constructor $ri $rc".invalidNel
+      case (tc: Texture.Constructor, ti: Texture.Instance) =>
+        if(ti.constructor == tc) ().valid
+        else s"Texture instance does not match constructor $ti $tc".invalidNel
+      case other => s"Invalid texture / renderbuffer combination $other".invalidNel
     }
 
-  private def images(n: Draw.Instance): ValidatedNel[String, Unit] =
-    n.imageNames.traverseUnit { name =>
+  private def framebuffer(n: Draw.Instance): ValidatedNel[String, Unit] = {
+    (n.constructor.framebuffer, n.framebuffer) match {
+      case (Framebuffer.OnScreen, Framebuffer.OnScreen) =>
+        ().valid
+      case (Framebuffer.OnScreen, i) => s"Offscreen framebuffer instance $i provided for node $n".invalidNel
+      case (c, Framebuffer.OnScreen) => s"Onscreen framebuffer instance provided when $c expected for node $n".invalidNel
+      case (c: Framebuffer.OffScreenConstructor, i: Framebuffer.OffScreenInstance) =>
+        c.buffers.traverseUnit {
+          case (a, c) => i.instances.toMap.get(a) match {
+            case None => s"Framebuffer attachment $a missing for draw $n".invalidNel
+            case Some(o) => framebufferOutput(c, o)
+          }
+        }
+    }
+  }
+
+  private def instanced(n: Draw.Instance): ValidatedNel[String, Unit] =
+    if(!n.constructor.isInstanced && n.numInstances != 1)
+      s"A non-instanced draw cannot have ${n.numInstances} instances for node $n".invalidNel
+    else if(n.numInstances == 0)
+      s"A draw must have at least one instance for node $n".invalidNel
+    else ().valid
+
+  private def textures(n: Draw.Instance): ValidatedNel[String, Unit] =
+    n.constructor.program.textureNames.traverseUnit { name =>
       n.uniforms.get(name) match {
-        case Some(u: Texture.Image) => ().valid
-        case Some(u: Texture.Instance) =>
-          s"Uniform image $name is texture instead of image for node $n".invalidNel
-        case None =>
-          s"No image provided for uniform $name of node $n".invalidNel
+        case Some(_) => ().valid
+        case None => s"No texture provided for uniform $name of node $n".invalidNel
       }
     }
 
@@ -141,8 +157,9 @@ object GraphInstantiation {
                                         Graph.Instance,
                                         List[Link.Instance]] = {
     val vs = lift(ns.filterClass[Draw.Instance].traverseUnit(attributes)) *>
-        lift(ns.filterClass[Draw.Instance].traverseUnit(images)) *>
-        lift(ns.filterClass[Draw.Instance].traverseUnit(textures)) *>
+    lift(ns.filterClass[Draw.Instance].traverseUnit(textures)) *>
+    lift(ns.filterClass[Draw.Instance].traverseUnit(instanced)) *>
+    lift(ns.filterClass[Draw.Instance].traverseUnit(framebuffer)) *>
         links(ns)
 
     vs.transform(

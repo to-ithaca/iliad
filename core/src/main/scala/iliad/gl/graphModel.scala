@@ -102,29 +102,18 @@ object GraphModel {
         framebuffer: Framebuffer.Constructor
     ) extends Node.Constructor
 
-    case class Piped(
-        constructor: Constructor,
-        uniforms: List[(String, Texture.Constructor)]
-    ) {
-      val textureNames: List[String] = uniforms.map(_._1)
-    }
-
     case class Instance(
-        piped: Piped,
+        constructor: Constructor,
         uniforms: Map[String, Texture.Uniform],
         model: Model.Instance,
         framebuffer: Framebuffer.Instance,
         numInstances: Int
     ) extends Node.Instance {
-      def constructor: Constructor = piped.constructor
-      val imageNames =
-        constructor.program.textureNames.filterNot(piped.textureNames.toSet)
       def name: String = toString
       def vertexAttribs: List[Attribute.Constructor] =
         constructor.program.vertex.attributes
       def modelAttribs: List[Attribute.Constructor] =
         model.model.vertex.ref.buffer.attributes
-
     }
   }
 
