@@ -19,7 +19,7 @@ trait X11EventHandler extends EventHandler {
 
   private var tapCallback: Callback[Tap] = EventHandler.zero
 
-  def onTap(cb: Tap => Unit): Unit = tapCallback = cb
+  def onTap(cb: Callback[Tap]): Unit = tapCallback = cb
 
   def handleEvent(e: XEvent): Unit = e.`type` match {
     case ButtonPress =>
