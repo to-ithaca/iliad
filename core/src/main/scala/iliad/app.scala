@@ -167,6 +167,7 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
     prev: (GraphModel.Graph.Instance, (Cached.State, Current.State))):
       Error Xor (GraphModel.Graph.Instance, (Cached.State, Current.State)) = prev match {
     case (graph, glState) =>
+      logger.debug("Starting to draw frame")
       val interpreter = Graphics.runner(pageSize)
       val dsl = cmds.traverse(_.interpret(interpreter))
         .run(graph)

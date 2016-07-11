@@ -90,11 +90,11 @@ lazy val androidDependenciesTask = Def.task {
   log.info(s"Using Android SDK jar ${sdkJar.absolutePath}")
 
   val supportAar = file(androidHome) / "extras" / "android" / "m2repository" / "com" / "android" / "support" / "support-v4" / "23.1.0" / "support-v4-23.1.0.aar"
-  val targetDir = target.value / "android"
-  IO.unzip(supportAar, targetDir)
-  val supportJar = (targetDir ** "*.jar").get.head
 
-  log.info(s"Using Android support jar ${supportJar.absolutePath}")
+    val targetDir = target.value / "android"
+    IO.unzip(supportAar, targetDir)
+    val supportJar = (targetDir ** "*.jar").get.head
+    log.info(s"Using Android support jar ${supportJar.absolutePath}")
 
   Seq(supportJar, sdkJar).map(Attributed.blank)
 }
@@ -103,12 +103,17 @@ lazy val jnaVersion = "4.2.2"
 
 lazy val androidSettings = Seq(
   androidDependencies := androidDependenciesTask.value,
-  (unmanagedClasspath in Compile) := (unmanagedClasspath in Compile).value ++ androidDependencies.value
+  (unmanagedClasspath in Compile) := (unmanagedClasspath in Compile).value ++ androidDependencies.value,
+  libraryDependencies ++= Seq(
+    "com.github.tony19" % "logback-android-core" % "1.1.1-5",
+    "com.github.tony19" % "logback-android-classic" % "1.1.1-5" exclude("com.google.android", "android")
+  )
 )
 
-lazy val x11Settings = Seq(
+lazy val desktopSettings = Seq(
   libraryDependencies ++= Seq(
-    "net.java.dev.jna" % "jna-platform" % jnaVersion
+    "net.java.dev.jna" % "jna-platform" % jnaVersion,
+    "ch.qos.logback" % "logback-classic" % "1.1.3"
   )
 )
 
@@ -141,6 +146,7 @@ lazy val core = (project in file("core")).settings(
 lazy val androidKernel = (project in file("kernel-android")).settings(
   buildSettings,
   moduleName := "iliad-kernel-android",
+  paradiseSettings,
   androidSettings
 ).dependsOn(kernel)
 
@@ -149,7 +155,7 @@ lazy val win32Kernel = (project in file("kernel-win32")).settings(
   moduleName := "iliad-kernel-win32",
   commonSettings,
   paradiseSettings,
-  libraryDependencies += "net.java.dev.jna" % "jna-platform" % jnaVersion
+  desktopSettings
 ).dependsOn(kernel)
 
 lazy val iosKernel = (project in file("kernel-ios")).settings(
@@ -164,7 +170,7 @@ lazy val x11Kernel = (project in file("kernel-x11")).settings(
   moduleName := "iliad-kernel-x11",
   commonSettings,
   paradiseSettings,
-  x11Settings
+  desktopSettings
 ).dependsOn(kernel)
 
 lazy val root = (project in file(".")).settings(
