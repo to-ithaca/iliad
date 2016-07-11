@@ -242,7 +242,7 @@ object CachedGL {
 
   private def xort[A](dsl: DSL[A]): XorT[DSL, String, A] = XorT.right(dsl)
 
-  def draw(draw: DrawOp): DSL[String Xor Unit] =
+  def draw(draw: DrawOp): DSL[String Xor Unit] = 
     (for {
       fl <- ensure(Cached.get(draw.framebuffer),
                    "Framebuffer not loaded. Unable to draw.")

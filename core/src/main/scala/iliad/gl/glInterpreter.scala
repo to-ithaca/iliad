@@ -169,7 +169,10 @@ object GLInterpreter extends (GL.Interpreter[GL.NoEffect]) {
     case GLUniform1i(location, value) => Reader(_.glUniform1i(location, value))
     case GLDrawElements(mode, count, t, offset) =>
       Reader(_.glDrawElements(mode.value, count, t.value, offset))
-    case GLClear(bitMask) => Reader(_.glClear(bitMask.value))
+    case GLClear(bitMask) => Reader{ r =>
+      r.glClearColor(1f, 0f, 0f, 1f)
+      r.glClear(bitMask.value)
+    }
   }
 }
 
