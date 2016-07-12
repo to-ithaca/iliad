@@ -5,6 +5,7 @@ import iliad.kernel.platform.GLES30Library
 
 import iliad.std.int._
 import iliad.std.list._
+import iliad.syntax.vectord._
 
 import cats._
 import cats.data._
@@ -305,6 +306,30 @@ object GL {
                                  offset).free
     } yield ()
 
+  def bindUniform1i(location: Int, value: Int): DSL[Unit] =
+    GLUniform1i(location, value).free
+
+  def bindUniform1f(location: Int, value: Float): DSL[Unit] =
+    GLUniform1f(location, value).free
+
+  def bindUniform2i(location: Int, value: Vec2i): DSL[Unit] =
+    GLUniform2i(location, value).free
+
+  def bindUniform2f(location: Int, value: Vec2f): DSL[Unit] =
+    GLUniform2f(location, value).free
+
+  def bindUniform3i(location: Int, value: Vec3i): DSL[Unit] =
+    GLUniform3i(location, value).free
+
+  def bindUniform3f(location: Int, value: Vec3f): DSL[Unit] =
+    GLUniform3f(location, value).free
+
+  def bindUniform4i(location: Int, value: Vec4i): DSL[Unit] =
+    GLUniform4i(location, value).free
+
+  def bindUniform4f(location: Int, value: Vec4f): DSL[Unit] =
+    GLUniform4f(location, value).free
+
   def bindTextureUniform(unit: TextureUnit,
                          location: Int,
                          texture: Int,
@@ -414,6 +439,13 @@ case class GLVertexAttribPointer(location: Int,
 case class GLActiveTexture(unit: TextureUnit) extends GL[Unit]
 case class GLBindSampler(unit: TextureUnit, sampler: Int) extends GL[Unit]
 case class GLUniform1i(location: Int, value: Int) extends GL[Unit]
+case class GLUniform1f(location: Int, value: Float) extends GL[Unit]
+case class GLUniform2i(location: Int, value: Vec2i) extends GL[Unit]
+case class GLUniform2f(location: Int, value: Vec2f) extends GL[Unit]
+case class GLUniform3i(location: Int, value: Vec3i) extends GL[Unit]
+case class GLUniform3f(location: Int, value: Vec3f) extends GL[Unit]
+case class GLUniform4i(location: Int, value: Vec4i) extends GL[Unit]
+case class GLUniform4f(location: Int, value: Vec4f) extends GL[Unit]
 
 case class GLDrawElements(mode: PrimitiveType,
                           count: Int,

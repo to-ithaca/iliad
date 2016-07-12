@@ -313,7 +313,8 @@ object Capabilities {
 //TODO: add colorMask etc. to state and draw
 case class DrawOp(model: Model,
                   program: Program.Unlinked,
-                  textureUniforms: Map[String, Texture.Constructor],
+  textureUniforms: Map[String, Texture.Constructor],
+  uniforms: List[Uniform],
                   framebuffer: Framebuffer.Constructor,
                   colorMask: ColorMask,
                   primitive: PrimitiveType,

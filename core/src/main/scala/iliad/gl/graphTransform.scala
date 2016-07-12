@@ -50,7 +50,8 @@ object GraphTransform {
     } yield
       GL.DrawOp(n.model.model,
                 n.constructor.program,
-                us,
+        us,
+        Nil, //TODO: add in animation!
                 f,
                 n.constructor.colorMask,
                 n.constructor.primitive,
