@@ -6,6 +6,9 @@ import cats.free._
 import cats.data.{State => CatsState, ReaderT, Xor}
 import cats.implicits._
 
+import fs2._
+import fs2.util._
+
 import CatsExtra._
 
 sealed trait AnimationF {
@@ -27,33 +30,28 @@ object AnimationF {
 
 object Animation {
   type State = Map[GraphModel.Draw.Instance, Map[String, AnimationF]]
-  type Effect[A] = CatsState[State, A]
-  type DSL[A] = Free[Animation, A]
+  type Calculated = Map[GraphModel.Draw.Instance, List[Uniform]]
+  type Effect = CatsState[State, Unit]
 
   //TODO: should I change this to iterable?
   case class Draw(node: GraphModel.Draw.Instance, uniforms: List[Uniform])
 
-  def put(n: GraphModel.Draw.Instance, fs: Map[String, AnimationF]): DSL[Unit] =
-    AnimationPut(n, fs).free
+  def put(n: GraphModel.Draw.Instance, fs: Map[String, AnimationF]): Animation =
+    AnimationPut(n, fs)
 
-  def get(n: GraphModel.Draw.Instance, at: Long): DSL[Option[Animation.Draw]] =
-    AnimationGet(n, at).free
-
-  def ensure[A](dsl: DSL[Option[A]], msg: String): DSL[String Xor A] =
-    dsl.map(_.toRightXor(msg))
-}
-
-sealed trait Animation[A]
-
-case class AnimationPut(n: GraphModel.Draw.Instance, fs: Map[String, AnimationF]) extends Animation[Unit]
-case class AnimationGet(n: GraphModel.Draw.Instance, at: Long) extends Animation[Option[Animation.Draw]]
-
-object AnimationParser extends (Animation ~> Animation.Effect) {
-  def apply[A](fa: Animation[A]): Animation.Effect[A] = fa match {
+  def parse(a: Animation): Effect = a match {
     case AnimationPut(n, fs) => CatsState.modify(_ + (n -> fs))
-    case AnimationGet(n, at) => CatsState.inspect(_.get(n).map { fs =>
-      val us = fs.values.map(_.apply(at)).toList
-      Animation.Draw(n, us)
-    })
   }
+
+  implicit def S: Strategy = 
+    Strategy.fromFixedDaemonPool(8, "animations")
+
+  def calculate(at: Long, fs: Map[String, AnimationF]): List[Uniform] = 
+    fs.values.toList.map(_.apply(at))
+
+  def calculate(at: Long, as: State): Error Xor Calculated = ???
 }
+
+sealed trait Animation
+
+case class AnimationPut(n: GraphModel.Draw.Instance, fs: Map[String, AnimationF]) extends Animation
