@@ -23,7 +23,10 @@ object GraphModel {
     case class Constructor(name: String,
                            format: gl.Texture.Format,
                            viewport: Vec2i,
-                           isDouble: Boolean)
+      isDouble: Boolean)
+    //TODO: is isDouble something we need to know at this point?
+    //Can it be put on the graphConstructor instead, through traversal?
+
         extends Output.Constructor
     case class Instance(name: String, constructor: Constructor)
         extends Uniform
@@ -99,29 +102,18 @@ object GraphModel {
         framebuffer: Framebuffer.Constructor
     ) extends Node.Constructor
 
-    case class Piped(
-        constructor: Constructor,
-        uniforms: List[(String, Texture.Constructor)]
-    ) {
-      val textureNames: List[String] = uniforms.map(_._1)
-    }
-
     case class Instance(
-        piped: Piped,
+        constructor: Constructor,
         uniforms: Map[String, Texture.Uniform],
         model: Model.Instance,
         framebuffer: Framebuffer.Instance,
         numInstances: Int
     ) extends Node.Instance {
-      def constructor: Constructor = piped.constructor
-      val imageNames =
-        constructor.program.textureNames.filterNot(piped.textureNames.toSet)
       def name: String = toString
       def vertexAttribs: List[Attribute.Constructor] =
         constructor.program.vertex.attributes
       def modelAttribs: List[Attribute.Constructor] =
         model.model.vertex.ref.buffer.attributes
-
     }
   }
 

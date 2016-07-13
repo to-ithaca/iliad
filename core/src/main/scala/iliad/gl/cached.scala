@@ -88,7 +88,7 @@ object Cached {
                              Map.empty,
                              Map.empty,
                              Map.empty,
-                             Map.empty,
+      Map(Framebuffer.default -> Framebuffer.defaultLoaded),
                              Map.empty)
   }
 }

@@ -18,11 +18,18 @@ import iliad.kernel.platform.EGL14Library
 
 import com.typesafe.scalalogging._
 
+import CatsExtra._
+
 trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
 
-  def graphConstructor: State[GraphModel.Graph.Constructor, Unit]
-  //def worldStream: Stream[Task,  
-    //StateT[Xor[NonEmptyList[String], ?], GraphModel.Graph.Instance, Unit]]
+  def graph: State[GraphModel.Graph.Constructor, Unit]
+
+  def graphConstructor: Stream[Task, GraphModel.Graph.Constructed] = Stream.eval {
+    GraphConstruction.construct(graph) match {
+      case Validated.Invalid(err) => Task.fail(new Error(err.unwrap.mkString("\n")))
+      case Validated.Valid(g) => Task.now(g)
+    }
+  }
 
   private val EGLP: EGLPRG[NativeDisplay,
                            NativeWindow,
@@ -50,7 +57,7 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
       ?
   ] ~> ReaderT[Xor[String, ?],
                EGL14Library.Aux[NativeDisplay,
-                                NativeWindow,
+                               NativeWindow,
                                 EGLDisplay,
                                 EGLConfig,
                                 EGLSurface,
@@ -74,7 +81,6 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
       implicit S: Strategy): Task[(EGLDisplay, EGLSurface, EGLContext)] =
     s match {
       case (window, display) =>
-        lockDisplay.foreach(_ (display))
         val prg = (for {
           dpy <- XorT(EGLP.initialise(display))
           _ <- XorT.right(EGLP.properties(dpy))
@@ -88,15 +94,20 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
           ctx <- XorT(EGLP.context(dpy, cfg, cxattrs))
           _ <- XorT(EGLP.makeCurrent(dpy, sfc, sfc, ctx))
         } yield (dpy, sfc, ctx)).value
-        val r = prg
+        eglExecute(display, prg)
+    }
+
+  def eglExecute[A](d: NativeDisplay, dsl: EGLP.DSL[String Xor A]): Task[A] = {
+    lockDisplay.foreach(_ (d))
+    val t = dsl
           .foldMap(LogEGLInterpreter)
           .run(EGL14)
           .flatMap(identity)
           .bimap(err => Task.fail(new Error(err)), Task.now)
-          .merge[Task[(EGLDisplay, EGLSurface, EGLContext)]]
-        unlockDisplay.foreach(_ (display))
-        r
-    }
+      .merge[Task[A]]
+    unlockDisplay.foreach(_ (d))
+    t
+  }
 
   val EGLStrategy = Strategy.fromFixedDaemonPool(1, "egl-thread")
 
@@ -121,55 +132,69 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
                        ContextAttrib(EGL_CONTEXT_CLIENT_VERSION, 3)
                    ))(EGLStrategy))
 
-  private def executeGL: Pipe[Task, CachedGL.DSL[Unit], Unit] =
-    _.map { gl =>
-      val interpreter = CachedGL.runner(iliad.gl.GL.debugLog)
-      gl.interpret(interpreter).run(GLES30)
-    }.mapAccumulate((Cached.State.empty, Current.State.empty).right[Error]) {
-        (prev, cmd) =>
-          val next = prev.flatMap { s =>
-            val (ls, x) = cmd.run(s).value.run
-            ls.foreach(logger.debug(_))
-            x.bimap(new Error(_), _._1)
-          }
-          (next, next.bimap(Task.fail, _ => Task.now(())).merge[Task[Unit]])
-      }
-      .map(_._2)
-      .evalMap(identity)
-
-  private def drawFrame(nativeDisplay: NativeDisplay,
-                        display: EGLDisplay,
-                        surface: EGLSurface,
-                        gl: Stream[Task, CachedGL.DSL[Unit]])(
-      implicit S: Strategy): Stream[Task, Unit] =
-    Stream.eval(async.signalOf[Task, Long](0L)).flatMap { s =>
-      vsync(s)
-      s.discrete.flatMap(_ =>
-            for {
-          _ <- gl.through(executeGL)
-          _ <- swapBuffers(nativeDisplay, display, surface)
-        } yield ())
-    }
-
   private def swapBuffers(nd: NativeDisplay,
-                          d: EGLDisplay,
-                          s: EGLSurface): Stream[Task, Unit] = {
-    lockDisplay.foreach(_ (nd))
-    val t = Stream.eval(
-        EGLP
-          .swapBuffers(d, s)
-          .foldMap(LogEGLInterpreter)
-          .run(EGL14)
-          .bimap(err => Task.fail(new Error(err)), _ => Task.now(()))
-          .merge[Task[Unit]])
-    unlockDisplay.foreach(_ (nd))
-    t
+    d: EGLDisplay,
+    s: EGLSurface): Stream[Task, Boolean] =
+    Stream.eval(eglExecute(nd, EGLP.swapBuffers(d, s)))
+
+  private def aggregateRight[F[_]: Async, A, B]: Pipe2[F, A, B, (A, Vector[B])] =
+    (fa, fb) =>
+    (fa either fb).mapAccumulate(Vector.empty[B]) { (bs, i) =>
+      i.toXor match {
+        case Xor.Left(a) => (Vector.empty, Some((a, bs)))
+        case Xor.Right(b) => (bs :+ b, None)
+      }
+    }.map(_._2)
+      .filter(_.nonEmpty)
+      .map(_.get)
+
+  private def setUpAsync(implicit S: Strategy):
+      Pipe[Task, Graphics.DSL[Unit], List[Graphics.DSL[Unit]]] = q =>
+    (vsync through2 q)(aggregateRight).map(_._2.toList)
+
+  private def glExecute[A](dsl: CachedGL.DSL[String Xor A], s: (Cached.State, Current.State)):
+      Xor[String, ((Cached.State, Current.State), A)] = {
+    val interpreter = CachedGL.runner(iliad.gl.GL.debugLog)
+    val prg = dsl.interpret(interpreter)
+    val (log, xor) = prg.run(GLES30).run(s).value.run
+    log.foreach(l => logger.debug(l))
+    xor.flatMap {
+      case (nextS, xxor) => xxor.map(a => (nextS, a))
+    }
   }
 
-  val GLPipe: Pipe[Task, CachedGL.DSL[Unit], Unit] = gl =>
-    for {
-      s <- Stream.eval(session.task(EGLStrategy))
-      d <- EGL(s)
-      _ <- drawFrame(s._2, d._1, d._2, gl)(EGLStrategy)
-    } yield ()
+  private def drawFrame(cmds: List[Graphics.DSL[Unit]])(
+    prev: (GraphModel.Graph.Instance, (Cached.State, Current.State))):
+      Error Xor (GraphModel.Graph.Instance, (Cached.State, Current.State)) = prev match {
+    case (graph, glState) =>
+      logger.debug("Starting to draw frame")
+      val interpreter = Graphics.runner(pageSize)
+      val dsl = cmds.traverse(_.interpret(interpreter))
+        .run(graph)
+        .value
+      glExecute(dsl, glState).flatMap {
+        case (midGlState, (nextGraph, _)) =>
+          val midDsl = GraphTransform.parse(GraphTransform(nextGraph.ordered.toList)).sequenceUnit.value
+          glExecute(midDsl, midGlState).map {
+            case (nextGlState, _) => (nextGraph, nextGlState)
+          }
+      }.leftMap(new Error(_))
+  }
+
+  val GLPipe: Pipe[Task, Graphics.DSL[Unit], Unit] = gl =>
+    Stream.eval(session.task(EGLStrategy)).flatMap { s =>
+      EGL(s).flatMap { d =>
+        graphConstructor.flatMap { gc =>
+          (gl through setUpAsync(EGLStrategy)).mapAccumulate(
+            (gc.instance, (Cached.State.empty, Current.State.empty)).right[Error]) {
+            (prev, cmds) =>
+            val next = prev.flatMap(drawFrame(cmds))           
+            (next, next.bimap(Task.fail, _ => Task.now(())).merge[Task[Unit]])
+          }.map(_._2)
+            .evalMap(identity).flatMap { _ =>
+            swapBuffers(s._2, d._1, d._2).map(_ => ())
+          }
+        }
+      }
+    }
 }

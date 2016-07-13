@@ -2,6 +2,7 @@ package iliad
 package gl
 
 import cats._
+import cats.data._
 import cats.free._
 import cats.implicits._
 
@@ -14,18 +15,21 @@ object GraphTransform {
   sealed trait To[A]
   type DSL[A] = Free[To, A]
 
-  private def transform(t: GM.Texture.Instance): DSL[GL.Texture.Constructor] =
+  def transform(t: GM.Texture.Instance): DSL[GL.Texture.Constructor] =
     if (t.constructor.isDouble) DoubleTexture(t).free
     else SingleTexture(t).free
+
+  def transform(r: GM.Renderbuffer.Instance): DSL[GL.Renderbuffer.Constructor] =
+    Renderbuffer(r).free
 
   private def transform(
       i: GM.Output.Instance): DSL[GL.Framebuffer.AttachmentConstructor] =
     i match {
       case t: GM.Texture.Instance => transform(t)
-      case r: GM.Renderbuffer.Instance => Renderbuffer(r).free.widen
+      case r: GM.Renderbuffer.Instance => transform(r)
     }
 
-  private def transform(
+  def transform(
       f: GM.Framebuffer.Instance): DSL[GL.Framebuffer.Constructor] =
     f match {
       case GM.Framebuffer.OnScreen => OnScreenFramebuffer.free
@@ -43,7 +47,7 @@ object GraphTransform {
       case i: GM.Texture.Image => Image(i).free
     }.sequence
 
-  def apply(n: GM.Draw.Instance): DSL[GL.DrawOp] =
+  private def transform(n: GM.Draw.Instance): DSL[GL.DrawOp] =
     for {
       f <- transform(n.framebuffer)
       us <- transform(n.uniforms)
@@ -58,10 +62,15 @@ object GraphTransform {
                 n.constructor.capabilities,
                 n.numInstances)
 
-  def apply(c: GM.Clear.Instance): DSL[GL.ClearOp] =
+  private def transform(c: GM.Clear.Instance): DSL[GL.ClearOp] =
     for {
       f <- transform(c.framebuffer)
     } yield GL.ClearOp(c.constructor.mask, f)
+
+  def apply(ns: List[GM.Node.Instance]): DSL[List[XorT[CachedGL.DSL, String, Unit]]] = ns.traverse {
+    case d: GM.Draw.Instance => transform(d).map(o => XorT(CachedGL.draw(o)))
+    case c: GM.Clear.Instance => transform(c).map(o => XorT(CachedGL.clear(o)))
+  }
 
   def parse[A](dsl: DSL[A]): A = dsl.foldMap(Interpreter)
 

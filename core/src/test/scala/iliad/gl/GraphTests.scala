@@ -17,7 +17,7 @@ import gen._
 
 class GraphTests extends FunSuite with Matchers with GraphModelArbitraries
     with GeneratorDrivenPropertyChecks {
-
+/*
   test("graph is invalid if a leaf node is offscreen") {
     forAll(arbitrary[GraphModel.Draw.Constructor].filterNot(onScreen)) { (n) =>
       val validated = construct(put(n))
@@ -37,7 +37,7 @@ class GraphTests extends FunSuite with Matchers with GraphModelArbitraries
       val validated = construct(ns.traverseUnit(n => put(n)))
       validated.isValid shouldBe true
     }
-  }
+  }*/
 }
 
 object gen extends GenInstances
