@@ -33,7 +33,6 @@ object Animation {
   type Calculated = Map[GraphModel.Draw.Instance, List[Uniform]]
   type Effect = CatsState[State, Unit]
 
-  //TODO: should I change this to iterable?
   case class Draw(node: GraphModel.Draw.Instance, uniforms: List[Uniform])
 
   def put(n: GraphModel.Draw.Instance, fs: Map[String, AnimationF]): Animation =
@@ -43,13 +42,8 @@ object Animation {
     case AnimationPut(n, fs) => CatsState.modify(_ + (n -> fs))
   }
 
-  implicit def S: Strategy = 
-    Strategy.fromFixedDaemonPool(8, "animations")
-
   def calculate(at: Long, fs: Map[String, AnimationF]): List[Uniform] = 
     fs.values.toList.map(_.apply(at))
-
-  def calculate(at: Long, as: State): Error Xor Calculated = ???
 }
 
 sealed trait Animation
