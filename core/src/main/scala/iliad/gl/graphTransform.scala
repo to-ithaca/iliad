@@ -47,14 +47,15 @@ object GraphTransform {
       case i: GM.Texture.Image => Image(i).free
     }.sequence
 
-  private def transform(n: GM.Draw.Instance): DSL[GL.DrawOp] =
+  private def transform(n: GM.Draw.Instance, us: List[Uniform]): DSL[GL.DrawOp] =
     for {
       f <- transform(n.framebuffer)
-      us <- transform(n.uniforms)
+      tus <- transform(n.uniforms)
     } yield
       GL.DrawOp(n.model.model,
                 n.constructor.program,
-                us,
+        tus,
+        us, //TODO: add in animation!
                 f,
                 n.constructor.colorMask,
                 n.constructor.primitive,
@@ -66,9 +67,9 @@ object GraphTransform {
       f <- transform(c.framebuffer)
     } yield GL.ClearOp(c.constructor.mask, f)
 
-  def apply(ns: List[GM.Node.Instance]): DSL[List[XorT[CachedGL.DSL, String, Unit]]] = ns.traverse {
-    case d: GM.Draw.Instance => transform(d).map(o => XorT(CachedGL.draw(o)))
-    case c: GM.Clear.Instance => transform(c).map(o => XorT(CachedGL.clear(o)))
+  def apply(ns: List[(GM.Node.Instance, List[Uniform])]): DSL[List[XorT[CachedGL.DSL, String, Unit]]] = ns.traverse {
+    case (d: GM.Draw.Instance, us) => transform(d, us).map(o => XorT(CachedGL.draw(o)))
+    case (c: GM.Clear.Instance, _) => transform(c).map(o => XorT(CachedGL.clear(o)))
   }
 
   def parse[A](dsl: DSL[A]): A = dsl.foldMap(Interpreter)

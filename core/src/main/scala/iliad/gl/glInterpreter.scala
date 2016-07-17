@@ -167,6 +167,14 @@ object GLInterpreter extends (GL.Interpreter[GL.NoEffect]) {
     case GLBindSampler(unit, sampler) =>
       Reader(_.glBindSampler(Bounded.indexOf(unit), sampler))
     case GLUniform1i(location, value) => Reader(_.glUniform1i(location, value))
+    case GLUniform1f(location, value) => Reader(_.glUniform1f(location, value))
+    case GLUniform2i(location, value) => Reader(_.glUniform2i(location, value(0), value(1)))
+    case GLUniform2f(location, value) => Reader(_.glUniform2f(location, value(0), value(1)))
+    case GLUniform3i(location, value) => Reader(_.glUniform3i(location, value(0), value(1), value(2)))
+    case GLUniform3f(location, value) => Reader(_.glUniform3f(location, value(0), value(1), value(3)))
+    case GLUniform4i(location, value) => Reader(_.glUniform4i(location, value(0), value(1), value(3), value(4)))
+    case GLUniform4f(location, value) => Reader(_.glUniform4f(location, value(0), value(1), value(3), value(4)))
+
     case GLDrawElements(mode, count, t, offset) =>
       Reader(_.glDrawElements(mode.value, count, t.value, offset))
     case GLClear(bitMask) => Reader{ r =>

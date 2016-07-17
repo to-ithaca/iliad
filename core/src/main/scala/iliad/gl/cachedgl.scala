@@ -25,6 +25,10 @@ object CachedGL {
   type PRG[F[_], A] =
     ReaderT[StateT[F, (Cached.State, Current.State), ?], GLES30Library, A]
 
+  type GLState = (Cached.State, Current.State)
+
+  def empty: GLState = (Cached.State.empty, Current.State.empty)
+
   private def liftOpenGL[F[_]: Monad]: GL.Effect[F, ?] ~> PRG[F, ?] =
     new (GL.Effect[F, ?] ~> PRG[F, ?]) {
       def apply[A](eff: ReaderT[F, GLES30Library, A]): PRG[F, A] =

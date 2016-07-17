@@ -196,7 +196,15 @@ object GraphModel {
         copy(graph = next)
       }
 
-      def ordered: Vector[Node.Instance] = graph.ordered
+      def nodes(us: Map[Draw.Instance, List[Uniform]]): 
+          String Xor Vector[(Node.Instance, List[Uniform])] =
+        graph.ordered.traverse { 
+          case (n: Draw.Instance) => us.get(n)
+            .toRightXor(s"Uniforms for node $n do not exist")
+            .map(n -> _)
+          //FIXME: is this unreachable?
+          case (n: Clear.Instance) => (n, Nil).right
+        }
     }
   }
 }
