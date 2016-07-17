@@ -6,10 +6,11 @@ import iliad.std.all._
 
 import simulacrum.typeclass
 
-@typeclass trait GLUniform[A] {
+@typeclass
+trait GLUniform[A] {
   def uniform(name: String, value: A): Uniform
 }
-case class Uniform(name: String, bind: Int => GL.DSL[Unit])
+case class Uniform(name: String, bind: Int => OpenGL.DSL[Unit])
 
 object GLUniform {
 
@@ -24,40 +25,40 @@ object GLUniform {
 
 private final class IntIsUniform extends GLUniform[Int] {
   def uniform(name: String, value: Int): Uniform =
-    Uniform(name, GL.bindUniform1i(_, value))
+    Uniform(name, OpenGL.bindUniform1i(_, value))
 }
 
 private final class FloatIsUniform extends GLUniform[Float] {
   def uniform(name: String, value: Float): Uniform =
-    Uniform(name, GL.bindUniform1f(_, value))
+    Uniform(name, OpenGL.bindUniform1f(_, value))
 }
 
 private final class Vec2iIsUniform extends GLUniform[Vec2i] {
   def uniform(name: String, value: Vec2i): Uniform =
-    Uniform(name, GL.bindUniform2i(_, value))
+    Uniform(name, OpenGL.bindUniform2i(_, value))
 }
 
 private final class Vec2fIsUniform extends GLUniform[Vec2f] {
   def uniform(name: String, value: Vec2f): Uniform =
-    Uniform(name, GL.bindUniform2f(_, value))
+    Uniform(name, OpenGL.bindUniform2f(_, value))
 }
 
 private final class Vec3iIsUniform extends GLUniform[Vec3i] {
   def uniform(name: String, value: Vec3i): Uniform =
-    Uniform(name, GL.bindUniform3i(_, value))
+    Uniform(name, OpenGL.bindUniform3i(_, value))
 }
 
 private final class Vec3fIsUniform extends GLUniform[Vec3f] {
   def uniform(name: String, value: Vec3f): Uniform =
-    Uniform(name, GL.bindUniform3f(_, value))
+    Uniform(name, OpenGL.bindUniform3f(_, value))
 }
 
 private final class Vec4iIsUniform extends GLUniform[Vec4i] {
   def uniform(name: String, value: Vec4i): Uniform =
-    Uniform(name, GL.bindUniform4i(_, value))
+    Uniform(name, OpenGL.bindUniform4i(_, value))
 }
 
 private final class Vec4fIsUniform extends GLUniform[Vec4f] {
   def uniform(name: String, value: Vec4f): Uniform =
-    Uniform(name, GL.bindUniform4f(_, value))
+    Uniform(name, OpenGL.bindUniform4f(_, value))
 }

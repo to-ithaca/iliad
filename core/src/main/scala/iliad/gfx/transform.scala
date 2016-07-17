@@ -1,5 +1,7 @@
 package iliad
-package gl
+package gfx
+
+import iliad.gl._
 
 import cats._
 import cats.data._
@@ -9,7 +11,7 @@ import cats.implicits._
 import CatsExtra._
 
 object GraphTransform {
-  import iliad.gl.{GraphModel => GM}
+  import iliad.{gfx => GM}
   import iliad.{gl => GL}
 
   sealed trait To[A]
@@ -19,7 +21,8 @@ object GraphTransform {
     if (t.constructor.isDouble) DoubleTexture(t).free
     else SingleTexture(t).free
 
-  def transform(r: GM.Renderbuffer.Instance): DSL[GL.Renderbuffer.Constructor] =
+  def transform(
+      r: GM.Renderbuffer.Instance): DSL[GL.Renderbuffer.Constructor] =
     Renderbuffer(r).free
 
   private def transform(
@@ -29,14 +32,13 @@ object GraphTransform {
       case r: GM.Renderbuffer.Instance => transform(r)
     }
 
-  def transform(
-      f: GM.Framebuffer.Instance): DSL[GL.Framebuffer.Constructor] =
+  def transform(f: GM.Framebuffer.Instance): DSL[GL.Framebuffer.Constructor] =
     f match {
       case GM.Framebuffer.OnScreen => OnScreenFramebuffer.free
       case ff @ GM.Framebuffer.OffScreenInstance(is) =>
         is.traverse { case (c, a) => transform(a).map(c -> _) }.map { as =>
-          if (ff.hasDoubleTexture) Framebuffer.DoubleConstructor(as)
-          else Framebuffer.SingleConstructor(as)
+          if (ff.hasDoubleTexture) gl.Framebuffer.DoubleConstructor(as)
+          else gl.Framebuffer.SingleConstructor(as)
         }
     }
 
@@ -47,15 +49,16 @@ object GraphTransform {
       case i: GM.Texture.Image => Image(i).free
     }.sequence
 
-  private def transform(n: GM.Draw.Instance, us: List[Uniform]): DSL[GL.DrawOp] =
+  private def transform(n: GM.Draw.Instance,
+                        us: List[Uniform]): DSL[GL.DrawOp] =
     for {
       f <- transform(n.framebuffer)
       tus <- transform(n.uniforms)
     } yield
       GL.DrawOp(n.model.model,
                 n.constructor.program,
-        tus,
-        us, //TODO: add in animation!
+                tus,
+                us, //TODO: add in animation!
                 f,
                 n.constructor.colorMask,
                 n.constructor.primitive,
@@ -67,9 +70,12 @@ object GraphTransform {
       f <- transform(c.framebuffer)
     } yield GL.ClearOp(c.constructor.mask, f)
 
-  def apply(ns: List[(GM.Node.Instance, List[Uniform])]): DSL[List[XorT[CachedGL.DSL, String, Unit]]] = ns.traverse {
-    case (d: GM.Draw.Instance, us) => transform(d, us).map(o => XorT(CachedGL.draw(o)))
-    case (c: GM.Clear.Instance, _) => transform(c).map(o => XorT(CachedGL.clear(o)))
+  def apply(ns: List[(GM.Node.Instance, List[Uniform])])
+    : DSL[List[XorT[GL.GL.DSL, String, Unit]]] = ns.traverse {
+    case (d: GM.Draw.Instance, us) =>
+      transform(d, us).map(o => XorT(GL.GL.draw(o)))
+    case (c: GM.Clear.Instance, _) =>
+      transform(c).map(o => XorT(GL.GL.clear(o)))
   }
 
   def parse[A](dsl: DSL[A]): A = dsl.foldMap(Interpreter)

@@ -1,5 +1,7 @@
 package iliad
-package gl
+package gfx
+
+import iliad.gl._
 
 import cats._
 import cats.free._
@@ -27,25 +29,28 @@ object AnimationF {
   //TODO: what about interpolation between points? Need an interpolation strategy
 }
 
-
 object Animation {
-  type State = Map[GraphModel.Draw.Instance, Map[String, AnimationF]]
-  type Calculated = Map[GraphModel.Draw.Instance, List[Uniform]]
+  type State = Map[Draw.Instance, Map[String, AnimationF]]
+  type Calculated = Map[Draw.Instance, List[Uniform]]
   type Effect = CatsState[State, Unit]
-
-  case class Draw(node: GraphModel.Draw.Instance, uniforms: List[Uniform])
-
-  def put(n: GraphModel.Draw.Instance, fs: Map[String, AnimationF]): Animation =
-    AnimationPut(n, fs)
 
   def parse(a: Animation): Effect = a match {
     case AnimationPut(n, fs) => CatsState.modify(_ + (n -> fs))
   }
 
-  def calculate(at: Long, fs: Map[String, AnimationF]): List[Uniform] = 
+  def calculate(at: Long, fs: Map[String, AnimationF]): List[Uniform] =
     fs.values.toList.map(_.apply(at))
 }
 
 sealed trait Animation
 
-case class AnimationPut(n: GraphModel.Draw.Instance, fs: Map[String, AnimationF]) extends Animation
+case class AnimationPut(n: Draw.Instance, fs: Map[String, AnimationF])
+    extends Animation
+
+trait AnimationFunctions {
+
+  private def lift(a: Animation): Graphics = shapeless.Coproduct[Graphics](a)
+
+  def put(n: Draw.Instance, fs: Map[String, AnimationF]): Graphics =
+    lift(AnimationPut(n, fs))
+}

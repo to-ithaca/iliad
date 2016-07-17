@@ -17,9 +17,9 @@ import java.nio.Buffer
 
 import iliad.CatsExtra._
 
-object GL {
+object OpenGL {
 
-  type DSL[A] = Free[GL, A]
+  type DSL[A] = Free[OpenGL, A]
   type Effect[F[_], A] = ReaderT[F, GLES30Library, A]
 
   type NoEffect[A] = Effect[Id, A]
@@ -30,7 +30,7 @@ object GL {
   type Debugger[F[_], A] = XorT[F, String, A]
   type DebugEffect[F[_], A] = Effect[Debugger[F, ?], A]
 
-  type Interpreter[F[_]] = GL ~> F
+  type Interpreter[F[_]] = OpenGL ~> F
 
   val run: Interpreter[NoEffect] = GLInterpreter
   val log: Interpreter[LogEffect[Id, ?]] = new GLLogInterpreter(run)
@@ -348,108 +348,112 @@ object GL {
                    start * SizeOf[Int].byteSize).free
 }
 
-sealed trait GL[A]
+sealed trait OpenGL[A]
 
-case object GLGetError extends GL[Int]
+case object GLGetError extends OpenGL[Int]
 
-case class GLGetShaderiv(shader: Int, pname: ShaderParameter) extends GL[Int]
-case class GLGetShaderInfoLog(shader: Int, maxLength: Int) extends GL[String]
+case class GLGetShaderiv(shader: Int, pname: ShaderParameter)
+    extends OpenGL[Int]
+case class GLGetShaderInfoLog(shader: Int, maxLength: Int)
+    extends OpenGL[String]
 
 case class GLGetProgramiv(program: Int, pname: ProgramParameter)
-    extends GL[Int]
-case class GLGetProgramInfoLog(program: Int, maxLength: Int) extends GL[String]
+    extends OpenGL[Int]
+case class GLGetProgramInfoLog(program: Int, maxLength: Int)
+    extends OpenGL[String]
 
-case class GLCreateShader(`type`: ShaderType) extends GL[Int]
-case class GLShaderSource(shader: Int, sources: List[String]) extends GL[Unit]
-case class GLCompileShader(shader: Int) extends GL[Unit]
-case object GLCreateProgram extends GL[Int]
-case class GLAttachShader(program: Int, shader: Int) extends GL[Unit]
-case class GLLinkProgram(program: Int) extends GL[Unit]
-case class GLGetAttribLocation(program: Int, name: String) extends GL[Int]
-case class GLGetUniformLocation(program: Int, name: String) extends GL[Int]
-case class GLGenBuffers(number: Int) extends GL[Set[Int]]
-case class GLBindBuffer(target: BufferTarget, buffer: Int) extends GL[Unit]
+case class GLCreateShader(`type`: ShaderType) extends OpenGL[Int]
+case class GLShaderSource(shader: Int, sources: List[String])
+    extends OpenGL[Unit]
+case class GLCompileShader(shader: Int) extends OpenGL[Unit]
+case object GLCreateProgram extends OpenGL[Int]
+case class GLAttachShader(program: Int, shader: Int) extends OpenGL[Unit]
+case class GLLinkProgram(program: Int) extends OpenGL[Unit]
+case class GLGetAttribLocation(program: Int, name: String) extends OpenGL[Int]
+case class GLGetUniformLocation(program: Int, name: String) extends OpenGL[Int]
+case class GLGenBuffers(number: Int) extends OpenGL[Set[Int]]
+case class GLBindBuffer(target: BufferTarget, buffer: Int) extends OpenGL[Unit]
 case class GLBufferData(target: BufferTarget,
                         size: Int,
                         data: Buffer,
                         usage: BufferUsage)
-    extends GL[Unit]
+    extends OpenGL[Unit]
 case class GLBufferSubData(target: BufferTarget,
                            offset: Int,
                            size: Int,
                            data: Buffer)
-    extends GL[Unit]
+    extends OpenGL[Unit]
 case class GLCopyBufferSubData(read: BufferTarget,
                                write: BufferTarget,
                                readOffset: Int,
                                writeOffset: Int,
                                size: Int)
-    extends GL[Unit]
+    extends OpenGL[Unit]
 
-case class GLGenTextures(number: Int) extends GL[Set[Int]]
-case class GLBindTexture(texture: Int) extends GL[Unit]
+case class GLGenTextures(number: Int) extends OpenGL[Set[Int]]
+case class GLBindTexture(texture: Int) extends OpenGL[Unit]
 case class GLTexImage2D(internalFormat: TextureInternalFormat,
                         width: Int,
                         height: Int,
                         format: TextureFormat,
                         pixelType: TexturePixelType,
                         data: Buffer)
-    extends GL[Unit]
+    extends OpenGL[Unit]
 
-case class GLGenRenderbuffers(number: Int) extends GL[Set[Int]]
-case class GLBindRenderbuffer(renderbuffer: Int) extends GL[Unit]
+case class GLGenRenderbuffers(number: Int) extends OpenGL[Set[Int]]
+case class GLBindRenderbuffer(renderbuffer: Int) extends OpenGL[Unit]
 case class GLRenderbufferStorage(format: RenderbufferInternalFormat,
                                  width: Int,
                                  height: Int)
-    extends GL[Unit]
+    extends OpenGL[Unit]
 
-case class GLGenFramebuffers(number: Int) extends GL[Set[Int]]
+case class GLGenFramebuffers(number: Int) extends OpenGL[Set[Int]]
 case class GLBindFramebuffer(target: FramebufferTarget, framebuffer: Int)
-    extends GL[Unit]
+    extends OpenGL[Unit]
 case class GLFramebufferRenderbuffer(channel: FramebufferAttachment,
                                      renderbuffer: Int)
-    extends GL[Unit]
+    extends OpenGL[Unit]
 case class GLFramebufferTexture2D(channel: FramebufferAttachment, texture: Int)
-    extends GL[Unit]
-case class GLDrawBuffers(buffers: List[ColorBuffer]) extends GL[Unit]
+    extends OpenGL[Unit]
+case class GLDrawBuffers(buffers: List[ColorBuffer]) extends OpenGL[Unit]
 
-case class GLGenSamplers(number: Int) extends GL[Set[Int]]
+case class GLGenSamplers(number: Int) extends OpenGL[Set[Int]]
 case class GLSamplerParameteri(sampler: Int,
                                name: SamplerParameter,
                                value: SamplerValue)
-    extends GL[Unit]
+    extends OpenGL[Unit]
 
-case class GLEnable(capability: Capability) extends GL[Unit]
-case class GLDisable(capability: Capability) extends GL[Unit]
+case class GLEnable(capability: Capability) extends OpenGL[Unit]
+case class GLDisable(capability: Capability) extends OpenGL[Unit]
 case class GLColorMask(red: Boolean,
                        green: Boolean,
                        blue: Boolean,
                        alpha: Boolean)
-    extends GL[Unit]
-case class GLUseProgram(program: Int) extends GL[Unit]
-case class GLEnableVertexAttribArray(location: Int) extends GL[Unit]
+    extends OpenGL[Unit]
+case class GLUseProgram(program: Int) extends OpenGL[Unit]
+case class GLEnableVertexAttribArray(location: Int) extends OpenGL[Unit]
 case class GLVertexAttribPointer(location: Int,
                                  size: Int,
                                  `type`: VertexAttribType,
                                  normalized: Boolean,
                                  stride: Int,
                                  offset: Int)
-    extends GL[Unit]
+    extends OpenGL[Unit]
 
-case class GLActiveTexture(unit: TextureUnit) extends GL[Unit]
-case class GLBindSampler(unit: TextureUnit, sampler: Int) extends GL[Unit]
-case class GLUniform1i(location: Int, value: Int) extends GL[Unit]
-case class GLUniform1f(location: Int, value: Float) extends GL[Unit]
-case class GLUniform2i(location: Int, value: Vec2i) extends GL[Unit]
-case class GLUniform2f(location: Int, value: Vec2f) extends GL[Unit]
-case class GLUniform3i(location: Int, value: Vec3i) extends GL[Unit]
-case class GLUniform3f(location: Int, value: Vec3f) extends GL[Unit]
-case class GLUniform4i(location: Int, value: Vec4i) extends GL[Unit]
-case class GLUniform4f(location: Int, value: Vec4f) extends GL[Unit]
+case class GLActiveTexture(unit: TextureUnit) extends OpenGL[Unit]
+case class GLBindSampler(unit: TextureUnit, sampler: Int) extends OpenGL[Unit]
+case class GLUniform1i(location: Int, value: Int) extends OpenGL[Unit]
+case class GLUniform1f(location: Int, value: Float) extends OpenGL[Unit]
+case class GLUniform2i(location: Int, value: Vec2i) extends OpenGL[Unit]
+case class GLUniform2f(location: Int, value: Vec2f) extends OpenGL[Unit]
+case class GLUniform3i(location: Int, value: Vec3i) extends OpenGL[Unit]
+case class GLUniform3f(location: Int, value: Vec3f) extends OpenGL[Unit]
+case class GLUniform4i(location: Int, value: Vec4i) extends OpenGL[Unit]
+case class GLUniform4f(location: Int, value: Vec4f) extends OpenGL[Unit]
 
 case class GLDrawElements(mode: PrimitiveType,
                           count: Int,
                           `type`: IndexType,
                           offset: Int)
-    extends GL[Unit]
-case class GLClear(bitmask: ChannelBitMask) extends GL[Unit]
+    extends OpenGL[Unit]
+case class GLClear(bitmask: ChannelBitMask) extends OpenGL[Unit]

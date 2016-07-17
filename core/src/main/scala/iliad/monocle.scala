@@ -8,7 +8,8 @@ import cats.data._
 
 object MonocleExtra {
 
-  implicit def toStateTOps[F[_]: Monad, S, A](s: StateT[F, S, A]): StateTOps[F, S, A] =
+  implicit def toStateTOps[F[_]: Monad, S, A](
+      s: StateT[F, S, A]): StateTOps[F, S, A] =
     new StateTOps(s)
 
   final class StateTOps[F[_]: Monad, S, A](s: StateT[F, S, A]) {

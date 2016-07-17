@@ -14,8 +14,8 @@ import monocle.function.all._
 import monocle.syntax.all._
 import monocle.std.map._
 
-object Cached {
-  type DSL[A] = Free[Cached, A]
+object Cache {
+  type DSL[A] = Free[Cache, A]
   type Effect[A] = CatsState[State, A]
 
   def get(vs: VertexShader.Source): DSL[Option[VertexShader.Compiled]] =
@@ -79,103 +79,104 @@ object Cached {
       samplers: Map[Sampler.Constructor, Sampler.Loaded])
 
   object State {
-    val empty: State = State(Map.empty,
-                             Map.empty,
-                             Map.empty,
-                             Map.empty,
-                             Map.empty,
-                             Map.empty,
-                             Map.empty,
-                             Map.empty,
-                             Map.empty,
-      Map(Framebuffer.default -> Framebuffer.defaultLoaded),
-                             Map.empty)
+    val empty: State = State(
+        Map.empty,
+        Map.empty,
+        Map.empty,
+        Map.empty,
+        Map.empty,
+        Map.empty,
+        Map.empty,
+        Map.empty,
+        Map.empty,
+        Map(Framebuffer.default -> Framebuffer.defaultLoaded),
+        Map.empty)
   }
 }
 
-sealed trait Cached[A]
+sealed trait Cache[A]
 
 case class VertexShaderGet(vs: VertexShader.Source)
-    extends Cached[Option[VertexShader.Compiled]]
-case class VertexShaderPut(vs: VertexShader.Compiled) extends Cached[Unit]
+    extends Cache[Option[VertexShader.Compiled]]
+case class VertexShaderPut(vs: VertexShader.Compiled) extends Cache[Unit]
 case class FragmentShaderGet(fs: FragmentShader.Source)
-    extends Cached[Option[FragmentShader.Compiled]]
-case class FragmentShaderPut(fs: FragmentShader.Compiled) extends Cached[Unit]
+    extends Cache[Option[FragmentShader.Compiled]]
+case class FragmentShaderPut(fs: FragmentShader.Compiled) extends Cache[Unit]
 case class ProgramGet(p: Program.Unlinked)
-    extends Cached[Option[Program.Linked]]
-case class ProgramPut(p: Program.Linked) extends Cached[Unit]
+    extends Cache[Option[Program.Linked]]
+case class ProgramPut(p: Program.Linked) extends Cache[Unit]
 case class VertexDataGet(ref: VertexData.Ref)
-    extends Cached[Option[VertexData.Loaded]]
-case class VertexDataPut(v: VertexData.Loaded) extends Cached[Unit]
+    extends Cache[Option[VertexData.Loaded]]
+case class VertexDataPut(v: VertexData.Loaded) extends Cache[Unit]
 case class VertexBufferGet(c: VertexBuffer.Constructor)
-    extends Cached[Option[VertexBuffer.Loaded]]
-case class VertexBufferPut(v: VertexBuffer.Loaded) extends Cached[Unit]
+    extends Cache[Option[VertexBuffer.Loaded]]
+case class VertexBufferPut(v: VertexBuffer.Loaded) extends Cache[Unit]
 
 case class ElementDataGet(ref: ElementData.Ref)
-    extends Cached[Option[ElementData.Loaded]]
-case class ElementDataPut(e: ElementData.Loaded) extends Cached[Unit]
+    extends Cache[Option[ElementData.Loaded]]
+case class ElementDataPut(e: ElementData.Loaded) extends Cache[Unit]
 case class ElementBufferGet(c: ElementBuffer.Constructor)
-    extends Cached[Option[ElementBuffer.Loaded]]
-case class ElementBufferPut(e: ElementBuffer.Loaded) extends Cached[Unit]
+    extends Cache[Option[ElementBuffer.Loaded]]
+case class ElementBufferPut(e: ElementBuffer.Loaded) extends Cache[Unit]
 
 case class TextureGet(t: Texture.Constructor)
-    extends Cached[Option[Texture.Loaded]]
-case class TexturePut(t: Texture.Loaded) extends Cached[Unit]
+    extends Cache[Option[Texture.Loaded]]
+case class TexturePut(t: Texture.Loaded) extends Cache[Unit]
 
 case class RenderbufferGet(r: Renderbuffer.Constructor)
-    extends Cached[Option[Renderbuffer.Loaded]]
-case class RenderbufferPut(r: Renderbuffer.Loaded) extends Cached[Unit]
+    extends Cache[Option[Renderbuffer.Loaded]]
+case class RenderbufferPut(r: Renderbuffer.Loaded) extends Cache[Unit]
 
 case class FramebufferGet(f: Framebuffer.Constructor)
-    extends Cached[Option[Framebuffer.Loaded]]
-case class FramebufferPut(f: Framebuffer.Loaded) extends Cached[Unit]
+    extends Cache[Option[Framebuffer.Loaded]]
+case class FramebufferPut(f: Framebuffer.Loaded) extends Cache[Unit]
 
 case class SamplerGet(s: Sampler.Constructor)
-    extends Cached[Option[Sampler.Loaded]]
-case class SamplerPut(s: Sampler.Loaded) extends Cached[Unit]
+    extends Cache[Option[Sampler.Loaded]]
+case class SamplerPut(s: Sampler.Loaded) extends Cache[Unit]
 
-private object CachedParser extends (Cached ~> Cached.Effect) {
+private object CacheParser extends (Cache ~> Cache.Effect) {
   private val _vertexShaders: Lens[
-      Cached.State,
+      Cache.State,
       Map[VertexShader.Source, VertexShader.Compiled]] =
-    GenLens[Cached.State](_.vertexShaders)
+    GenLens[Cache.State](_.vertexShaders)
   private val _fragmentShaders: Lens[
-      Cached.State,
+      Cache.State,
       Map[FragmentShader.Source, FragmentShader.Compiled]] =
-    GenLens[Cached.State](_.fragmentShaders)
-  private val _programs: Lens[Cached.State,
+    GenLens[Cache.State](_.fragmentShaders)
+  private val _programs: Lens[Cache.State,
                               Map[Program.Unlinked, Program.Linked]] =
-    GenLens[Cached.State](_.programs)
-  private val _vertexData: Lens[Cached.State,
+    GenLens[Cache.State](_.programs)
+  private val _vertexData: Lens[Cache.State,
                                 Map[VertexData.Ref, VertexData.Loaded]] =
-    GenLens[Cached.State](_.vertexData)
+    GenLens[Cache.State](_.vertexData)
   private val _vertexBuffers: Lens[
-      Cached.State,
+      Cache.State,
       Map[VertexBuffer.Constructor, VertexBuffer.Loaded]] =
-    GenLens[Cached.State](_.vertexBuffers)
-  private val _elementData: Lens[Cached.State,
+    GenLens[Cache.State](_.vertexBuffers)
+  private val _elementData: Lens[Cache.State,
                                  Map[ElementData.Ref, ElementData.Loaded]] =
-    GenLens[Cached.State](_.elementData)
+    GenLens[Cache.State](_.elementData)
   private val _elementBuffers: Lens[
-      Cached.State,
+      Cache.State,
       Map[ElementBuffer.Constructor, ElementBuffer.Loaded]] =
-    GenLens[Cached.State](_.elementBuffers)
-  private val _textures: Lens[Cached.State,
+    GenLens[Cache.State](_.elementBuffers)
+  private val _textures: Lens[Cache.State,
                               Map[Texture.Constructor, Texture.Loaded]] =
-    GenLens[Cached.State](_.textures)
+    GenLens[Cache.State](_.textures)
   private val _renderbuffers: Lens[
-      Cached.State,
+      Cache.State,
       Map[Renderbuffer.Constructor, Renderbuffer.Loaded]] =
-    GenLens[Cached.State](_.renderbuffers)
+    GenLens[Cache.State](_.renderbuffers)
   private val _framebuffers: Lens[
-      Cached.State,
+      Cache.State,
       Map[Framebuffer.Constructor, Framebuffer.Loaded]] =
-    GenLens[Cached.State](_.framebuffers)
-  private val _samplers: Lens[Cached.State,
+    GenLens[Cache.State](_.framebuffers)
+  private val _samplers: Lens[Cache.State,
                               Map[Sampler.Constructor, Sampler.Loaded]] =
-    GenLens[Cached.State](_.samplers)
+    GenLens[Cache.State](_.samplers)
 
-  def apply[A](cached: Cached[A]): Cached.Effect[A] =
+  def apply[A](cached: Cache[A]): Cache.Effect[A] =
     cached match {
       case VertexShaderGet(vs) =>
         CatsState.inspect(_ &|-> _vertexShaders ^|-> at(vs) get)

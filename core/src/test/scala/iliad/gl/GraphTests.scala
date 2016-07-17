@@ -1,6 +1,8 @@
 package iliad
 package gl
 
+import iliad.gfx._
+
 import org.scalatest._
 import org.scalatest.prop._
 import org.scalacheck._
@@ -12,9 +14,9 @@ import cats._
 import cats.implicits._
 
 import CatsExtra._
-import GraphConstruction._
-import gen._
-
+import Construct._
+//import gen._
+/*
 class GraphTests extends FunSuite with Matchers with GraphModelArbitraries
     with GeneratorDrivenPropertyChecks {
 /*
@@ -226,3 +228,4 @@ trait GraphModelArbitraries extends GLArbitraries with iliad.ArbitraryInstances 
     case _ => false
   }
 }
+ */

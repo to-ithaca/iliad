@@ -70,7 +70,8 @@ trait Win32GLDependencies extends GLDependencies {
 abstract class Win32Bootstrap(name: String, val width: Int, val height: Int)
     extends Win32EventHandler
     with IliadApp
-    with Win32GLDependencies with LazyLogging {
+    with Win32GLDependencies
+    with LazyLogging {
 
   //TODO: fix this
   implicit val SS = Strategy.fromFixedDaemonPool(1, "vsync-thread")
@@ -83,7 +84,7 @@ abstract class Win32Bootstrap(name: String, val width: Int, val height: Int)
     } yield vsync(s)).unsafeRunAsync(msg => logger.info(msg.toString))
   }
 
-  def vsync: Stream[Task, Long] = 
+  def vsync: Stream[Task, Long] =
     Stream.eval(async.signalOf[Task, Long](0L)).flatMap { s =>
       vsync(s)
       s.discrete
