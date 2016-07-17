@@ -7,25 +7,28 @@ import cats._
 import cats.data._
 import cats.implicits._
 
-object Load {
-  type Effect = XorT[GL.DSL, String, Unit]
+private object Load {
+  type Effect = Reader[Graphics.Config, XorT[GL.DSL, String, Unit]]
 
   private def lift[A](dsl: GL.DSL[A]): Effect =
-    XorT.right(dsl.map(_ => ()))
+    Kleisli.pure(XorT.right[GL.DSL, String, Unit](dsl.map(_ => ())))
 
-  def parse(pageSize: Int)(a: Load): Effect = a match {
+  private def lift[A](f: Graphics.Config => GL.DSL[A]): Effect = 
+    Reader(cfg => XorT.right[GL.DSL, String, Unit](f(cfg).map(_ => ())))
+
+  def apply(l: Load): Effect = l match {
     case PutProgram(p) => lift(GL.load(p))
-    case PutVertices(r, d) => lift(GL.load(r, d, pageSize))
-    case PutElements(r, d) => lift(GL.load(r, d, pageSize))
+    case PutVertices(r, d) => lift(cfg => GL.load(r, d, cfg.pageSize))
+    case PutElements(r, d) => lift(cfg => GL.load(r, d, cfg.pageSize))
     case PutTexture(t, d) =>
-      lift(GL.load(GraphTransform.parse(GraphTransform.transform(t)), d))
+      lift(cfg => GL.load(ToGL.run(ToGL(t)).run(cfg.graph), d))
     case PutRenderbuffer(r) =>
-      lift(GL.load(GraphTransform.parse(GraphTransform.transform(r))))
+      lift(cfg => GL.load(ToGL.run(ToGL(r)).run(cfg.graph)))
     case PutFramebuffer(f) =>
-      XorT(GL.load(GraphTransform.parse(GraphTransform.transform(f))))
+      Reader(cfg => XorT(GL.load(ToGL.run(ToGL(f)).run(cfg.graph))))
   }
 }
- 
+
 sealed trait Load
 
 case class PutProgram(p: Program.Unlinked) extends Load

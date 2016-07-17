@@ -26,11 +26,11 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
 
   def graph: State[Graph.Constructor, Unit]
 
-  private def graphConstructor: Stream[Task, Graph.Constructed] = Stream.eval {
+  private def graphicsConfig: Stream[Task, Graphics.Config] = Stream.eval {
     Construct(graph) match {
       case Validated.Invalid(err) =>
         Task.fail(new Error(err.unwrap.mkString("\n")))
-      case Validated.Valid(g) => Task.now(g)
+      case Validated.Valid(g) => Task.now(Graphics.Config(pageSize, g))
     }
   }
 
@@ -161,11 +161,9 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
         case (at, cmds) => (at, cmds.flatten.toList)
     }
 
-  private def run(gs: List[Graphics])(s: Graphics.State)
-    : Error Xor (Graphics.State, XorT[GL.DSL, String, Unit]) = {
-    logger.debug("Starting to process graphics")
-    (Graphics(pageSize, gs)).run(s).leftMap(new Error(_))
-  }
+  private def run(cfg: Graphics.Config, gs: List[Graphics])(s: Graphics.State)
+    : Error Xor (Graphics.State, XorT[GL.DSL, String, Unit]) = 
+    Graphics(gs).run(cfg).run(s).leftMap(new Error(_))
 
   private def run[A](gl: GL.DSL[String Xor A],
                      s: GL.State): Xor[Error, GL.State] = {
@@ -178,10 +176,14 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
     }.leftMap(new Error(_))
   }
 
+  private def run(cfg: Graphics.Config, gls: GL.State, 
+    us: Animation.Values, gs: Graphics.State) : Xor[Error, GL.State] =
+     run(Graphics.draws(gs, us).run(cfg).value, gls)
+
   val AnimS = Strategy.fromFixedDaemonPool(8, "animation")
 
   private def run(at: Long, anim: Animation.State)
-    : Stream[Task, Vector[(Node.Instance, List[Uniform])]] = {
+    : Stream[Task, Animation.Values] = {
     implicit val S = AnimS
     val s = Stream.emits(anim.toList).map {
       case (n, fs) =>
@@ -190,44 +192,40 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
           (n, us)
         })
     }
-    Stream.eval(concurrent.join(8)(s).runLog)
+    Stream.eval(concurrent.join(8)(s).runLog).map(_.toMap)
   }
 
   val GLPipe: Pipe[Task, List[Graphics], Unit] = graphics =>
     for {
       s <- Stream.eval(session.task(EGLStrategy))
       d <- EGL(s)
-      gc <- graphConstructor
+      cfg <- graphicsConfig
       gls <- (graphics through aggregate(EGLStrategy))
               .mapAccumulate(
-                  Graphics.empty(gc).right[Error]
+                  Graphics.empty(cfg.graph).right[Error]
               ) { (prev, t) =>
                 t match {
                   case (at, gs) =>
-                    val xor = prev.flatMap(run(gs))
+                    val xor = prev.flatMap(run(cfg, gs))
                     val next = xor.map(_._1)
                     val out = xor.map {
-                      case (n, gl) => (at, gl.value, n.animation)
+                      case (n, gl) => (at, gl.value, n)
                     }.bimap(Task.fail, o => Task.now(o))
                       .merge[Task[(Long,
                                    GL.DSL[String Xor Unit],
-                                   Animation.State)]]
+                                   Graphics.State)]]
                     (next, out)
                 }
               }
               .map(_._2)
               .evalMap(identity)
-      (at, loadDsl, anim) = gls
-      _ <- run(at, anim)
+      (at, loadDsl, graphics) = gls
+      _ <- run(at, graphics.animation)
             .mapAccumulate(GL.empty.right[Error]) { (prev, ns) =>
               val next = for {
                 p <- prev
                 x <- run(loadDsl, p)
-                drawDsl = GraphTransform
-                  .parse(GraphTransform(ns.toList))
-                  .sequenceUnit
-                  .value
-                xx <- run(drawDsl, x)
+                xx <- run(cfg, x, ns, graphics)
               } yield xx
               val out =
                 next.bimap(Task.fail, _ => Task.now(())).merge[Task[Unit]]

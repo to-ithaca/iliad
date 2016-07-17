@@ -29,12 +29,12 @@ object AnimationF {
   //TODO: what about interpolation between points? Need an interpolation strategy
 }
 
-object Animation {
+private [iliad] object Animation {
   type State = Map[Draw.Instance, Map[String, AnimationF]]
-  type Calculated = Map[Draw.Instance, List[Uniform]]
+  type Values = Map[Draw.Instance, List[Uniform]]
   type Effect = CatsState[State, Unit]
 
-  def parse(a: Animation): Effect = a match {
+  def apply(a: Animation): Effect = a match {
     case AnimationPut(n, fs) => CatsState.modify(_ + (n -> fs))
   }
 

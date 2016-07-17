@@ -2,6 +2,7 @@ package iliad
 package gfx
 
 import iliad.std.list._
+import iliad.gl._
 
 import cats._
 import cats.data._
@@ -69,26 +70,24 @@ object Instantiate {
       else s"Attribute $a is not present for node $n".invalidNel
     }
 
-  private def links(ns: List[Node.Instance]): 
-      ReaderT[ValidatedNel[String, ?], Graph.Instance, List[Link.Instance]] =
+  private def links(ns: List[Node.Instance])
+    : ReaderT[ValidatedNel[String, ?], Graph.Instance, List[Link.Instance]] =
     ReaderT(_.constructed.links.flatMap { l =>
-        val sOpt = ns.find(_.constructor == l.start)
-        val eOpt = ns.find(_.constructor == l.end)
-        (sOpt, eOpt) match {
-          case (Some(s), Some(e)) =>
-            Some(Link.Instance(s, e).valid)
-          case (Some(s), None) =>
-            Some(
-                s"Unable to find end node for link $l with start $s".invalidNel)
-          case (None, Some(e)) =>
-            Some(s"Unable to find end node for link $l with end $e".invalidNel)
-          case _ => None
-        }
-      }.toList.sequence
-    )
+      val sOpt = ns.find(_.constructor == l.start)
+      val eOpt = ns.find(_.constructor == l.end)
+      (sOpt, eOpt) match {
+        case (Some(s), Some(e)) =>
+          Some(Link.Instance(s, e).valid)
+        case (Some(s), None) =>
+          Some(s"Unable to find end node for link $l with start $s".invalidNel)
+        case (None, Some(e)) =>
+          Some(s"Unable to find end node for link $l with end $e".invalidNel)
+        case _ => None
+      }
+    }.toList.sequence)
 
-  private def lift(v: ValidatedNel[String, Unit]): 
-ReaderT[ValidatedNel[String, ?], Graph.Instance, Unit] =
+  private def lift(v: ValidatedNel[String, Unit])
+    : ReaderT[ValidatedNel[String, ?], Graph.Instance, Unit] =
     KleisliExtra.lift(v)
 
   private def checks(

@@ -1,9 +1,10 @@
 package iliad
 package gfx
 
-import iliad.gl._
+import iliad.{gl => GL}
 import iliad.syntax.all._
 import iliad.std.list._
+import iliad.std.set._
 
 import cats._
 import cats.data._
@@ -20,24 +21,26 @@ object Output {
 object Texture {
   sealed trait Uniform
   case class Constructor(name: String,
-                         format: gl.Texture.Format,
-                         viewport: Vec2i,
-                         isDouble: Boolean)
-  //TODO: is isDouble something we need to know at this point?
-  //Can it be put on the graphConstructor instead, through traversal?
-      extends Output.Constructor
+                         format: GL.Texture.Format,
+                         viewport: Vec2i)
+      extends Output.Constructor {
+    def single: Constructed = Constructed(this, false)
+    def double: Constructed = Constructed(this, true)
+  }
+
+  case class Constructed(constructor: Constructor, isDouble: Boolean)
 
   case class Instance(name: String, constructor: Constructor)
       extends Uniform
       with Output.Instance
 
-  case class Image(name: String, format: gl.Texture.Format, viewport: Vec2i)
+  case class Image(name: String, format: GL.Texture.Format, viewport: Vec2i)
       extends Uniform
 }
 
 object Renderbuffer {
   case class Constructor(name: String,
-                         format: RenderbufferInternalFormat,
+                         format: GL.RenderbufferInternalFormat,
                          viewport: Vec2i)
       extends Output.Constructor
   case class Instance(name: String, constructor: Constructor)
@@ -46,31 +49,31 @@ object Renderbuffer {
 
 object Framebuffer {
   sealed trait Constructor
+  sealed trait Constructed
   sealed trait Instance
 
-  case object OnScreen extends Constructor with Instance
+  case object OnScreen extends Constructor with Constructed with Instance
 
   case class OffScreenConstructor(
-      buffers: List[(FramebufferAttachment, Output.Constructor)])
+      buffers: List[(GL.FramebufferAttachment, Output.Constructor)])
       extends Constructor {
     def textures: List[Texture.Constructor] =
       buffers.map(_._2).filterClass[Texture.Constructor]
   }
 
-  case class OffScreenInstance(
-      instances: List[(FramebufferAttachment, Output.Instance)])
-      extends Instance {
+  case class OffScreenConstructed(
+    constructor: OffScreenConstructor, 
+    textures: List[Texture.Constructed]
+  ) extends Constructed
 
-    val hasDoubleTexture: Boolean = instances
-      .map(_._2)
-      .filterClass[Texture.Instance]
-      .exists(_.constructor.isDouble)
-  }
+  case class OffScreenInstance(
+      instances: List[(GL.FramebufferAttachment, Output.Instance)])
+      extends Instance
 }
 
 object Model {
   case class Constructor(name: String)
-  case class Instance(name: String, constructor: Constructor, model: gl.Model)
+  case class Instance(name: String, constructor: Constructor, model: GL.Model)
 }
 
 sealed trait Node
@@ -80,25 +83,35 @@ object Node {
     def framebuffer: Framebuffer.Constructor
     def lNode: LNode[Constructor, String] = LNode(this, name)
   }
+
+  sealed trait Constructed {
+    def constructor: Constructor
+  }
+
   sealed trait Instance {
     def name: String
     def constructor: Constructor
     def lNode: LNode[Instance, String] = LNode(this, name)
   }
-  sealed trait Drawable
+  private[iliad] sealed trait Drawable
 }
 
 object Draw {
   case class Constructor(
       name: String,
-      program: Program.Unlinked,
-      primitive: PrimitiveType,
-      capabilities: Set[Capability],
-      colorMask: ColorMask,
+      program: GL.Program.Unlinked,
+      primitive: GL.PrimitiveType,
+      capabilities: Set[GL.Capability],
+      colorMask: GL.ColorMask,
       isInstanced: Boolean,
       model: Model.Constructor,
       framebuffer: Framebuffer.Constructor
   ) extends Node.Constructor
+
+  case class Constructed(
+    constructor: Constructor,
+    framebuffer: Framebuffer.Constructed
+  ) extends Node.Constructed
 
   case class Instance(
       constructor: Constructor,
@@ -108,24 +121,29 @@ object Draw {
       numInstances: Int
   ) extends Node.Instance {
     def name: String = toString
-    def vertexAttribs: List[Attribute.Constructor] =
+    def vertexAttribs: List[GL.Attribute.Constructor] =
       constructor.program.vertex.attributes
-    def modelAttribs: List[Attribute.Constructor] =
+    def modelAttribs: List[GL.Attribute.Constructor] =
       model.model.vertex.ref.buffer.attributes
   }
 
   case class Drawable(
       instance: Instance,
-      uniforms: List[Uniform]
+      uniforms: List[GL.Uniform]
   ) extends Node.Drawable
 }
 
 object Clear {
   case class Constructor(
       name: String,
-      mask: ChannelBitMask,
+      mask: GL.ChannelBitMask,
       framebuffer: Framebuffer.Constructor
   ) extends Node.Constructor
+
+  case class Constructed(
+    constructor: Constructor,
+    framebuffer: Framebuffer.Constructed) 
+      extends Node.Constructed
 
   case class Instance(
       constructor: Constructor,
@@ -141,6 +159,7 @@ sealed trait Link {
   def end: Node.Constructor
   def lEdge: LEdge[Node.Constructor, Link] = LEdge(start, end, this)
 }
+
 object Link {
 
   case class Pipe(start: Draw.Constructor,
@@ -166,24 +185,15 @@ object Graph {
   type Constructor = quiver.Graph[Node.Constructor, String, Link]
   type QInstance = quiver.Graph[Node.Instance, String, Unit]
 
-  val empty: Constructor =
-    quiver.empty[Node.Constructor, String, Link]
+  val empty: Constructor = quiver.empty[Node.Constructor, String, Link]
 
-  case class Constructed(nodes: Set[Node.Constructor],
+  case class Constructed(nodes: Set[Node.Constructed],
                          links: Set[Link],
-                         start: Set[Node.Constructor],
-                         end: Set[Node.Constructor]) {
+                         start: Set[Node.Constructed],
+                         end: Set[Node.Constructed],
+    doubleTextures: Map[Texture.Constructor, Texture.Constructed]) {
     def instance: Instance =
       Instance(this, quiver.empty[Node.Instance, String, Unit])
-  }
-
-  object Constructed {
-    def apply(g: Constructor): Constructed = Constructed(
-        g.nodes.toSet,
-        g.labEdges.map(_.label).toSet,
-        g.roots.toSet,
-        g.leaves.toSet
-    )
   }
 
   case class Instance(constructed: Constructed, graph: QInstance) {
@@ -199,27 +209,26 @@ object Graph {
       copy(graph = next)
     }
 
-    def nodes(us: Map[Draw.Instance, List[Uniform]])
+    def nodes(us: Map[Draw.Instance, List[GL.Uniform]])
       : String Xor Vector[Node.Drawable] =
       graph.ordered.traverse {
-          case c: Clear.Instance => c.right
-          case d: Draw.Instance =>
-            us.get(d)
+        case c: Clear.Instance => c.right
+        case d: Draw.Instance =>
+          us.get(d)
             .map(Draw.Drawable(d, _))
-              .toRightXor(s"Uniforms for node $d do not exist")
+            .toRightXor(s"Uniforms for node $d do not exist")
       }
   }
 }
 
+abstract class DrawType(val primitive: GL.PrimitiveType)
+object DrawType {
+  case object Triangles extends DrawType(GL.GL_TRIANGLES)
+  case object Points extends DrawType(GL.GL_POINTS)
+}
 
-  abstract class DrawType(val primitive: PrimitiveType)
-  object DrawType {
-    case object Triangles extends DrawType(GL_TRIANGLES)
-    case object Points extends DrawType(GL_POINTS)
-  }
-
-  abstract class Dimension(val capabilities: Set[Capability])
-  object Dimension {
-    case object D2 extends Dimension(Set.empty)
-    case object D3 extends Dimension(Set(GL_DEPTH_TEST))
-  }
+abstract class Dimension(val capabilities: Set[GL.Capability])
+object Dimension {
+  case object D2 extends Dimension(Set.empty)
+  case object D3 extends Dimension(Set(GL.GL_DEPTH_TEST))
+}
