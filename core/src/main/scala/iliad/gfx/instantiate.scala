@@ -10,7 +10,7 @@ import cats.implicits._
 
 import CatsExtra._
 
-object Instantiate {
+private[iliad] object Instantiate {
 
   private def framebufferOutput(
       c: Output.Constructor,

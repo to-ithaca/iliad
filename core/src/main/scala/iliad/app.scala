@@ -25,12 +25,14 @@ import CatsExtra._
 trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
 
   def graph: State[Graph.Constructor, Unit]
+  def algorithm: Algorithm
 
   private def graphicsConfig: Stream[Task, Graphics.Config] = Stream.eval {
     Construct(graph) match {
       case Validated.Invalid(err) =>
         Task.fail(new Error(err.unwrap.mkString("\n")))
-      case Validated.Valid(g) => Task.now(Graphics.Config(pageSize, g))
+      case Validated.Valid(g) =>
+        Task.now(Graphics.Config(pageSize, g, algorithm))
     }
   }
 
@@ -41,7 +43,7 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
                            EGLSurface,
                            EGLContext] = new EGLPRG
 
-  /*This needs to be lazy to defer the creation of the classTag until after the $init 
+  /*This needs to be lazy to defer the creation of the classTag until after the $init
    of the subclass is called */
   lazy val Interpreter: EGLInterpreter[NativeDisplay,
                                        NativeWindow,
@@ -162,7 +164,7 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
     }
 
   private def run(cfg: Graphics.Config, gs: List[Graphics])(s: Graphics.State)
-    : Error Xor (Graphics.State, XorT[GL.DSL, String, Unit]) = 
+    : Error Xor (Graphics.State, XorT[GL.DSL, String, Unit]) =
     Graphics(gs).run(cfg).run(s).leftMap(new Error(_))
 
   private def run[A](gl: GL.DSL[String Xor A],
@@ -176,14 +178,16 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
     }.leftMap(new Error(_))
   }
 
-  private def run(cfg: Graphics.Config, gls: GL.State, 
-    us: Animation.Values, gs: Graphics.State) : Xor[Error, GL.State] =
-     run(Graphics.draws(gs, us).run(cfg).value, gls)
+  private def run(cfg: Graphics.Config,
+                  gls: GL.State,
+                  us: Animation.Values,
+                  gs: Graphics.State): Xor[Error, GL.State] =
+    run(Graphics.draws(gs, us).run(cfg).value, gls)
 
   val AnimS = Strategy.fromFixedDaemonPool(8, "animation")
 
-  private def run(at: Long, anim: Animation.State)
-    : Stream[Task, Animation.Values] = {
+  private def run(at: Long,
+                  anim: Animation.State): Stream[Task, Animation.Values] = {
     implicit val S = AnimS
     val s = Stream.emits(anim.toList).map {
       case (n, fs) =>

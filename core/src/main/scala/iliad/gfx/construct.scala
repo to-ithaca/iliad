@@ -23,12 +23,12 @@ trait GraphFunctions {
 
   def vsh(source: String,
           attributes: List[GL.Attribute.Constructor],
-          textures: List[(String, GL.Sampler.Constructor)]): GL.VertexShader.Source =
+          textures: List[(String, GL.Sampler.Constructor)])
+    : GL.VertexShader.Source =
     GL.VertexShader.Source(source, attributes, textures)
 
-  def fsh(
-      source: String,
-      textures: List[(String, GL.Sampler.Constructor)]): GL.FragmentShader.Source =
+  def fsh(source: String, textures: List[(String, GL.Sampler.Constructor)])
+    : GL.FragmentShader.Source =
     GL.FragmentShader.Source(source, textures)
 
   def program(v: GL.VertexShader.Source,
@@ -56,12 +56,13 @@ trait GraphFunctions {
                    model: Model.Instance): Draw.Instance =
     Draw.Instance(cons, uniforms, model, Framebuffer.OnScreen, 1)
 
-  def offScreenDraw(name: String,
-                    program: GL.Program.Unlinked,
-                    model: Model.Constructor,
-                    drawType: DrawType,
-                    dimension: Dimension,
-                    outputs: List[(GL.FramebufferAttachment, Output.Constructor)])
+  def offScreenDraw(
+      name: String,
+      program: GL.Program.Unlinked,
+      model: Model.Constructor,
+      drawType: DrawType,
+      dimension: Dimension,
+      outputs: List[(GL.FramebufferAttachment, Output.Constructor)])
     : Draw.Constructor =
     Draw.Constructor(
         name,
@@ -77,15 +78,15 @@ trait GraphFunctions {
   def onScreenClear(name: String): Clear.Constructor =
     Clear.Constructor(
         name,
-        GL.ChannelBitMask.BitMask(Set(GL.GL_COLOR_BUFFER_BIT, GL.GL_DEPTH_BUFFER_BIT)),
+        GL.ChannelBitMask.BitMask(
+            Set(GL.GL_COLOR_BUFFER_BIT, GL.GL_DEPTH_BUFFER_BIT)),
         Framebuffer.OnScreen
     )
 
   def order(s: Node.Constructor, e: Node.Constructor): Link = Link.Order(s, e)
 }
 
-
-private [iliad] object Construct {
+private[iliad] object Construct {
 
   type GValidated = ReaderT[ValidatedNel[String, ?], Graph.Constructed, Unit]
 
@@ -142,46 +143,52 @@ private [iliad] object Construct {
       .apply(g)
       .map(_ => g)
 
+  private def constructed(
+      c: Framebuffer.Constructor,
+      doubles: Map[Texture.Constructor, Texture.Constructed])
+    : Framebuffer.Constructed = c match {
+    case fb: Framebuffer.OffScreenConstructor =>
+      Framebuffer.OffScreenConstructed(fb, fb.textures.map(t =>
+                doubles.getOrElse(t, t.single)))
+    case Framebuffer.OnScreen => Framebuffer.OnScreen
+  }
 
-
-    private def constructed(c: Framebuffer.Constructor, 
-      doubles: Map[Texture.Constructor, Texture.Constructed]):
-        Framebuffer.Constructed = c match {
-      case fb: Framebuffer.OffScreenConstructor => 
-        Framebuffer.OffScreenConstructed(fb,
-        fb.textures.map(t => doubles.getOrElse(t, t.single)))
-      case Framebuffer.OnScreen => Framebuffer.OnScreen
+  private def constructed(
+      n: Node.Constructor,
+      doubles: Map[Texture.Constructor, Texture.Constructed])
+    : Node.Constructed = {
+    n match {
+      case d: Draw.Constructor =>
+        Draw.Constructed(d, constructed(d.framebuffer, doubles))
+      case c: Clear.Constructor =>
+        Clear.Constructed(c, constructed(c.framebuffer, doubles))
     }
+  }
 
-    private def constructed(n: Node.Constructor, 
-      doubles: Map[Texture.Constructor, Texture.Constructed]): Node.Constructed = {
-      n match {
-        case d: Draw.Constructor => 
-          Draw.Constructed(d, constructed(d.framebuffer, doubles))
-        case c: Clear.Constructor => 
-          Clear.Constructed(c, constructed(c.framebuffer, doubles))
-      }
-    }
-
-    private def doubleTextures(g: Graph.Constructor): 
-        Map[Texture.Constructor, Texture.Constructed] = 
-      g.labEdges.map(_.label).toSet.filterClass[Link.Pipe].flatMap { l =>
+  private def doubleTextures(
+      g: Graph.Constructor): Map[Texture.Constructor, Texture.Constructed] =
+    g.labEdges
+      .map(_.label)
+      .toSet
+      .filterClass[Link.Pipe]
+      .flatMap { l =>
         l.end.framebuffer match {
           case Framebuffer.OnScreen => Map.empty
-          case c: Framebuffer.OffScreenConstructor => 
-            c.textures.filter(l.textures.contains)
-              .map(t => t -> t.double)
+          case c: Framebuffer.OffScreenConstructor =>
+            c.textures.filter(l.textures.contains).map(t => t -> t.double)
         }
-        }.toMap
+      }
+      .toMap
 
-    private def constructed(c: Graph.Constructor): Graph.Constructed = {
-      val ds = doubleTextures(c)
-      val g = c.vmap(n => constructed(n, ds))
-      Graph.Constructed(
+  private def constructed(c: Graph.Constructor): Graph.Constructed = {
+    val ds = doubleTextures(c)
+    val g = c.vmap(n => constructed(n, ds))
+    Graph.Constructed(
         g.nodes.toSet,
         g.labEdges.map(_.label).toSet,
         g.roots.toSet,
-        g.leaves.toSet, ds
+        g.leaves.toSet,
+        ds
     )
   }
 

@@ -7,16 +7,16 @@ import cats._
 import cats.data._
 import cats.implicits._
 
-private object Load {
+object Load {
   type Effect = Reader[Graphics.Config, XorT[GL.DSL, String, Unit]]
 
   private def lift[A](dsl: GL.DSL[A]): Effect =
     Kleisli.pure(XorT.right[GL.DSL, String, Unit](dsl.map(_ => ())))
 
-  private def lift[A](f: Graphics.Config => GL.DSL[A]): Effect = 
+  private def lift[A](f: Graphics.Config => GL.DSL[A]): Effect =
     Reader(cfg => XorT.right[GL.DSL, String, Unit](f(cfg).map(_ => ())))
 
-  def apply(l: Load): Effect = l match {
+  private[gfx] def apply(l: Load): Effect = l match {
     case PutProgram(p) => lift(GL.load(p))
     case PutVertices(r, d) => lift(cfg => GL.load(r, d, cfg.pageSize))
     case PutElements(r, d) => lift(cfg => GL.load(r, d, cfg.pageSize))
@@ -31,13 +31,15 @@ private object Load {
 
 sealed trait Load
 
-case class PutProgram(p: Program.Unlinked) extends Load
-case class PutVertices(r: VertexData.Ref, d: VertexData.Data) extends Load
-case class PutElements(r: ElementData.Ref, d: ElementData.Data) extends Load
-case class PutTexture(t: Texture.Instance, d: Option[gl.Texture.Data])
+private case class PutProgram(p: Program.Unlinked) extends Load
+private case class PutVertices(r: VertexData.Ref, d: VertexData.Data)
     extends Load
-case class PutRenderbuffer(r: Renderbuffer.Instance) extends Load
-case class PutFramebuffer(f: Framebuffer.Instance) extends Load
+private case class PutElements(r: ElementData.Ref, d: ElementData.Data)
+    extends Load
+private case class PutTexture(t: Texture.Instance, d: Option[gl.Texture.Data])
+    extends Load
+private case class PutRenderbuffer(r: Renderbuffer.Instance) extends Load
+private case class PutFramebuffer(f: Framebuffer.Instance) extends Load
 
 trait LoadFunctions {
 

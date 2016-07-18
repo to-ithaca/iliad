@@ -5,17 +5,17 @@ import cats._
 import cats.data._
 import cats.implicits._
 
-private object Action {
+object Action {
   type Effect = StateT[Xor[String, ?], Graph.Instance, Unit]
 
-  def parse(a: Action): Effect = a match {
+  private[gfx] def apply(a: Action): Effect = a match {
     case Show(ns) =>
       Instantiate(ns).transformF(_.leftMap(_.unwrap.mkString("\n")))
   }
 }
 
 sealed trait Action
-case class Show(ns: List[Node.Instance]) extends Action
+private case class Show(ns: List[Node.Instance]) extends Action
 
 trait ActionFunctions {
   private def lift(a: Action): Graphics =

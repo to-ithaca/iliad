@@ -24,11 +24,12 @@ object Texture {
                          format: GL.Texture.Format,
                          viewport: Vec2i)
       extends Output.Constructor {
-    def single: Constructed = Constructed(this, false)
-    def double: Constructed = Constructed(this, true)
+    private[gfx] def single: Constructed = Constructed(this, false)
+    private[gfx] def double: Constructed = Constructed(this, true)
   }
 
-  case class Constructed(constructor: Constructor, isDouble: Boolean)
+  private[gfx] case class Constructed(constructor: Constructor,
+                                      isDouble: Boolean)
 
   case class Instance(name: String, constructor: Constructor)
       extends Uniform
@@ -49,7 +50,7 @@ object Renderbuffer {
 
 object Framebuffer {
   sealed trait Constructor
-  sealed trait Constructed
+  private[gfx] sealed trait Constructed
   sealed trait Instance
 
   case object OnScreen extends Constructor with Constructed with Instance
@@ -57,13 +58,13 @@ object Framebuffer {
   case class OffScreenConstructor(
       buffers: List[(GL.FramebufferAttachment, Output.Constructor)])
       extends Constructor {
-    def textures: List[Texture.Constructor] =
+    private[gfx] def textures: List[Texture.Constructor] =
       buffers.map(_._2).filterClass[Texture.Constructor]
   }
 
-  case class OffScreenConstructed(
-    constructor: OffScreenConstructor, 
-    textures: List[Texture.Constructed]
+  private[gfx] case class OffScreenConstructed(
+      constructor: OffScreenConstructor,
+      textures: List[Texture.Constructed]
   ) extends Constructed
 
   case class OffScreenInstance(
@@ -81,17 +82,17 @@ object Node {
   sealed trait Constructor {
     def name: String
     def framebuffer: Framebuffer.Constructor
-    def lNode: LNode[Constructor, String] = LNode(this, name)
+    private[gfx] def lNode: LNode[Constructor, String] = LNode(this, name)
   }
 
-  sealed trait Constructed {
+  private[gfx] sealed trait Constructed {
     def constructor: Constructor
   }
 
   sealed trait Instance {
     def name: String
     def constructor: Constructor
-    def lNode: LNode[Instance, String] = LNode(this, name)
+    private[gfx] def lNode: LNode[Instance, String] = LNode(this, name)
   }
   private[iliad] sealed trait Drawable
 }
@@ -108,9 +109,9 @@ object Draw {
       framebuffer: Framebuffer.Constructor
   ) extends Node.Constructor
 
-  case class Constructed(
-    constructor: Constructor,
-    framebuffer: Framebuffer.Constructed
+  private[gfx] case class Constructed(
+      constructor: Constructor,
+      framebuffer: Framebuffer.Constructed
   ) extends Node.Constructed
 
   case class Instance(
@@ -121,13 +122,13 @@ object Draw {
       numInstances: Int
   ) extends Node.Instance {
     def name: String = toString
-    def vertexAttribs: List[GL.Attribute.Constructor] =
+    private[gfx] def vertexAttribs: List[GL.Attribute.Constructor] =
       constructor.program.vertex.attributes
-    def modelAttribs: List[GL.Attribute.Constructor] =
+    private[gfx] def modelAttribs: List[GL.Attribute.Constructor] =
       model.model.vertex.ref.buffer.attributes
   }
 
-  case class Drawable(
+  private[iliad] case class Drawable(
       instance: Instance,
       uniforms: List[GL.Uniform]
   ) extends Node.Drawable
@@ -140,9 +141,8 @@ object Clear {
       framebuffer: Framebuffer.Constructor
   ) extends Node.Constructor
 
-  case class Constructed(
-    constructor: Constructor,
-    framebuffer: Framebuffer.Constructed) 
+  case class Constructed(constructor: Constructor,
+                         framebuffer: Framebuffer.Constructed)
       extends Node.Constructed
 
   case class Instance(
@@ -157,7 +157,8 @@ object Clear {
 sealed trait Link {
   def start: Node.Constructor
   def end: Node.Constructor
-  def lEdge: LEdge[Node.Constructor, Link] = LEdge(start, end, this)
+  private[gfx] def lEdge: LEdge[Node.Constructor, Link] =
+    LEdge(start, end, this)
 }
 
 object Link {
@@ -166,15 +167,15 @@ object Link {
                   end: Draw.Constructor,
                   uniforms: Map[String, Texture.Constructor])
       extends Link {
-    def textures: Set[Texture.Constructor] = uniforms.values.toSet
-    def uniformNames: Set[String] = uniforms.keySet
-    def endTextureNames: List[String] = end.program.textureNames
+    private[gfx] def textures: Set[Texture.Constructor] = uniforms.values.toSet
+    private[gfx] def uniformNames: Set[String] = uniforms.keySet
+    private[gfx] def endTextureNames: List[String] = end.program.textureNames
   }
 
   case class Order(start: Node.Constructor, end: Node.Constructor) extends Link
 
   case class Instance(start: Node.Instance, end: Node.Instance) {
-    def lEdge: LEdge[Node.Instance, Unit] = LEdge(start, end, ())
+    private[gfx] def lEdge: LEdge[Node.Instance, Unit] = LEdge(start, end, ())
   }
 }
 
@@ -185,16 +186,20 @@ object Graph {
   type Constructor = quiver.Graph[Node.Constructor, String, Link]
   type QInstance = quiver.Graph[Node.Instance, String, Unit]
 
-  val empty: Constructor = quiver.empty[Node.Constructor, String, Link]
+  private[gfx] val empty: Constructor =
+    quiver.empty[Node.Constructor, String, Link]
 
-  case class Constructed(nodes: Set[Node.Constructed],
-                         links: Set[Link],
-                         start: Set[Node.Constructed],
-                         end: Set[Node.Constructed],
-    doubleTextures: Map[Texture.Constructor, Texture.Constructed]) {
-    def instance: Instance =
+  case class Constructed(
+      nodes: Set[Node.Constructed],
+      links: Set[Link],
+      start: Set[Node.Constructed],
+      end: Set[Node.Constructed],
+      doubleTextures: Map[Texture.Constructor, Texture.Constructed]) {
+    private[gfx] def instance: Instance =
       Instance(this, quiver.empty[Node.Instance, String, Unit])
   }
+
+  type Traversal = QInstance => Vector[Node.Instance]
 
   case class Instance(constructed: Constructed, graph: QInstance) {
 
@@ -204,21 +209,27 @@ object Graph {
     private def addEdges(ls: List[Link.Instance]): State[QInstance, Unit] =
       State.modify(qg => ls.foldLeft(qg)((next, l) => next.addEdge(l.lEdge)))
 
-    def put(ns: List[Node.Instance], ls: List[Link.Instance]): Instance = {
+    private[gfx] def put(ns: List[Node.Instance],
+                         ls: List[Link.Instance]): Instance = {
       val next = (addNodes(ns) >> addEdges(ls)).run(graph).value._1
       copy(graph = next)
     }
 
-    def nodes(us: Map[Draw.Instance, List[GL.Uniform]])
-      : String Xor Vector[Node.Drawable] =
-      graph.ordered.traverse {
+    private[gfx] def nodes(us: Map[Draw.Instance, List[GL.Uniform]])
+      : Reader[Algorithm, String Xor Vector[Node.Drawable]] =
+      Reader[Algorithm, String Xor Vector[Node.Drawable]](
+          _.apply(graph).traverse {
         case c: Clear.Instance => c.right
         case d: Draw.Instance =>
           us.get(d)
             .map(Draw.Drawable(d, _))
             .toRightXor(s"Uniforms for node $d do not exist")
-      }
+      })
   }
+}
+
+object Algorithm {
+  val ordered: Algorithm = g => g.ordered
 }
 
 abstract class DrawType(val primitive: GL.PrimitiveType)

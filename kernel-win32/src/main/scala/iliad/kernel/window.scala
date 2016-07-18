@@ -115,7 +115,7 @@ class Win32(name: String, width: Int, height: Int, delegate: Win32EventHandler) 
   }
 
   def checkNull[A](action: String)(a: A): Error Xor A =
-    if (a == null) Error(0, "$action unexpectedly returned null").left
+    if (a == null) Error(0, s"$action unexpectedly returned null").left
     else a.right
 
   def register: Error Xor WNDCLASSEX = {

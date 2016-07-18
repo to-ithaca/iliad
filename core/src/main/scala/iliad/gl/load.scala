@@ -4,7 +4,7 @@ package gl
 import iliad.CatsExtra._
 
 import cats._
-import cats.free._, Free._
+import cats.free._
 
 object Load {
   type DSL[A] = Free[Load, A]

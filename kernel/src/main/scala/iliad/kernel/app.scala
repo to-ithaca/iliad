@@ -1,12 +1,9 @@
 package iliad
 package kernel
 
-import cats._
-
 import scala.reflect._
 
 import fs2.util._
-import fs2.async.mutable._
 
 trait IliadApp {
   def run(): Unit

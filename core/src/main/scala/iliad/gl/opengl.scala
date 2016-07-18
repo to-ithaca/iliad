@@ -9,7 +9,6 @@ import iliad.syntax.vectord._
 
 import cats._
 import cats.data._
-import cats.std._
 import cats.free._, Free._
 import cats.implicits._
 

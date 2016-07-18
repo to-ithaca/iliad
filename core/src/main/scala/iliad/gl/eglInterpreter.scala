@@ -98,7 +98,7 @@ final class EGLInterpreter[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]
                   A]]
       case EGLBindAPI(api) => reader(_.eglBindAPI(api.value))
       case EGLCreateWindowSurface(disp, cfg, nw, attribs) =>
-        //explicit cast because type isn't inferred      
+        //explicit cast because type isn't inferred
         reader(_.eglCreateWindowSurface(disp, cfg, nw, attribs.toArray))
           .asInstanceOf[Reader[
                   EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
@@ -126,7 +126,7 @@ final class EGLInterpreter[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]
         }
       case EGLSwapInterval(dpy, interval) =>
         reader(_.eglSwapInterval(dpy, interval))
-      //explit cast because type isn't inferred  
+      //explit cast because type isn't inferred
       case EGL_DEFAULT_DISPLAY() =>
         reader(_.EGL_DEFAULT_DISPLAY).asInstanceOf[Reader[
                 EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],

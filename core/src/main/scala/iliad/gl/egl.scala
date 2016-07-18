@@ -8,7 +8,7 @@ import cats.data._
 case class Attributes[K <: IntConstant, V <: IntConstant](
     values: Map[K, Int Xor V]) {
 
-  override def toString() = {
+  override def toString(): String = {
     val contents = values.toList.map {
       case (k, v) =>
         s"$k -> ${v.bimap(_.toString, _.toString).merge}"

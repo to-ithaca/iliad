@@ -4,14 +4,9 @@ package kernel
 import scala.reflect._
 import scala.concurrent.duration._
 
-import iliad.kernel.platform.unix.X11
-
-import iliad.kernel._
-
 import com.sun.jna.platform.unix.X11._
 import com.sun.jna._
 
-import cats._
 import cats.data._
 import cats.implicits._
 
@@ -162,7 +157,7 @@ trait X11Bootstrap
   }
 
   def main(args: Array[String]): Unit = {
-    println("running app")
+    logger.info("running app")
     createWindow match {
       case Xor.Right((d, w)) =>
         logger.info("Created window")

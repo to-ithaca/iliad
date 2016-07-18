@@ -8,4 +8,6 @@ package object gfx
     with AnimationFunctions
     with GraphFunctions {
   type Graphics = Animation :+: Load :+: Action :+: CNil
+
+  type Algorithm = Graph.QInstance => Vector[Node.Instance]
 }

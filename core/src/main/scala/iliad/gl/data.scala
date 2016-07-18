@@ -4,11 +4,8 @@ package gl
 import iliad.std.list._
 import iliad.syntax.vectord._
 
-import simulacrum.typeclass
-
 import java.nio.Buffer
 
-import cats._
 import cats.data._
 import cats.implicits._
 
@@ -254,7 +251,8 @@ object Renderbuffer {
 object Framebuffer {
   sealed trait Constructor {
     def attachments: List[(FramebufferAttachment, AttachmentConstructor)]
-    def textures = attachments.map(_._2).filterClass[Texture.Constructor]
+    def textures: List[Texture.Constructor] =
+      attachments.map(_._2).filterClass[Texture.Constructor]
   }
 
   sealed trait AttachmentConstructor
