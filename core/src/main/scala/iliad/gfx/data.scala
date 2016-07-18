@@ -216,14 +216,14 @@ object Graph {
     }
 
     private[gfx] def nodes(us: Map[Draw.Instance, List[GL.Uniform]])
-      : Reader[Algorithm, String Xor Vector[Node.Drawable]] =
-      Reader[Algorithm, String Xor Vector[Node.Drawable]](
+      : Reader[Algorithm, AnimationError Xor Vector[Node.Drawable]] =
+      Reader[Algorithm, AnimationError Xor Vector[Node.Drawable]](
           _.apply(graph).traverse {
         case c: Clear.Instance => c.right
         case d: Draw.Instance =>
           us.get(d)
             .map(Draw.Drawable(d, _))
-            .toRightXor(s"Uniforms for node $d do not exist")
+            .toRightXor(AnimationError(s"Uniforms for node $d do not exist"))
       })
   }
 }
@@ -240,6 +240,12 @@ object DrawType {
 
 abstract class Dimension(val capabilities: Set[GL.Capability])
 object Dimension {
-  case object D2 extends Dimension(Set.empty)
-  case object D3 extends Dimension(Set(GL.GL_DEPTH_TEST))
+  case object _2D extends Dimension(Set.empty)
+  case object _3D extends Dimension(Set(GL.GL_DEPTH_TEST))
 }
+
+sealed trait GraphicsError extends IliadError
+
+case class AnimationError(msg: String) extends GraphicsError
+case class GraphMatchError(msg: String) extends GraphicsError
+case class GraphLinkError(msg: String) extends GraphicsError

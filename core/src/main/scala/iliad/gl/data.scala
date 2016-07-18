@@ -50,17 +50,19 @@ object Program {
       }
 
     def loaded(as: List[Attribute.Constructor])
-      : String Xor Attribute.LoadedAttributes =
+      : ProgramError Xor Attribute.LoadedAttributes =
       as.traverse(a =>
-              loaded(a).toRightXor(s"Location for attribute is undefined: $a"))
+              loaded(a).toRightXor(
+                  ProgramError(s"Location for attribute is undefined: $a")))
         .map(Attribute.LoadedAttributes)
 
     def textureUniforms(ts: Map[String, Texture.Constructor])
-      : String Xor List[TextureUniform] =
+      : ProgramError Xor List[TextureUniform] =
       textureUniforms.zipWithIndex.traverse {
         case ((name, location), index) =>
           ts.get(name)
-            .toRightXor(s"Unable to find uniform for texture $name")
+            .toRightXor(
+                ProgramError(s"Unable to find uniform for texture $name"))
             .map(
                 t =>
                   TextureUniform(Bounded.element[TextureUnit](index),
@@ -329,3 +331,10 @@ case class DrawOp(model: Model,
 
 case class ClearOp(bitMask: ChannelBitMask,
                    framebuffer: Framebuffer.Constructor)
+
+sealed trait GLError extends IliadError
+case class NotLoadedError(msg: String) extends GLError
+case class ProgramError(msg: String) extends GLError
+case class CallFailedError(msg: String) extends GLError
+case class ShaderCompileError(msg: String) extends GLError
+case class ProgramLinkError(msg: String) extends GLError

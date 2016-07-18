@@ -4,7 +4,7 @@ package gfx
 import iliad.gl._
 
 import cats._
-import cats.data.{State => CatsState, StateT, Xor, XorT, ReaderT, Reader}
+import cats.data.{State => CatsState, StateT, Xor, XorT, ReaderT, Reader, NonEmptyList}
 import cats.implicits._
 
 import monocle.macros._
@@ -21,9 +21,9 @@ private[iliad] object Graphics {
                     graph: Graph.Constructed,
                     algorithm: Algorithm)
 
-  type PRG = ReaderT[StateT[Xor[String, ?], State, ?],
+  type PRG = ReaderT[StateT[Xor[NonEmptyList[GraphicsError], ?], State, ?],
                      Config,
-                     XorT[GL.DSL, String, Unit]]
+                     XorT[GL.DSL, GLError, Unit]]
 
   private val _graph: monocle.Lens[State, Graph.Instance] =
     GenLens[State](_.graph)
@@ -42,7 +42,7 @@ private[iliad] object Graphics {
   private def liftAnimation(fa: Animation.Effect): PRG =
     KleisliExtra.lift(
         fa.applyLens(_animation)
-          .transformF(a => a.value.right[String])
+          .transformF(a => a.value.right[NonEmptyList[GraphicsError]])
           .map(_ => XorT.pure(())))
 
   private def transform(g: Graphics): PRG = g match {
@@ -53,9 +53,10 @@ private[iliad] object Graphics {
   }
 
   def apply(gs: List[Graphics]): PRG = {
-    val start = ReaderT.pure[StateT[Xor[String, ?], State, ?],
-                             Config,
-                             XorT[GL.DSL, String, Unit]](XorT.pure(()))
+    val start =
+      ReaderT.pure[StateT[Xor[NonEmptyList[GraphicsError], ?], State, ?],
+                   Config,
+                   XorT[GL.DSL, GLError, Unit]](XorT.pure(()))
     gs.foldLeft(start) { (b, g) =>
       for {
         x <- b
@@ -64,18 +65,20 @@ private[iliad] object Graphics {
     }
   }
 
-  def draws(
-      s: State,
-      us: Animation.Values): ReaderT[XorT[GL.DSL, String, ?], Config, Unit] =
+  def draws(s: State, us: Animation.Values)
+    : ReaderT[XorT[GL.DSL, IliadError, ?], Config, Unit] =
     for {
       ns <- s.graph
              .nodes(us)
              .local[Config](_.algorithm)
-             .mapF(xor => XorT.fromXor[GL.DSL](xor))
+             .mapF(xor =>
+                   XorT
+                     .fromXor[GL.DSL]
+                     .apply[IliadError, Vector[Node.Drawable]](xor))
       gls <- ReaderT { (cfg: Config) =>
-              val gls: List[XorT[GL.DSL, String, Unit]] =
+              val gls: List[XorT[GL.DSL, GLError, Unit]] =
                 ToGL.run(ToGL(ns.toList)).run(cfg.graph)
-              gls.sequenceUnit
+              gls.sequenceUnit.leftWiden[IliadError]
             }
     } yield gls
 }

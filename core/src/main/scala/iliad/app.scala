@@ -92,23 +92,25 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
           cfg <- XorT(
                     EGLP
                       .config(dpy, cattrs)
-                      .map(_.toRightXor(
-                              s"Cannot find for attributes: $cattrs")))
+                      .map(_.toRightXor(EGLConfigError(
+                                  s"Failed for attributes: $cattrs"))))
+                  .leftWiden[EGLError]
           _ <- XorT.right(EGLP.configAttribs(dpy, cfg))
           sfc <- XorT(EGLP.windowSurface(dpy, cfg, window, wattrs))
-          ctx <- XorT(EGLP.context(dpy, cfg, cxattrs))
-          _ <- XorT(EGLP.makeCurrent(dpy, sfc, sfc, ctx))
+                  .leftWiden[EGLError]
+          ctx <- XorT(EGLP.context(dpy, cfg, cxattrs)).leftWiden[EGLError]
+          _ <- XorT(EGLP.makeCurrent(dpy, sfc, sfc, ctx)).leftWiden[EGLError]
         } yield (dpy, sfc, ctx)).value
         eglExecute(display, prg)
     }
 
-  def eglExecute[A](d: NativeDisplay, dsl: EGLP.DSL[String Xor A]): Task[A] = {
+  def eglExecute[A](d: NativeDisplay, dsl: EGLP.DSL[EGLError Xor A]): Task[A] = {
     lockDisplay.foreach(_ (d))
     val t = dsl
       .foldMap(LogEGLInterpreter)
       .run(EGL14)
       .flatMap(identity)
-      .bimap(err => Task.fail(new Error(err)), Task.now)
+      .bimap(err => Task.fail(new Error(err.toString)), Task.now)
       .merge[Task[A]]
     unlockDisplay.foreach(_ (d))
     t
@@ -140,7 +142,8 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
   private def swapBuffers(nd: NativeDisplay,
                           d: EGLDisplay,
                           s: EGLSurface): Stream[Task, Boolean] =
-    Stream.eval(eglExecute(nd, EGLP.swapBuffers(d, s)))
+    Stream.eval(
+        eglExecute(nd, XorT(EGLP.swapBuffers(d, s)).leftWiden[EGLError].value))
 
   private def aggregateRight[F[_]: Async, A, B]
     : Pipe2[F, A, B, (A, Vector[B])] =
@@ -164,10 +167,10 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
     }
 
   private def run(cfg: Graphics.Config, gs: List[Graphics])(s: Graphics.State)
-    : Error Xor (Graphics.State, XorT[GL.DSL, String, Unit]) =
-    Graphics(gs).run(cfg).run(s).leftMap(new Error(_))
+    : Error Xor (Graphics.State, XorT[GL.DSL, GLError, Unit]) =
+    Graphics(gs).run(cfg).run(s).leftMap(s => new Error(s.toString))
 
-  private def run[A](gl: GL.DSL[String Xor A],
+  private def run[A](gl: GL.DSL[IliadError Xor A],
                      s: GL.State): Xor[Error, GL.State] = {
     val interpreter = GL.runner(iliad.gl.OpenGL.debugLog)
     val prg = gl.interpret(interpreter)
@@ -175,7 +178,7 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
     log.foreach(l => logger.debug(l))
     xor.flatMap {
       case (nextS, xxor) => xxor.map(_ => nextS)
-    }.leftMap(new Error(_))
+    }.leftMap(s => new Error(s.toString))
   }
 
   private def run(cfg: Graphics.Config,
@@ -213,10 +216,10 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
                     val xor = prev.flatMap(run(cfg, gs))
                     val next = xor.map(_._1)
                     val out = xor.map {
-                      case (n, gl) => (at, gl.value, n)
+                      case (n, gl) => (at, gl.leftWiden[IliadError].value, n)
                     }.bimap(Task.fail, o => Task.now(o))
                       .merge[Task[(Long,
-                                   GL.DSL[String Xor Unit],
+                                   GL.DSL[IliadError Xor Unit],
                                    Graphics.State)]]
                     (next, out)
                 }

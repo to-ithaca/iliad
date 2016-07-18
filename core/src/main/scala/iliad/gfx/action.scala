@@ -6,11 +6,11 @@ import cats.data._
 import cats.implicits._
 
 object Action {
-  type Effect = StateT[Xor[String, ?], Graph.Instance, Unit]
+  type Effect =
+    StateT[Xor[NonEmptyList[GraphicsError], ?], Graph.Instance, Unit]
 
   private[gfx] def apply(a: Action): Effect = a match {
-    case Show(ns) =>
-      Instantiate(ns).transformF(_.leftMap(_.unwrap.mkString("\n")))
+    case Show(ns) => Instantiate(ns)
   }
 }
 

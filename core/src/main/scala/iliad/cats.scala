@@ -15,6 +15,8 @@ object CatsExtra {
     new TraverseOps(fa)
   implicit def xortOps[F[_], A, B](xort: XorT[F, A, B]): XorTOps[F, A, B] =
     new XorTOps(xort)
+  implicit def xorOps[A, B](xor: Xor[A, B]): XorOps[A, B] =
+    new XorOps(xor)
 }
 
 final class FreeOps[F[_], A](f: Free[F, A]) {
@@ -49,4 +51,11 @@ object KleisliExtra {
 final class XorTOps[F[_], A, B](xort: XorT[F, A, B]) {
   def transformF[G[_]](f: F[A Xor B] => G[A Xor B]): XorT[G, A, B] =
     XorT(f(xort.value))
+
+  def leftWiden[AA >: A](implicit F: Functor[F]): XorT[F, AA, B] =
+    xort.leftMap(a => a)
+}
+
+final class XorOps[A, B](xor: Xor[A, B]) {
+  def leftWiden[AA >: A]: Xor[AA, B] = xor.leftMap(a => a)
 }

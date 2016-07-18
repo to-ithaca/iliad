@@ -66,7 +66,7 @@ private object ToGL {
     } yield GL.ClearOp(c.constructor.mask, f)
 
   def apply(
-      ns: List[Node.Drawable]): DSL[List[XorT[GL.GL.DSL, String, Unit]]] =
+      ns: List[Node.Drawable]): DSL[List[XorT[GL.GL.DSL, GL.GLError, Unit]]] =
     ns.traverse {
       case d: Draw.Drawable =>
         apply(d).map(o => XorT(GL.GL.draw(o)))

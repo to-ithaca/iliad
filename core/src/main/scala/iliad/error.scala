@@ -1,0 +1,3 @@
+package iliad
+
+trait IliadError

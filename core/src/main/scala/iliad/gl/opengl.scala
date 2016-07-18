@@ -26,7 +26,7 @@ object OpenGL {
   type Logger[F[_], A] = WriterT[F, List[String], A]
   type LogEffect[F[_], A] = Effect[Logger[F, ?], A]
 
-  type Debugger[F[_], A] = XorT[F, String, A]
+  type Debugger[F[_], A] = XorT[F, GLError, A]
   type DebugEffect[F[_], A] = Effect[Debugger[F, ?], A]
 
   type Interpreter[F[_]] = OpenGL ~> F

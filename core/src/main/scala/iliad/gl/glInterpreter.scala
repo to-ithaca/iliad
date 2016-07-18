@@ -7,6 +7,8 @@ import cats._
 import cats.data._
 import cats.implicits._
 
+import CatsExtra._
+
 import java.nio.IntBuffer
 
 object GLInterpreter extends (OpenGL.Interpreter[OpenGL.NoEffect]) {
@@ -214,18 +216,20 @@ final class GLDebugInterpreter[F[_]: Monad](
     interpret: OpenGL.Interpreter[OpenGL.Effect[F, ?]])
     extends (OpenGL.Interpreter[OpenGL.DebugEffect[F, ?]]) {
 
-  private val lift: F ~> XorT[F, String, ?] = new (F ~> XorT[F, String, ?]) {
-    def apply[A](fa: F[A]): XorT[F, String, A] = XorT.right(fa)
+  private val lift: F ~> XorT[F, GLError, ?] = new (F ~> XorT[F, GLError, ?]) {
+    def apply[A](fa: F[A]): XorT[F, GLError, A] = XorT.right(fa)
   }
 
   private val _errorCodes: Set[ErrorCode] = SealedEnum.values[ErrorCode]
 
-  private def onError(method: String)(value: Int): String Xor Unit =
+  private def onError(method: String)(value: Int): CallFailedError Xor Unit =
     if (value == GL_NO_ERROR.value) ().right
     else
       _errorCodes.find(_.value == value) match {
-        case Some(code) => s"Call failed with error $code".left
-        case None => s"Call failed with unknown error $value".left
+        case Some(code) =>
+          CallFailedError(s"$method failed with error $code").left
+        case None =>
+          CallFailedError(s"$method failed with unknown error $value").left
       }
 
   private def debug(method: String): OpenGL.DebugEffect[F, Unit] =
@@ -234,11 +238,14 @@ final class GLDebugInterpreter[F[_]: Monad](
       .transform(lift)
       .mapF(_.subflatMap(onError(method)))
 
-  private def onCompileError(log: Option[String]): String Xor Unit =
-    log.map(l => s"Compilation failed with error $l").toLeftXor(())
+  private def onCompileError(
+      log: Option[String]): ShaderCompileError Xor Unit =
+    log
+      .map(l => ShaderCompileError(s"Compilation failed with error $l"))
+      .toLeftXor(())
 
-  private def onLinkError(log: Option[String]): String Xor Unit =
-    log.map(l => s"Link failed with error $l").toLeftXor(())
+  private def onLinkError(log: Option[String]): ProgramLinkError Xor Unit =
+    log.map(l => ProgramLinkError(s"Link failed with error $l")).toLeftXor(())
 
   private def shaderLog(shader: Int) =
     OpenGL

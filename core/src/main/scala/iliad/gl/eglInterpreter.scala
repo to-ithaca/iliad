@@ -42,7 +42,7 @@ final class EGLDebugInterpreter[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](
     def apply[A](fa: Id[A]): Xor[String, A] = fa.right
   }
 
-  private val _errorCodes: Set[EGLError] = SealedEnum.values[EGLError]
+  private val _errorCodes: Set[EGLErrorCode] = SealedEnum.values[EGLErrorCode]
 
   private def onError(method: String)(value: Int): String Xor Unit =
     if (value == EGL_SUCCESS.value) ().right

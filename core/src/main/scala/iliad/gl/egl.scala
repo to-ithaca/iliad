@@ -32,6 +32,17 @@ object Attributes {
   def empty[K <: IntConstant, V <: IntConstant]: Attributes[K, V] = apply()
 }
 
+sealed trait EGLError
+case object EGLGetDisplayFailedError extends EGLError
+case object EGLBindAPIFailedError extends EGLError
+case class EGLCallFailedError(msg: String) extends EGLError
+case object EGLSwapBuffersFailedError extends EGLError
+case object EGLMakeCurrentFailedError extends EGLError
+case class EGLCreateContextFailedError(msg: String) extends EGLError
+case class EGLCreateSurfaceFailedError(msg: String) extends EGLError
+case class EGLSwapIntervalFailedError(msg: String) extends EGLError
+case class EGLConfigError(msg: String) extends EGLError
+
 import CatsExtra._
 
 final class EGLPRG[NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
@@ -40,9 +51,9 @@ final class EGLPRG[NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
 
   private def fix[A](egl: EGL[NDisp, NWin, Disp, Cfg, Sfc, Ctx, A]): DSL[A] =
     egl.free
-  private def ensure[A](dsl: DSL[A])(p: A => Boolean,
-                                     err: => String): XorT[DSL, String, A] =
-    XorT(dsl.map(a => if (p(a)) a.right[String] else err.left[A]))
+  private def ensure[A, E](dsl: DSL[A])(p: A => Boolean,
+                                        err: => E): XorT[DSL, E, A] =
+    XorT(dsl.map(a => if (p(a)) a.right[E] else err.left[A]))
 
   val getError: DSL[Int] = fix(EGLGetError)
 
@@ -102,62 +113,64 @@ final class EGLPRG[NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
   val noSurface: DSL[Sfc] = fix(EGL_NO_SURFACE())
   val defaultDisplay: DSL[NDisp] = fix(EGL_DEFAULT_DISPLAY())
 
-  def display(nDisp: NDisp): DSL[String Xor Disp] =
+  def display(nDisp: NDisp): DSL[EGLGetDisplayFailedError.type Xor Disp] =
     (for {
       nd <- XorT.right(fix[Disp](EGL_NO_DISPLAY()))
       d <- ensure(fix[Disp](EGLGetDisplay(nDisp)))(dd =>
-                dd != null && dd != nd, "could not get EGLDisplay")
+                dd != null && dd != nd, EGLGetDisplayFailedError)
     } yield d).value
 
   def context(dpy: Disp,
               cfg: Cfg,
               attrs: Attributes[ContextAttrib, ContextAttribValue])
-    : DSL[String Xor Ctx] =
+    : DSL[EGLCreateContextFailedError Xor Ctx] =
     (for {
       nc <- XorT.right(noContext)
       ctx <- ensure(fix(EGLCreateContext(dpy, cfg, nc, attrs)))(
                 c => c != null && c != nc,
-                s"could not create EGLContext with $attrs")
+                EGLCreateContextFailedError(s"Failed with attributes $attrs"))
     } yield ctx).value
 
   def windowSurface(dpy: Disp,
                     cfg: Cfg,
                     nw: NWin,
                     attribs: Attributes[WindowAttrib, WindowAttribValue])
-    : DSL[String Xor Sfc] =
+    : DSL[EGLCreateSurfaceFailedError Xor Sfc] =
     (for {
       ns <- XorT.right(noSurface)
       sfc <- ensure(fix[Sfc](EGLCreateWindowSurface(dpy, cfg, nw, attribs)))(
                 s => s != null && s != ns,
-                s"could not create EGLSurface with $attribs")
+                EGLCreateSurfaceFailedError(
+                    s"Failed with attributes: $attribs"))
     } yield sfc).value
 
-  def swapBuffers(dpy: Disp, sfc: Sfc): DSL[String Xor Boolean] =
-    ensure(fix(EGLSwapBuffers(dpy, sfc)))(identity, "could not eglSwapBuffers").value
+  def swapBuffers(dpy: Disp,
+                  sfc: Sfc): DSL[EGLSwapBuffersFailedError.type Xor Boolean] =
+    ensure(fix(EGLSwapBuffers(dpy, sfc)))(identity, EGLSwapBuffersFailedError).value
   def makeCurrent(dpy: Disp,
                   draw: Sfc,
                   read: Sfc,
-                  ctx: Ctx): DSL[String Xor Boolean] =
+                  ctx: Ctx): DSL[EGLMakeCurrentFailedError.type Xor Boolean] =
     ensure(fix(EGLMakeCurrent(dpy, draw, read, ctx)))(
         identity,
-        "could not eglMakeCurrent").value
+        EGLMakeCurrentFailedError).value
 
-  def initialise(ndpy: NDisp): DSL[String Xor Disp] =
+  def initialise(ndpy: NDisp): DSL[EGLError Xor Disp] =
     (for {
       nod <- XorT.right(noDisplay)
-      dpy <- ensure(fix[Disp](EGLGetDisplay(ndpy)))(
-                dd => dd != null && dd != nod,
-                "could not get EGLDisplay from native display")
-      _ <- XorT.right[DSL, String, (Int, Int)](fix(EGLInitialize(dpy)))
+      dpy <- XorT(display(ndpy)).leftWiden[EGLError]
+      _ <- XorT.right[DSL, EGLError, (Int, Int)](fix(EGLInitialize(dpy)))
       _ <- ensure(fix[Boolean](EGLBindAPI(EGL_OPENGL_ES_API)))(
               identity,
-              "unable to bind GLES API")
+              EGLBindAPIFailedError).leftWiden[EGLError]
     } yield dpy).value
 
-  def swapInterval(dpy: Disp, interval: Int): DSL[String Xor Boolean] =
+  def swapInterval(
+      dpy: Disp,
+      interval: Int): DSL[EGLSwapIntervalFailedError Xor Boolean] =
     ensure(fix(EGLSwapInterval(dpy, interval)))(
         identity,
-        s"could not set swap interval to $interval").value
+        EGLSwapIntervalFailedError(s"Failed to set interval to $interval")).value
 }
 
 trait EGL[+NDisp, +NWin, +Disp, +Cfg, +Sfc, +Ctx, A]

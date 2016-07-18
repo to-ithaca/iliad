@@ -72,7 +72,7 @@ object VectorD extends VectorDInstances {
 private[iliad] abstract class VectorDInstances extends VectorDInstances1 {
 
   //The type constraint makes it horrible to work out the `Unapply`
-  implicit def vectorDUnapply[N <: Nat, AA, TC[_[_]]](
+  implicit def vectorDUnapply[N <: Nat, AA, TC[_ [_]]](
       implicit tc: TC[VectorD[N, ?]])
     : Unapply.Aux1[TC, VectorD[N, AA], VectorD[N, ?], AA] =
     new Unapply[TC, VectorD[N, AA]] {

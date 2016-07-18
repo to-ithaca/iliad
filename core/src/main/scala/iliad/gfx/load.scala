@@ -7,14 +7,16 @@ import cats._
 import cats.data._
 import cats.implicits._
 
+import CatsExtra._
+
 object Load {
-  type Effect = Reader[Graphics.Config, XorT[GL.DSL, String, Unit]]
+  type Effect = Reader[Graphics.Config, XorT[GL.DSL, GLError, Unit]]
 
   private def lift[A](dsl: GL.DSL[A]): Effect =
-    Kleisli.pure(XorT.right[GL.DSL, String, Unit](dsl.map(_ => ())))
+    Kleisli.pure(XorT.right[GL.DSL, GLError, Unit](dsl.map(_ => ())))
 
   private def lift[A](f: Graphics.Config => GL.DSL[A]): Effect =
-    Reader(cfg => XorT.right[GL.DSL, String, Unit](f(cfg).map(_ => ())))
+    Reader(cfg => XorT.right[GL.DSL, GLError, Unit](f(cfg).map(_ => ())))
 
   private[gfx] def apply(l: Load): Effect = l match {
     case PutProgram(p) => lift(GL.load(p))
@@ -25,7 +27,8 @@ object Load {
     case PutRenderbuffer(r) =>
       lift(cfg => GL.load(ToGL.run(ToGL(r)).run(cfg.graph)))
     case PutFramebuffer(f) =>
-      Reader(cfg => XorT(GL.load(ToGL.run(ToGL(f)).run(cfg.graph))))
+      Reader(cfg =>
+            XorT(GL.load(ToGL.run(ToGL(f)).run(cfg.graph))).leftWiden[GLError])
   }
 }
 
