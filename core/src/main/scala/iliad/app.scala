@@ -53,7 +53,7 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
       EGLSurface,
       EGLContext,
       ?
-  ] ~> ReaderT[Xor[String, ?],
+  ] ~> ReaderT[Xor[EGLError, ?],
                EGL14Library.Aux[NativeDisplay,
                                 NativeWindow,
                                 EGLDisplay,
@@ -73,8 +73,7 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
       cfg <- XorT(
                 EGLP
                   .config(dpy, cattrs)
-                  .map(_.toRightXor(
-                          EGLConfigError(s"Failed for attributes: $cattrs"))))
+                  .map(_.toRightXor(EGLConfigError(cattrs))))
               .leftWiden[EGLError]
       _ <- XorT.right(EGLP.configAttribs(dpy, cfg))
       sfc <- XorT(EGLP.windowSurface(dpy, cfg, window, wattrs))

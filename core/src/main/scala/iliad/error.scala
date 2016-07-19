@@ -1,3 +1,6 @@
 package iliad
 
-trait IliadError
+trait IliadError {
+  def message: String
+  override def toString: String = message
+}

@@ -149,35 +149,31 @@ object GL {
     } yield rl)
 
   private def attachment(a: Framebuffer.AttachmentConstructor)
-    : DSL[NotLoadedError Xor Framebuffer.AttachmentLoaded] = a match {
+    : DSL[GLError Xor Framebuffer.AttachmentLoaded] = a match {
     case t: Texture.Constructor =>
-      Cache
-        .ensure(Cache.get(t), NotLoadedError(s"Texture missing $t"))
-        .freekF[GL]
-        .widen
+      Cache.ensure(Cache.get(t), TextureNotLoadedError(t)).freekF[GL].widen
     case r: Renderbuffer.Constructor =>
       Cache
-        .ensure(Cache.get(r), NotLoadedError(s"Renderbuffer missing $r"))
+        .ensure(Cache.get(r), RenderbufferNotLoadedError(r))
         .freekF[GL]
         .widen
   }
 
   private def attachments(f: Framebuffer.Constructor)
-    : DSL[NotLoadedError Xor List[(FramebufferAttachment,
-                                   Framebuffer.AttachmentLoaded)]] =
+    : DSL[GLError Xor List[(FramebufferAttachment,
+                            Framebuffer.AttachmentLoaded)]] =
     f.attachments.traverse {
       case (c, a) => XorT(attachment(a)).map(c -> _).value
     }.map(_.sequence)
 
-  def load(f: Framebuffer.Constructor): DSL[NotLoadedError Xor Unit] =
+  def load(f: Framebuffer.Constructor): DSL[GLError Xor Unit] =
     Cache.get(f).freekF[GL] flatMap {
       case Some(fl) => Free.pure(().right)
       case None =>
         (for {
           as <- XorT(attachments(f))
-          fl <- xort[Framebuffer.Loaded, NotLoadedError](
-                   Load(f, as).freekF[GL])
-          _ <- xort[Unit, NotLoadedError](Cache.put(fl).freekF[GL])
+          fl <- xort[Framebuffer.Loaded, GLError](Load(f, as).freekF[GL])
+          _ <- xort[Unit, GLError](Cache.put(fl).freekF[GL])
         } yield ()).value
     }
 
@@ -188,24 +184,26 @@ object GL {
     ensure(Current.contains(f))(Draw.bind(f).freekF[GL] >>
           Current.set(f).freekF[GL])
 
-  private def flip(t: Texture.Constructor): DSL[NotLoadedError Xor Unit] =
+  private def flip(
+      t: Texture.Constructor): DSL[TextureNotLoadedError Xor Unit] =
     (for {
-      tl <- ensure(Cache.get(t), NotLoadedError("Texture not loaded."))
+      tl <- ensure(Cache.get(t), TextureNotLoadedError(t))
       _ <- tl match {
             case d: Texture.DoubleLoaded =>
-              xort[Unit, NotLoadedError](Cache.put(d.flip).freekF[GL])
-            case _ => XorT.pure[DSL, NotLoadedError, Unit](())
+              xort[Unit, TextureNotLoadedError](Cache.put(d.flip).freekF[GL])
+            case _ => XorT.pure[DSL, TextureNotLoadedError, Unit](())
           }
     } yield ()).value
 
   private def flipDouble(
-      f: Framebuffer.DoubleLoaded): DSL[NotLoadedError Xor Unit] =
+      f: Framebuffer.DoubleLoaded): DSL[TextureNotLoadedError Xor Unit] =
     (for {
       _ <- xort(Cache.put(f.flip).freekF[GL])
       _ <- XorT(f.constructor.textures.traverse(flip).map(_.sequenceUnit))
     } yield ()).value
 
-  private def flip(f: Framebuffer.Loaded): DSL[NotLoadedError Xor Unit] =
+  private def flip(
+      f: Framebuffer.Loaded): DSL[TextureNotLoadedError Xor Unit] =
     f match {
       case s: Framebuffer.SingleLoaded => Free.pure(().right)
       case d: Framebuffer.DoubleLoaded => flipDouble(d)
@@ -215,20 +213,17 @@ object GL {
       Draw.use(p).freekF[GL] >> Current.set(p).freekF[GL]
   )
 
-  private def set(u: Program.TextureUniform): DSL[NotLoadedError Xor Unit] =
+  private def set(u: Program.TextureUniform): DSL[GLError Xor Unit] =
     (for {
       t <- XorT(
               Cache
-                .ensure(Cache.get(u.texture),
-                        NotLoadedError("Unable to find texture."))
-                .freekF[GL])
+                .ensure(Cache.get(u.texture), TextureNotLoadedError(u.texture))
+                .freekF[GL]).leftWiden[GLError]
       s <- XorT(
               Cache
-                .ensure(Cache.get(u.sampler),
-                        NotLoadedError("Unable to find sampler."))
-                .freekF[GL])
-      _ <- xort[Unit, NotLoadedError](
-              Draw.bind(u.unit, u.location, t, s).freekF[GL])
+                .ensure(Cache.get(u.sampler), SamplerNotLoadedError(u.sampler))
+                .freekF[GL]).leftWiden[GLError]
+      _ <- xort[Unit, GLError](Draw.bind(u.unit, u.location, t, s).freekF[GL])
     } yield ()).value
 
   private def set(
@@ -256,33 +251,28 @@ object GL {
 
   def draw(draw: DrawOp): DSL[GLError Xor Unit] =
     (for {
-      fl <- ensure(Cache.get(draw.framebuffer),
-                   NotLoadedError("Framebuffer not loaded. Unable to draw."))
-             .leftWiden[GLError]
+      fl <- ensure(
+               Cache.get(draw.framebuffer),
+               FramebufferNotLoadedError(draw.framebuffer)).leftWiden[GLError]
       _ <- xort(set(fl))
-      p <- ensure(Cache.get(draw.program),
-                  NotLoadedError(s"Program not loaded. Unable to draw $draw"))
+      p <- ensure(Cache.get(draw.program), ProgramNotLoadedError(draw.program))
             .leftWiden[GLError]
       _ <- xort(set(p))
       _ <- XorT(set(p, draw.textureUniforms)).leftWiden[GLError]
       vb <- ensure(Cache.get(draw.vertexBuffer),
-                   NotLoadedError(
-                       s"Vertex buffer not loaded. Unable to draw $draw"))
+                   VertexBufferNotLoadedError(draw.vertexBuffer))
              .leftWiden[GLError]
       _ <- xort(set(vb))
       vd <- ensure(
                Cache.get(draw.vertexData),
-               NotLoadedError(s"Vertex data not loaded. Unable to draw $draw"))
-             .leftWiden[GLError]
+               VertexDataNotLoadedError(draw.vertexData)).leftWiden[GLError]
       eb <- ensure(Cache.get(draw.elementBuffer),
-                   NotLoadedError(
-                       s"Element buffer not loaded. Unable to draw $draw"))
+                   ElementBufferNotLoadedError(draw.elementBuffer))
              .leftWiden[GLError]
       _ <- xort(set(eb))
-      ed <- ensure(Cache.get(draw.elementData),
-                   NotLoadedError(
-                       s"Element data not loaded. Unable to draw $draw"))
-             .leftWiden[GLError]
+      ed <- ensure(
+               Cache.get(draw.elementData),
+               ElementDataNotLoadedError(draw.elementData)).leftWiden[GLError]
       as <- XorT.fromXor[DSL](p.loaded(draw.attributes)).leftWiden[GLError]
       _ <- xort(Draw.enable(as, vd.offset(draw.vertexModel)).freekF[GL])
       _ <- xort(Draw(ed.offset(draw.elementModel)).freekF[GL])
@@ -292,8 +282,7 @@ object GL {
   def clear(c: ClearOp): DSL[GLError Xor Unit] =
     (for {
       fl <- ensure(Cache.get(c.framebuffer),
-                   NotLoadedError("Framebuffer not loaded. Unable to draw."))
-             .leftWiden[GLError]
+                   FramebufferNotLoadedError(c.framebuffer)).leftWiden[GLError]
       _ <- xort[Unit, GLError](set(fl))
       _ <- xort[Unit, GLError](Draw.clear(c.bitMask).freekF[GL])
     } yield ()).value

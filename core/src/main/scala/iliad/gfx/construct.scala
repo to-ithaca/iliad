@@ -86,20 +86,6 @@ trait ConstructFunctions {
   def order(s: Node.Constructor, e: Node.Constructor): Link = Link.Order(s, e)
 }
 
-sealed trait ConstructError extends GraphicsError
-case class DuplicateLinkError(duplicates: Set[Set[Link]])
-    extends ConstructError
-case class NonUniqueNodeError(ns: Set[Set[Node.Constructed]])
-    extends ConstructError
-case class OffScreenEndNodesError(ns: Set[Node.Constructed])
-    extends ConstructError
-case class PipeFromScreenError(p: Link.Pipe) extends ConstructError
-case class PipeHasUnmatchedTexturesError(p: Link.Pipe,
-                                         ts: Set[Texture.Constructor])
-    extends ConstructError
-case class PipeHasUnmatchedUniformsError(p: Link.Pipe, us: Set[String])
-    extends ConstructError
-
 private[iliad] object Construct {
 
   private def validate[E](f: => Boolean, err: E): ValidatedNel[E, Unit] =

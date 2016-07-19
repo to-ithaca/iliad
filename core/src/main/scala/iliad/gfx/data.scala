@@ -237,8 +237,4 @@ object Dimension {
   case object _2D extends Dimension(Set.empty)
   case object _3D extends Dimension(Set(GL.GL_DEPTH_TEST))
 }
-
-trait GraphicsError extends IliadError
-case class UnsetUniformError(d: Draw.Instance) extends GraphicsError
-
 //we need an example of how to use this

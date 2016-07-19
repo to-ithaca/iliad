@@ -222,14 +222,14 @@ final class GLDebugInterpreter[F[_]: Monad](
 
   private val _errorCodes: Set[ErrorCode] = SealedEnum.values[ErrorCode]
 
-  private def onError(method: String)(value: Int): CallFailedError Xor Unit =
+  private def onError(method: String)(value: Int): GLError Xor Unit =
     if (value == GL_NO_ERROR.value) ().right
     else
       _errorCodes.find(_.value == value) match {
         case Some(code) =>
-          CallFailedError(s"$method failed with error $code").left
+          CallFailedError(method, code).left
         case None =>
-          CallFailedError(s"$method failed with unknown error $value").left
+          CallFailedUnknownError(method, value).left
       }
 
   private def debug(method: String): OpenGL.DebugEffect[F, Unit] =
@@ -240,12 +240,10 @@ final class GLDebugInterpreter[F[_]: Monad](
 
   private def onCompileError(
       log: Option[String]): ShaderCompileError Xor Unit =
-    log
-      .map(l => ShaderCompileError(s"Compilation failed with error $l"))
-      .toLeftXor(())
+    log.map(l => ShaderCompileError(l)).toLeftXor(())
 
   private def onLinkError(log: Option[String]): ProgramLinkError Xor Unit =
-    log.map(l => ProgramLinkError(s"Link failed with error $l")).toLeftXor(())
+    log.map(l => ProgramLinkError(l)).toLeftXor(())
 
   private def shaderLog(shader: Int) =
     OpenGL

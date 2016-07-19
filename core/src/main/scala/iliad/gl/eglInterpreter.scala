@@ -16,7 +16,7 @@ object EGLInterpreter {
   def logInterpreter[NDisp, NWin, Disp, Cfg, Sfc, Ctx](
       implicit ct: ClassTag[Cfg])
     : EGL[NDisp, NWin, Disp, Cfg, Sfc, Ctx, ?] ~> ReaderT[
-        Xor[String, ?],
+        Xor[EGLError, ?],
         EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
         ?] =
     new EGLDebugInterpreter(
@@ -50,32 +50,32 @@ final class EGLDebugInterpreter[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](
         EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
         ?])
     extends (EGL[NDisp, NWin, Disp, Cfg, Sfc, Ctx, ?] ~> ReaderT[
-        Xor[String, ?],
+        Xor[EGLError, ?],
         EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
         ?]) {
 
-  private val lift: Id ~> Xor[String, ?] = new (Id ~> Xor[String, ?]) {
-    def apply[A](fa: Id[A]): Xor[String, A] = fa.right
+  private val lift: Id ~> Xor[EGLError, ?] = new (Id ~> Xor[EGLError, ?]) {
+    def apply[A](fa: Id[A]): Xor[EGLError, A] = fa.right
   }
 
   private val _errorCodes: Set[EGLErrorCode] = SealedEnum.values[EGLErrorCode]
 
-  private def onError(method: String)(value: Int): String Xor Unit =
+  private def onError(method: String)(value: Int): EGLError Xor Unit =
     if (value == EGL_SUCCESS.value) ().right
     else
       _errorCodes.find(_.value == value) match {
-        case Some(code) => s"Call failed with error $code".left
-        case None => s"Call failed with unknown error $value".left
+        case Some(code) => EGLCallFailedError(method, code).left
+        case None => EGLCallFailedUnknownError(method, value).left
       }
 
   private def debug(method: String)
-    : ReaderT[Xor[String, ?],
+    : ReaderT[Xor[EGLError, ?],
               EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
               Unit] =
     interpret(EGLGetError).transform(lift).mapF(_.flatMap(onError(method)))
 
   def apply[A](fa: EGL[NDisp, NWin, Disp, Cfg, Sfc, Ctx, A])
-    : ReaderT[Xor[String, ?],
+    : ReaderT[Xor[EGLError, ?],
               EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
               A] =
     for {

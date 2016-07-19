@@ -10,37 +10,6 @@ import cats.implicits._
 
 import CatsExtra._
 
-sealed trait InstantiationError extends GraphicsError
-case class NodeInstantiationError(e: InstantiationError)
-    extends InstantiationError
-case class RenderbufferMatchError(c: Renderbuffer.Constructor,
-                                  i: Renderbuffer.Instance)
-    extends InstantiationError
-case class TextureMatchError(c: Texture.Constructor, i: Texture.Instance)
-    extends InstantiationError
-case class TextureRenderbufferMatchError(c: Texture.Constructor,
-                                         i: Renderbuffer.Instance)
-    extends InstantiationError
-case class RenderbufferTextureMatchError(c: Renderbuffer.Constructor,
-                                         i: Texture.Instance)
-    extends InstantiationError
-case class OffScreenOnScreenMatchError(i: Framebuffer.OffScreenInstance)
-    extends InstantiationError
-case class OnScreenOffScreenMatchError(c: Framebuffer.OffScreenConstructor)
-    extends InstantiationError
-case class AttachmentMissingError(a: FramebufferAttachment)
-    extends InstantiationError
-case class NumInstanceError(instanced: Boolean, numInstances: Int)
-    extends InstantiationError
-case class TextureUniformMissingError(uniform: String)
-    extends InstantiationError
-case class AttributeMissingError(a: Attribute.Constructor)
-    extends InstantiationError
-case class EndNodeMissingError(l: Link, s: Node.Instance)
-    extends InstantiationError
-case class StartNodeMissingError(l: Link, s: Node.Instance)
-    extends InstantiationError
-
 private[iliad] object Instantiate {
 
   private def framebufferOutput(
@@ -129,7 +98,7 @@ private[iliad] object Instantiate {
         instanced(d).widen *>
         textures(d).widen *>
         attributes(d).widen
-    v.leftMap(_.map(NodeInstantiationError(_)))
+    v.leftMap(_.map(e => NodeInstantiationError(d, e)))
   }
 
   private def lift(v: ValidatedNel[InstantiationError, Unit])

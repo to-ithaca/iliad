@@ -65,6 +65,7 @@ final class XorOps[A, B](xor: Xor[A, B]) {
   def leftWiden[AA >: A]: Xor[AA, B] = xor.leftMap(a => a)
 
   //TODO: this should not be here
+  //TODO: does it have to be a task of error?
   def task: fs2.util.Task[B] =
     xor
       .bimap(a => fs2.util.Task.fail(new Error(a.toString)), fs2.util.Task.now)

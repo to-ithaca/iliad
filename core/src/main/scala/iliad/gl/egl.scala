@@ -32,17 +32,6 @@ object Attributes {
   def empty[K <: IntConstant, V <: IntConstant]: Attributes[K, V] = apply()
 }
 
-sealed trait EGLError
-case object EGLGetDisplayError extends EGLError
-case object EGLBindAPIError extends EGLError
-case class EGLCallFailedError(msg: String) extends EGLError
-case object EGLSwapBuffersError extends EGLError
-case object EGLMakeCurrentError extends EGLError
-case class EGLCreateContextError(msg: String) extends EGLError
-case class EGLCreateSurfaceError(msg: String) extends EGLError
-case class EGLSwapIntervalError(msg: String) extends EGLError
-case class EGLConfigError(msg: String) extends EGLError
-
 import CatsExtra._
 
 final class EGLPRG[NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
@@ -126,11 +115,9 @@ final class EGLPRG[NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
     : DSL[EGLCreateContextError Xor Ctx] =
     (for {
       nc <- XorT.right(noContext)
-      ctx <- ensure(fix(EGLCreateContext(dpy, cfg, nc, attrs)))(
-                c => c != null && c != nc,
-                EGLCreateContextError(s"Failed with attributes $attrs"))
+      ctx <- ensure(fix(EGLCreateContext(dpy, cfg, nc, attrs)))(c =>
+                  c != null && c != nc, EGLCreateContextError(attrs))
     } yield ctx).value
-
   def windowSurface(dpy: Disp,
                     cfg: Cfg,
                     nw: NWin,
@@ -140,7 +127,7 @@ final class EGLPRG[NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
       ns <- XorT.right(noSurface)
       sfc <- ensure(fix[Sfc](EGLCreateWindowSurface(dpy, cfg, nw, attribs)))(
                 s => s != null && s != ns,
-                EGLCreateSurfaceError(s"Failed with attributes: $attribs"))
+                EGLCreateSurfaceError(attribs))
     } yield sfc).value
 
   def swapBuffers(dpy: Disp,
@@ -168,7 +155,7 @@ final class EGLPRG[NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
                    interval: Int): DSL[EGLSwapIntervalError Xor Boolean] =
     ensure(fix(EGLSwapInterval(dpy, interval)))(
         identity,
-        EGLSwapIntervalError(s"Failed to set interval to $interval")).value
+        EGLSwapIntervalError(interval)).value
 }
 
 trait EGL[+NDisp, +NWin, +Disp, +Cfg, +Sfc, +Ctx, A]
