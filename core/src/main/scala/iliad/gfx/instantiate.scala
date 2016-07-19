@@ -10,45 +10,70 @@ import cats.implicits._
 
 import CatsExtra._
 
+sealed trait InstantiationError extends GraphicsError
+case class NodeInstantiationError(e: InstantiationError)
+    extends InstantiationError
+case class RenderbufferMatchError(c: Renderbuffer.Constructor,
+                                  i: Renderbuffer.Instance)
+    extends InstantiationError
+case class TextureMatchError(c: Texture.Constructor, i: Texture.Instance)
+    extends InstantiationError
+case class TextureRenderbufferMatchError(c: Texture.Constructor,
+                                         i: Renderbuffer.Instance)
+    extends InstantiationError
+case class RenderbufferTextureMatchError(c: Renderbuffer.Constructor,
+                                         i: Texture.Instance)
+    extends InstantiationError
+case class OffScreenOnScreenMatchError(i: Framebuffer.OffScreenInstance)
+    extends InstantiationError
+case class OnScreenOffScreenMatchError(c: Framebuffer.OffScreenConstructor)
+    extends InstantiationError
+case class AttachmentMissingError(a: FramebufferAttachment)
+    extends InstantiationError
+case class NumInstanceError(instanced: Boolean, numInstances: Int)
+    extends InstantiationError
+case class TextureUniformMissingError(uniform: String)
+    extends InstantiationError
+case class AttributeMissingError(a: Attribute.Constructor)
+    extends InstantiationError
+case class EndNodeMissingError(l: Link, s: Node.Instance)
+    extends InstantiationError
+case class StartNodeMissingError(l: Link, s: Node.Instance)
+    extends InstantiationError
+
 private[iliad] object Instantiate {
 
   private def framebufferOutput(
-      c: Output.Constructor,
-      o: Output.Instance): ValidatedNel[GraphMatchError, Unit] =
+      c: Framebuffer.OutputConstructor,
+      o: Framebuffer.OutputInstance): ValidatedNel[InstantiationError, Unit] =
     (c, o) match {
       case (rc: Renderbuffer.Constructor, ri: Renderbuffer.Instance) =>
         if (ri.constructor == rc) ().valid
-        else
-          GraphMatchError(
-              s"Renderbuffer instance does not match constructor $ri $rc").invalidNel
+        else RenderbufferMatchError(rc, ri).invalidNel.widen
       case (tc: Texture.Constructor, ti: Texture.Instance) =>
         if (ti.constructor == tc) ().valid
-        else
-          GraphMatchError(
-              s"Texture instance does not match constructor $ti $tc").invalidNel
-      case other =>
-        GraphMatchError(s"Invalid texture / renderbuffer combination $other").invalidNel
+        else TextureMatchError(tc, ti).invalidNel.widen
+      case (tc: Texture.Constructor, ri: Renderbuffer.Instance) =>
+        TextureRenderbufferMatchError(tc, ri).invalidNel.widen
+      case (rc: Renderbuffer.Constructor, ti: Texture.Instance) =>
+        RenderbufferTextureMatchError(rc, ti).invalidNel.widen
     }
 
   private def framebuffer(
-      n: Draw.Instance): ValidatedNel[GraphMatchError, Unit] = {
+      n: Draw.Instance): ValidatedNel[InstantiationError, Unit] = {
     (n.constructor.framebuffer, n.framebuffer) match {
       case (Framebuffer.OnScreen, Framebuffer.OnScreen) =>
         ().valid
-      case (Framebuffer.OnScreen, i) =>
-        GraphMatchError(
-            s"Offscreen framebuffer instance $i provided for node $n").invalidNel
-      case (c, Framebuffer.OnScreen) =>
-        GraphMatchError(
-            s"Onscreen framebuffer instance provided when $c expected for node $n").invalidNel
+      case (Framebuffer.OnScreen, i: Framebuffer.OffScreenInstance) =>
+        OffScreenOnScreenMatchError(i).invalidNel.widen
+      case (c: Framebuffer.OffScreenConstructor, Framebuffer.OnScreen) =>
+        OnScreenOffScreenMatchError(c).invalidNel.widen
       case (c: Framebuffer.OffScreenConstructor,
             i: Framebuffer.OffScreenInstance) =>
-        c.buffers.traverseUnit {
+        c.buffers.toList.traverseUnit {
           case (a, c) =>
             i.instances.toMap.get(a) match {
-              case None =>
-                GraphMatchError(
-                    s"Framebuffer attachment $a missing for draw $n").invalidNel
+              case None => AttachmentMissingError(a).invalidNel.widen
               case Some(o) => framebufferOutput(c, o)
             }
         }
@@ -56,33 +81,31 @@ private[iliad] object Instantiate {
   }
 
   private def instanced(
-      n: Draw.Instance): ValidatedNel[GraphMatchError, Unit] =
+      n: Draw.Instance): ValidatedNel[NumInstanceError, Unit] =
     if (!n.constructor.isInstanced && n.numInstances != 1)
-      GraphMatchError(
-          s"A non-instanced draw cannot have ${n.numInstances} instances for node $n").invalidNel
-    else if (n.numInstances == 0)
-      GraphMatchError(s"A draw must have at least one instance for node $n").invalidNel
+      NumInstanceError(n.constructor.isInstanced, n.numInstances).invalidNel
+    else if (n.numInstances == 0) //TODO: have a non-zero integer
+      NumInstanceError(n.constructor.isInstanced, n.numInstances).invalidNel
     else ().valid
 
-  private def textures(n: Draw.Instance): ValidatedNel[GraphMatchError, Unit] =
+  private def textures(
+      n: Draw.Instance): ValidatedNel[TextureUniformMissingError, Unit] =
     n.constructor.program.textureNames.traverseUnit { name =>
       n.uniforms.get(name) match {
         case Some(_) => ().valid
-        case None =>
-          GraphMatchError(s"No texture provided for uniform $name of node $n").invalidNel
+        case None => TextureUniformMissingError(name).invalidNel
       }
     }
 
   private def attributes(
-      n: Draw.Instance): ValidatedNel[GraphMatchError, Unit] =
+      n: Draw.Instance): ValidatedNel[AttributeMissingError, Unit] =
     n.vertexAttribs.traverseUnit { a =>
       if (n.modelAttribs.contains(a)) ().valid
-      else
-        GraphMatchError(s"Attribute $a is not present for node $n").invalidNel
+      else AttributeMissingError(a).invalidNel
     }
 
   private def links(
-      ns: List[Node.Instance]): ReaderT[ValidatedNel[GraphLinkError, ?],
+      ns: List[Node.Instance]): ReaderT[ValidatedNel[InstantiationError, ?],
                                         Graph.Instance,
                                         List[Link.Instance]] =
     ReaderT(_.constructed.links.flatMap { l =>
@@ -92,43 +115,44 @@ private[iliad] object Instantiate {
         case (Some(s), Some(e)) =>
           Some(Link.Instance(s, e).valid)
         case (Some(s), None) =>
-          Some(
-              GraphLinkError(
-                  s"Unable to find end node for link $l with start $s").invalidNel)
+          Some(EndNodeMissingError(l, s).invalidNel.widen[InstantiationError])
         case (None, Some(e)) =>
           Some(
-              GraphLinkError(
-                  s"Unable to find end node for link $l with end $e").invalidNel)
+              StartNodeMissingError(l, e).invalidNel.widen[InstantiationError])
         case _ => None
       }
     }.toList.sequence)
 
-  private def lift[E <: GraphicsError](v: ValidatedNel[E, Unit])
-    : ReaderT[ValidatedNel[GraphicsError, ?], Graph.Instance, Unit] =
-    KleisliExtra.lift(v.leftMap(_.map(identity)))
+  private def validate(
+      d: Draw.Instance): ValidatedNel[InstantiationError, Unit] = {
+    val v = framebuffer(d) *>
+        instanced(d).widen *>
+        textures(d).widen *>
+        attributes(d).widen
+    v.leftMap(_.map(NodeInstantiationError(_)))
+  }
 
-  private def checks(
-      ns: List[Node.Instance]): ReaderT[Xor[NonEmptyList[GraphicsError], ?],
-                                        Graph.Instance,
-                                        List[Link.Instance]] = {
-    val vs = lift(
-          ns.filterClass[Draw.Instance]
-            .traverseUnit(attributes)
-            .leftMap(identity)) *>
-        lift(ns.filterClass[Draw.Instance].traverseUnit(textures)) *>
-        lift(ns.filterClass[Draw.Instance].traverseUnit(instanced)) *>
-        lift(ns.filterClass[Draw.Instance].traverseUnit(framebuffer)) *>
-        links(ns).mapF(_.leftMap(_.map(identity)))
+  private def lift(v: ValidatedNel[InstantiationError, Unit])
+    : ReaderT[ValidatedNel[InstantiationError, ?], Graph.Instance, Unit] =
+    KleisliExtra.lift(v)
+
+  private def checks(ns: List[Node.Instance])
+    : ReaderT[Xor[NonEmptyList[InstantiationError], ?],
+              Graph.Instance,
+              List[Link.Instance]] = {
+    val vs =
+      lift((ns.filterClass[Draw.Instance].traverseUnit(validate))) *>
+        links(ns)
     vs.mapF(_.toXor)
   }
 
   def apply(ns: List[Node.Instance])
-    : StateT[Xor[NonEmptyList[GraphicsError], ?], Graph.Instance, Unit] =
+    : StateT[Xor[NonEmptyList[InstantiationError], ?], Graph.Instance, Unit] =
     for {
       ls <- StateTExtra.inspect(checks(ns).run)
       _ <- State
             .modify[Graph.Instance](_.put(ns, ls))
-            .transformF[Xor[NonEmptyList[GraphicsError], ?], Unit](
+            .transformF[Xor[NonEmptyList[InstantiationError], ?], Unit](
                 _.value.right)
     } yield ()
 }

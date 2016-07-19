@@ -245,7 +245,7 @@ object OpenGL {
     for {
       _ <- bindFramebuffer(id)
       _ <- bindAttachments(as)(f)
-      _ <- GLDrawBuffers(as.filterClass[ColorBuffer]).free
+      _ <- GLDrawBuffers(as.map(_._1).filterClass[ColorBuffer]).free
     } yield ()
 
   def makeSingleFramebuffer(

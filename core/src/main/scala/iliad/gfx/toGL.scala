@@ -23,8 +23,8 @@ private object ToGL {
   def apply(r: Renderbuffer.Instance): DSL[GL.Renderbuffer.Constructor] =
     ToGLRenderbuffer(r).free
 
-  private def transform(
-      i: Output.Instance): DSL[GL.Framebuffer.AttachmentConstructor] =
+  private def transform(i: Framebuffer.OutputInstance)
+    : DSL[GL.Framebuffer.AttachmentConstructor] =
     i match {
       case t: Texture.Instance => transform(t)
       case r: Renderbuffer.Instance => transform(r)

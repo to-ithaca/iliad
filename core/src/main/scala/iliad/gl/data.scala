@@ -50,19 +50,19 @@ object Program {
       }
 
     def loaded(as: List[Attribute.Constructor])
-      : ProgramError Xor Attribute.LoadedAttributes =
+      : UndefinedAttributeError Xor Attribute.LoadedAttributes =
       as.traverse(a =>
-              loaded(a).toRightXor(
-                  ProgramError(s"Location for attribute is undefined: $a")))
+              loaded(a).toRightXor(UndefinedAttributeError(
+                      s"Location for attribute is undefined: $a")))
         .map(Attribute.LoadedAttributes)
 
     def textureUniforms(ts: Map[String, Texture.Constructor])
-      : ProgramError Xor List[TextureUniform] =
+      : UndefinedUniformError Xor List[TextureUniform] =
       textureUniforms.zipWithIndex.traverse {
         case ((name, location), index) =>
           ts.get(name)
-            .toRightXor(
-                ProgramError(s"Unable to find uniform for texture $name"))
+            .toRightXor(UndefinedUniformError(
+                    s"Unable to find uniform for texture $name"))
             .map(
                 t =>
                   TextureUniform(Bounded.element[TextureUnit](index),
@@ -143,12 +143,13 @@ object ElementBuffer {
   case class Loaded(id: Int,
                     filled: Int,
                     capacity: Int,
-                    constructor: Constructor) {}
+                    constructor: Constructor)
 
   object Loaded {
     val _filled: Lens[Loaded, Int] = GenLens[Loaded](_.filled)
     val _capacity: Lens[Loaded, Int] = GenLens[Loaded](_.capacity)
   }
+
   def inc(l: Loaded, size: Int): Loaded =
     l &|-> Loaded._filled modify (_ + size)
   def fits(l: Loaded, size: Int): Boolean =
@@ -310,7 +311,6 @@ object Capabilities {
   val depth: List[Capability] = List(GL_DEPTH_TEST)
 }
 
-//TODO: add colorMask etc. to state and draw
 case class DrawOp(model: Model,
                   program: Program.Unlinked,
                   textureUniforms: Map[String, Texture.Constructor],
@@ -334,7 +334,8 @@ case class ClearOp(bitMask: ChannelBitMask,
 
 sealed trait GLError extends IliadError
 case class NotLoadedError(msg: String) extends GLError
-case class ProgramError(msg: String) extends GLError
+case class UndefinedUniformError(msg: String) extends GLError
+case class UndefinedAttributeError(msg: String) extends GLError
 case class CallFailedError(msg: String) extends GLError
 case class ShaderCompileError(msg: String) extends GLError
 case class ProgramLinkError(msg: String) extends GLError

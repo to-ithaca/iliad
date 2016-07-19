@@ -11,7 +11,7 @@ import cats.implicits._
 
 import CatsExtra._
 
-trait GraphFunctions {
+trait ConstructFunctions {
 
   def put(n: Node.Constructor): State[Graph.Constructor, Unit] =
     State.modify(_.addNode(n.lNode))
@@ -51,9 +51,9 @@ trait GraphFunctions {
         Framebuffer.OnScreen
     )
 
-  def onScreenDraw(cons: Draw.Constructor,
-                   uniforms: Map[String, Texture.Uniform],
-                   model: Model.Instance): Draw.Instance =
+  def draw(cons: Draw.Constructor,
+           uniforms: Map[String, Texture.Uniform],
+           model: Model.Instance): Draw.Instance =
     Draw.Instance(cons, uniforms, model, Framebuffer.OnScreen, 1)
 
   def offScreenDraw(
@@ -62,7 +62,7 @@ trait GraphFunctions {
       model: Model.Constructor,
       drawType: DrawType,
       dimension: Dimension,
-      outputs: List[(GL.FramebufferAttachment, Output.Constructor)])
+      outputs: List[(GL.FramebufferAttachment, Framebuffer.OutputConstructor)])
     : Draw.Constructor =
     Draw.Constructor(
         name,
@@ -75,7 +75,7 @@ trait GraphFunctions {
         Framebuffer.OffScreenConstructor(outputs)
     )
 
-  def onScreenClear(name: String): Clear.Constructor =
+  def clear(name: String): Clear.Constructor =
     Clear.Constructor(
         name,
         GL.ChannelBitMask.BitMask(
@@ -86,84 +86,106 @@ trait GraphFunctions {
   def order(s: Node.Constructor, e: Node.Constructor): Link = Link.Order(s, e)
 }
 
+sealed trait ConstructError extends GraphicsError
+case class DuplicateLinkError(duplicates: Set[Set[Link]])
+    extends ConstructError
+case class NonUniqueNodeError(ns: Set[Set[Node.Constructed]])
+    extends ConstructError
+case class OffScreenEndNodesError(ns: Set[Node.Constructed])
+    extends ConstructError
+case class PipeFromScreenError(p: Link.Pipe) extends ConstructError
+case class PipeHasUnmatchedTexturesError(p: Link.Pipe,
+                                         ts: Set[Texture.Constructor])
+    extends ConstructError
+case class PipeHasUnmatchedUniformsError(p: Link.Pipe, us: Set[String])
+    extends ConstructError
+
 private[iliad] object Construct {
 
-  type GValidated = ReaderT[ValidatedNel[String, ?], Graph.Constructed, Unit]
-
-  private def validate(f: => Boolean,
-                       err: String): ValidatedNel[String, Unit] =
+  private def validate[E](f: => Boolean, err: E): ValidatedNel[E, Unit] =
     if (f) ().valid else err.invalidNel
 
-  private val linksUnique: GValidated = ReaderT { g =>
+  private val linksUnique: ReaderT[ValidatedNel[DuplicateLinkError, ?],
+                                   Graph.Constructed,
+                                   Unit] = ReaderT { g =>
     val dupes = g.links.duplicates(l => (l.start, l.end))
-    validate(dupes.isEmpty,
-             s"The following links are duplicates ${dupes.mkString("\n")}")
+    validate(dupes.isEmpty, DuplicateLinkError(dupes))
   }
 
-  private val nodesUnique: GValidated = ReaderT { g =>
+  private val nodesUnique: ReaderT[ValidatedNel[NonUniqueNodeError, ?],
+                                   Graph.Constructed,
+                                   Unit] = ReaderT { g =>
     val dupes = g.nodes.duplicates(_.constructor.name)
-    validate(dupes.isEmpty,
-             s"The following nodes are non-unique ${dupes.mkString("\n")}")
+    validate(dupes.isEmpty, NonUniqueNodeError(dupes))
   }
 
-  private val endNodesOnScreen: GValidated = ReaderT { g =>
+  private val endNodesOnScreen: ReaderT[
+      ValidatedNel[OffScreenEndNodesError, ?],
+      Graph.Constructed,
+      Unit] = ReaderT { g =>
     val offScreen = g.end.filter(_.constructor.framebuffer match {
       case Framebuffer.OnScreen => false
       case _ => true
     })
-    validate(offScreen.isEmpty,
-             s"The following end nodes are off screen $offScreen")
+    validate(offScreen.isEmpty, OffScreenEndNodesError(offScreen))
   }
 
-  private def pipeTextures: GValidated =
+  private def pipeTextures: ReaderT[ValidatedNel[GraphicsError, ?],
+                                    Graph.Constructed,
+                                    Unit] =
     ReaderT(_.links.toList.filterClass[Link.Pipe].traverseUnit { p =>
       p.start.framebuffer match {
         case Framebuffer.OnScreen =>
-          s"Pipe $p starts with on screen framebuffer".invalidNel
+          PipeFromScreenError(p).invalidNel.widen
         case f: Framebuffer.OffScreenConstructor =>
           val unmatched = p.textures.filterNot(f.textures.contains)
-          validate(
-              unmatched.isEmpty,
-              s"Pipe $p references textures $unmatched which are not in start node")
+          validate(unmatched.isEmpty,
+                   PipeHasUnmatchedTexturesError(p, unmatched)).widen
       }
     })
 
-  private def pipeUniforms: GValidated =
+  private def pipeUniforms: ReaderT[
+      ValidatedNel[PipeHasUnmatchedUniformsError, ?],
+      Graph.Constructed,
+      Unit] =
     ReaderT(_.links.toList.filterClass[Link.Pipe].traverseUnit { p =>
       val unmatched = p.uniformNames.filterNot(p.endTextureNames.contains)
-      validate(
-          unmatched.isEmpty,
-          s"Pipe $p references uniforms $unmatched which are not in end node")
+      validate(unmatched.isEmpty, PipeHasUnmatchedUniformsError(p, unmatched))
     })
 
-  private def validate(
-      g: Graph.Constructed): ValidatedNel[String, Graph.Constructed] =
-    (nodesUnique *> linksUnique *>
-          endNodesOnScreen *> pipeTextures *> pipeUniforms)
-      .apply(g)
-      .map(_ => g)
+  private def widen[E <: GraphicsError](
+      fa: ReaderT[ValidatedNel[E, ?], Graph.Constructed, Unit])
+    : ReaderT[ValidatedNel[GraphicsError, ?], Graph.Constructed, Unit] =
+    fa.mapF(_.widen)
 
-  private def constructed(
-      c: Framebuffer.Constructor,
-      doubles: Map[Texture.Constructor, Texture.Constructed])
-    : Framebuffer.Constructed = c match {
+  private def validate(
+      g: Graph.Constructed): ValidatedNel[GraphicsError, Graph.Constructed] =
+    (widen(nodesUnique) *>
+          widen(linksUnique) *>
+          widen(endNodesOnScreen) *>
+          widen(pipeTextures) *>
+          widen(pipeUniforms)).apply(g).map(_ => g)
+
+  type DoubleTextures = Map[Texture.Constructor, Texture.Constructed]
+
+  private def constructed(c: Framebuffer.Constructor)
+    : Reader[DoubleTextures, Framebuffer.Constructed] = c match {
     case fb: Framebuffer.OffScreenConstructor =>
-      Framebuffer.OffScreenConstructed(fb, fb.textures.map(t =>
-                doubles.getOrElse(t, t.single)))
-    case Framebuffer.OnScreen => Framebuffer.OnScreen
+      Reader { ds =>
+        val ts = fb.textures.map(t => ds.getOrElse(t, t.single))
+        Framebuffer.OffScreenConstructed(fb, ts)
+      }
+    case Framebuffer.OnScreen => Kleisli.pure(Framebuffer.OnScreen)
   }
 
   private def constructed(
-      n: Node.Constructor,
-      doubles: Map[Texture.Constructor, Texture.Constructed])
-    : Node.Constructed = {
+      n: Node.Constructor): Reader[DoubleTextures, Node.Constructed] =
     n match {
       case d: Draw.Constructor =>
-        Draw.Constructed(d, constructed(d.framebuffer, doubles))
+        constructed(d.framebuffer).map(Draw.Constructed(d, _))
       case c: Clear.Constructor =>
-        Clear.Constructed(c, constructed(c.framebuffer, doubles))
+        constructed(c.framebuffer).map(Clear.Constructed(c, _))
     }
-  }
 
   private def doubleTextures(
       g: Graph.Constructor): Map[Texture.Constructor, Texture.Constructed] =
@@ -182,7 +204,7 @@ private[iliad] object Construct {
 
   private def constructed(c: Graph.Constructor): Graph.Constructed = {
     val ds = doubleTextures(c)
-    val g = c.vmap(n => constructed(n, ds))
+    val g = c.vmap(n => constructed(n).run(ds))
     Graph.Constructed(
         g.nodes.toSet,
         g.labEdges.map(_.label).toSet,
@@ -192,7 +214,7 @@ private[iliad] object Construct {
     )
   }
 
-  def apply(s: State[Graph.Constructor, Unit])
-    : ValidatedNel[String, Graph.Constructed] =
-    validate(constructed(s.runS(Graph.empty).value))
+  def validate(s: State[Graph.Constructor, Unit])
+    : Xor[NonEmptyList[GraphicsError], Graph.Constructed] =
+    validate(constructed(s.runS(Graph.empty).value)).toXor
 }

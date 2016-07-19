@@ -11,6 +11,22 @@ import cats.implicits._
 
 import com.typesafe.scalalogging._
 
+object EGLInterpreter {
+
+  def logInterpreter[NDisp, NWin, Disp, Cfg, Sfc, Ctx](
+      implicit ct: ClassTag[Cfg])
+    : EGL[NDisp, NWin, Disp, Cfg, Sfc, Ctx, ?] ~> ReaderT[
+        Xor[String, ?],
+        EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
+        ?] =
+    new EGLDebugInterpreter(
+        new EGLInterpreter[NDisp, NWin, Disp, Cfg, Sfc, Ctx]
+          .compose(
+              new EffectfulLogBefore[EGL[NDisp, NWin, Disp, Cfg, Sfc, Ctx, ?]](
+                  _.toString))
+          .andThen(new EffectfulLogAfter))
+}
+
 final class EffectfulLogBefore[F[_]](showK: F[_] => String)
     extends LazyLogging
     with (F ~> F) {

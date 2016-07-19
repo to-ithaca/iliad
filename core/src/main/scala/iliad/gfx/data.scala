@@ -13,68 +13,50 @@ import cats.implicits._
 import quiver.{LNode, LEdge, Decomp}
 import QuiverExtra._
 
-object Output {
-  sealed trait Constructor
-  sealed trait Instance
-}
+object Graph {
+  type Constructor = quiver.Graph[Node.Constructor, String, Link]
+  type QInstance = quiver.Graph[Node.Instance, String, Unit]
 
-object Texture {
-  sealed trait Uniform
-  case class Constructor(name: String,
-                         format: GL.Texture.Format,
-                         viewport: Vec2i)
-      extends Output.Constructor {
-    private[gfx] def single: Constructed = Constructed(this, false)
-    private[gfx] def double: Constructed = Constructed(this, true)
+  private[gfx] val empty: Constructor =
+    quiver.empty[Node.Constructor, String, Link]
+
+  case class Constructed(
+      nodes: Set[Node.Constructed],
+      links: Set[Link],
+      start: Set[Node.Constructed],
+      end: Set[Node.Constructed],
+      doubleTextures: Map[Texture.Constructor, Texture.Constructed]) {
+    private[gfx] def instance: Instance =
+      Instance(this, quiver.empty[Node.Instance, String, Unit])
   }
 
-  private[gfx] case class Constructed(constructor: Constructor,
-                                      isDouble: Boolean)
+  case class Instance(constructed: Constructed, graph: QInstance) {
 
-  case class Instance(name: String, constructor: Constructor)
-      extends Uniform
-      with Output.Instance
+    private def addNodes(ns: List[Node.Instance]): State[QInstance, Unit] =
+      State.modify(qg => ns.foldLeft(qg)((next, n) => next.addNode(n.lNode)))
 
-  case class Image(name: String, format: GL.Texture.Format, viewport: Vec2i)
-      extends Uniform
-}
+    private def addEdges(ls: List[Link.Instance]): State[QInstance, Unit] =
+      State.modify(qg => ls.foldLeft(qg)((next, l) => next.addEdge(l.lEdge)))
 
-object Renderbuffer {
-  case class Constructor(name: String,
-                         format: GL.RenderbufferInternalFormat,
-                         viewport: Vec2i)
-      extends Output.Constructor
-  case class Instance(name: String, constructor: Constructor)
-      extends Output.Instance
-}
+    private[gfx] def put(ns: List[Node.Instance],
+                         ls: List[Link.Instance]): Instance = {
+      val next = (addNodes(ns) >> addEdges(ls)).run(graph).value._1
+      copy(graph = next)
+    }
 
-object Framebuffer {
-  sealed trait Constructor
-  private[gfx] sealed trait Constructed
-  sealed trait Instance
-
-  case object OnScreen extends Constructor with Constructed with Instance
-
-  case class OffScreenConstructor(
-      buffers: List[(GL.FramebufferAttachment, Output.Constructor)])
-      extends Constructor {
-    private[gfx] def textures: List[Texture.Constructor] =
-      buffers.map(_._2).filterClass[Texture.Constructor]
+    private[gfx] def nodes(us: Map[Draw.Instance, List[GL.Uniform]])
+      : Reader[GraphTraversal, UnsetUniformError Xor Vector[Node.Drawable]] =
+      Reader[GraphTraversal, UnsetUniformError Xor Vector[Node.Drawable]](
+          _.apply(graph).traverse {
+        case c: Clear.Instance => c.right
+        case d: Draw.Instance =>
+          us.get(d).map(Draw.Drawable(d, _)).toRightXor(UnsetUniformError(d))
+      })
   }
-
-  private[gfx] case class OffScreenConstructed(
-      constructor: OffScreenConstructor,
-      textures: List[Texture.Constructed]
-  ) extends Constructed
-
-  case class OffScreenInstance(
-      instances: List[(GL.FramebufferAttachment, Output.Instance)])
-      extends Instance
 }
 
-object Model {
-  case class Constructor(name: String)
-  case class Instance(name: String, constructor: Constructor, model: GL.Model)
+object GraphTraversal {
+  val ordered: GraphTraversal = g => g.ordered
 }
 
 sealed trait Node
@@ -179,58 +161,70 @@ object Link {
   }
 }
 
+object Texture {
+  sealed trait Uniform
+  case class Constructor(name: String,
+                         format: GL.Texture.Format,
+                         viewport: Vec2i)
+      extends Framebuffer.OutputConstructor {
+    private[gfx] def single: Constructed = Constructed(this, false)
+    private[gfx] def double: Constructed = Constructed(this, true)
+  }
+
+  private[gfx] case class Constructed(constructor: Constructor,
+                                      isDouble: Boolean)
+
+  case class Instance(name: String, constructor: Constructor)
+      extends Uniform
+      with Framebuffer.OutputInstance
+
+  case class Image(name: String, format: GL.Texture.Format, viewport: Vec2i)
+      extends Uniform
+}
+
+object Renderbuffer {
+  case class Constructor(name: String,
+                         format: GL.RenderbufferInternalFormat,
+                         viewport: Vec2i)
+      extends Framebuffer.OutputConstructor
+  case class Instance(name: String, constructor: Constructor)
+      extends Framebuffer.OutputInstance
+}
+
+object Framebuffer {
+  sealed trait Constructor
+  private[gfx] sealed trait Constructed
+  sealed trait Instance
+
+  sealed trait OutputConstructor
+  sealed trait OutputInstance
+
+  case object OnScreen extends Constructor with Constructed with Instance
+
+  case class OffScreenConstructor(
+      buffers: List[(GL.FramebufferAttachment, Framebuffer.OutputConstructor)])
+      extends Constructor {
+    private[gfx] def textures: List[Texture.Constructor] =
+      buffers.map(_._2).filterClass[Texture.Constructor]
+  }
+
+  private[gfx] case class OffScreenConstructed(
+      constructor: OffScreenConstructor,
+      textures: List[Texture.Constructed]
+  ) extends Constructed
+
+  case class OffScreenInstance(
+      instances: List[(GL.FramebufferAttachment, Framebuffer.OutputInstance)])
+      extends Instance
+}
+
+object Model {
+  case class Constructor(name: String)
+  case class Instance(name: String, constructor: Constructor, model: GL.Model)
+}
+
 //TODO: find out what to do with this
 //case class Valve(start: Node.Draw, links: List[Link.Pipe])
-
-object Graph {
-  type Constructor = quiver.Graph[Node.Constructor, String, Link]
-  type QInstance = quiver.Graph[Node.Instance, String, Unit]
-
-  private[gfx] val empty: Constructor =
-    quiver.empty[Node.Constructor, String, Link]
-
-  case class Constructed(
-      nodes: Set[Node.Constructed],
-      links: Set[Link],
-      start: Set[Node.Constructed],
-      end: Set[Node.Constructed],
-      doubleTextures: Map[Texture.Constructor, Texture.Constructed]) {
-    private[gfx] def instance: Instance =
-      Instance(this, quiver.empty[Node.Instance, String, Unit])
-  }
-
-  type Traversal = QInstance => Vector[Node.Instance]
-
-  case class Instance(constructed: Constructed, graph: QInstance) {
-
-    private def addNodes(ns: List[Node.Instance]): State[QInstance, Unit] =
-      State.modify(qg => ns.foldLeft(qg)((next, n) => next.addNode(n.lNode)))
-
-    private def addEdges(ls: List[Link.Instance]): State[QInstance, Unit] =
-      State.modify(qg => ls.foldLeft(qg)((next, l) => next.addEdge(l.lEdge)))
-
-    private[gfx] def put(ns: List[Node.Instance],
-                         ls: List[Link.Instance]): Instance = {
-      val next = (addNodes(ns) >> addEdges(ls)).run(graph).value._1
-      copy(graph = next)
-    }
-
-    private[gfx] def nodes(us: Map[Draw.Instance, List[GL.Uniform]])
-      : Reader[Algorithm, AnimationError Xor Vector[Node.Drawable]] =
-      Reader[Algorithm, AnimationError Xor Vector[Node.Drawable]](
-          _.apply(graph).traverse {
-        case c: Clear.Instance => c.right
-        case d: Draw.Instance =>
-          us.get(d)
-            .map(Draw.Drawable(d, _))
-            .toRightXor(AnimationError(s"Uniforms for node $d do not exist"))
-      })
-  }
-}
-
-object Algorithm {
-  val ordered: Algorithm = g => g.ordered
-}
 
 abstract class DrawType(val primitive: GL.PrimitiveType)
 object DrawType {
@@ -244,8 +238,7 @@ object Dimension {
   case object _3D extends Dimension(Set(GL.GL_DEPTH_TEST))
 }
 
-sealed trait GraphicsError extends IliadError
+trait GraphicsError extends IliadError
+case class UnsetUniformError(d: Draw.Instance) extends GraphicsError
 
-case class AnimationError(msg: String) extends GraphicsError
-case class GraphMatchError(msg: String) extends GraphicsError
-case class GraphLinkError(msg: String) extends GraphicsError
+//we need an example of how to use this

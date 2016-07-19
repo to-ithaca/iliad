@@ -5,12 +5,14 @@ import cats._
 import cats.data._
 import cats.implicits._
 
+import CatsExtra._
+
 object Action {
   type Effect =
     StateT[Xor[NonEmptyList[GraphicsError], ?], Graph.Instance, Unit]
 
   private[gfx] def apply(a: Action): Effect = a match {
-    case Show(ns) => Instantiate(ns)
+    case Show(ns) => Instantiate(ns).transformF(_.leftMap(_.widen))
   }
 }
 

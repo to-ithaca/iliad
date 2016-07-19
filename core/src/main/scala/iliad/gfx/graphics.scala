@@ -16,10 +16,10 @@ import MonocleExtra._
 
 private[iliad] object Graphics {
 
-  case class State(animation: Animation.State, graph: Graph.Instance)
+  case class State(uniformCache: UniformCache.State, graph: Graph.Instance)
   case class Config(pageSize: Int,
                     graph: Graph.Constructed,
-                    algorithm: Algorithm)
+                    graphTraversal: GraphTraversal)
 
   type PRG = ReaderT[StateT[Xor[NonEmptyList[GraphicsError], ?], State, ?],
                      Config,
@@ -27,8 +27,8 @@ private[iliad] object Graphics {
 
   private val _graph: monocle.Lens[State, Graph.Instance] =
     GenLens[State](_.graph)
-  private val _animation: monocle.Lens[State, Animation.State] =
-    GenLens[State](_.animation)
+  private val _uniformCache: monocle.Lens[State, UniformCache.State] =
+    GenLens[State](_.uniformCache)
 
   def empty(gc: Graph.Constructed): State =
     State(Map.empty, gc.instance)
@@ -39,14 +39,14 @@ private[iliad] object Graphics {
   private def liftLoad(fa: Load.Effect): PRG =
     ReaderT(cfg => StateT.pure(fa.run(cfg)))
 
-  private def liftAnimation(fa: Animation.Effect): PRG =
+  private def liftUniformCache(fa: UniformCache.Effect): PRG =
     KleisliExtra.lift(
-        fa.applyLens(_animation)
+        fa.applyLens(_uniformCache)
           .transformF(a => a.value.right[NonEmptyList[GraphicsError]])
           .map(_ => XorT.pure(())))
 
   private def transform(g: Graphics): PRG = g match {
-    case Inl(a) => liftAnimation(Animation(a))
+    case Inl(a) => liftUniformCache(UniformCache(a))
     case Inr(Inl(l)) => liftLoad(Load(l))
     case Inr(Inr(Inl(a))) => liftAction(Action(a))
     case Inr(Inr(Inr(_))) => sys.error("Impossible case!")
@@ -65,12 +65,12 @@ private[iliad] object Graphics {
     }
   }
 
-  def draws(s: State, us: Animation.Values)
+  def draws(s: State, us: UniformCache.Values)
     : ReaderT[XorT[GL.DSL, IliadError, ?], Config, Unit] =
     for {
       ns <- s.graph
              .nodes(us)
-             .local[Config](_.algorithm)
+             .local[Config](_.graphTraversal)
              .mapF(xor =>
                    XorT
                      .fromXor[GL.DSL]

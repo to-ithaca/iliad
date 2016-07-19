@@ -5,9 +5,9 @@ import shapeless._
 package object gfx
     extends LoadFunctions
     with ActionFunctions
-    with AnimationFunctions
-    with GraphFunctions {
-  type Graphics = Animation :+: Load :+: Action :+: CNil
+    with UniformCacheFunctions
+    with ConstructFunctions {
+  type Graphics = UniformCache :+: Load :+: Action :+: CNil
 
-  type Algorithm = Graph.QInstance => Vector[Node.Instance]
+  type GraphTraversal = Graph.QInstance => Vector[Node.Instance]
 }

@@ -29,28 +29,32 @@ object AnimationF {
   //TODO: what about interpolation between points? Need an interpolation strategy
 }
 
-object Animation {
+object UniformCache {
   type State = Map[Draw.Instance, Map[String, AnimationF]]
   type Values = Map[Draw.Instance, List[Uniform]]
   type Effect = CatsState[State, Unit]
 
-  private[gfx] def apply(a: Animation): Effect = a match {
+  private[gfx] def apply(a: UniformCache): Effect = a match {
     case AnimationPut(n, fs) => CatsState.modify(_ + (n -> fs))
   }
 
-  private[iliad] def calculate(at: Long,
-                               fs: Map[String, AnimationF]): List[Uniform] =
-    fs.values.toList.map(_.apply(at))
+  private[iliad] def values(at: Long)(
+      tup: (Draw.Instance, Map[String, AnimationF]))
+    : (Draw.Instance, List[Uniform]) = {
+    val (n, fs) = tup
+    (n, fs.values.toList.map(_.apply(at)))
+  }
 }
 
-sealed trait Animation
+sealed trait UniformCache
 
 private case class AnimationPut(n: Draw.Instance, fs: Map[String, AnimationF])
-    extends Animation
+    extends UniformCache
 
-trait AnimationFunctions {
+trait UniformCacheFunctions {
 
-  private def lift(a: Animation): Graphics = shapeless.Coproduct[Graphics](a)
+  private def lift(a: UniformCache): Graphics =
+    shapeless.Coproduct[Graphics](a)
 
   def put(n: Draw.Instance, fs: Map[String, AnimationF]): Graphics =
     lift(AnimationPut(n, fs))
