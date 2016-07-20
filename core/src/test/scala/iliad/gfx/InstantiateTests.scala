@@ -45,15 +45,15 @@ class InstantiateTests extends FunSuite with Matchers {
     val graph: Xor[NonEmptyList[GraphicsError], Graph.Constructed] = 
       Construct.validate(put(exampleDrawConstructor))
 
-    val hedgehogVData = vd("animal-vdata", 
-      12 -> 36,
-      Attribute[Vec3f]("position"),
+    val animalVref = vref("animal-vdata", 
+            Attribute[Vec3f]("position"),
       Attribute[Vec3f]("normal"),
       Attribute[Int]("index")
     )
+    val hedgehogVData = vd(animalVref, 12 -> 36)
 
-    val hedgehogEData = ed("animal-edata", 
-      "elements", 12 -> 24)
+    val animalEref = eref("animal-edata", "elements")
+    val hedgehogEData = ed(animalEref, 12 -> 24)
 
     val hedgehogModel = model(
       "hedgehog-model", "basic-3D-model",

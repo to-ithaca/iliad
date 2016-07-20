@@ -14,12 +14,15 @@ import shapeless._
 import CatsExtra._
 import MonocleExtra._
 
-private[iliad] object Graphics {
+object Graphics {
 
-  case class State(uniformCache: UniformCache.State, graph: Graph.Instance)
+  type Graphics = UniformCache :+: Load :+: Action :+: CNil
+
   case class Config(pageSize: Int,
                     graph: Graph.Constructed,
                     graphTraversal: GraphTraversal)
+
+  case class State(uniformCache: UniformCache.State, graph: Graph.Instance)
 
   type PRG = ReaderT[StateT[Xor[NonEmptyList[GraphicsError], ?], State, ?],
                      Config,

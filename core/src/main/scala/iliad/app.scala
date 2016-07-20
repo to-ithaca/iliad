@@ -45,7 +45,7 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
 
   /*This needs to be lazy to defer the creation of the classTag until after the $init
    of the subclass is called */
-  lazy val LogEGLInterpreter: EGL[
+  private lazy val LogEGLInterpreter: EGL[
       NativeDisplay,
       NativeWindow,
       EGLDisplay,
@@ -133,13 +133,14 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
         .map(_.get)
 
   private def aggregate(implicit S: Strategy)
-    : Pipe[Task, List[Graphics], (Long, List[Graphics])] =
+    : Pipe[Task, List[Graphics.Graphics], (Long, List[Graphics.Graphics])] =
     q =>
       (vsync through2 q)(aggregateRight).map {
         case (at, cmds) => (at, cmds.flatten.toList)
     }
 
-  private def run(cfg: Graphics.Config, gs: List[Graphics])(s: Graphics.State)
+  private def run(cfg: Graphics.Config, gs: List[Graphics.Graphics])(
+      s: Graphics.State)
     : Error Xor (Graphics.State, XorT[GL.DSL, GLError, Unit]) =
     Graphics(gs).run(cfg).run(s).leftMap(s => new Error(s.toString))
 
@@ -162,44 +163,31 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
 
   val UniformS = Strategy.fromFixedDaemonPool(8, "uniform-cache")
 
-  private def run(
-      at: Long,
-      us: UniformCache.State): Stream[Task, UniformCache.Values] = {
-    implicit val S = UniformS
-    val s = Stream
-      .emits(us.toList)
-      .map(u => Stream.eval(Task(UniformCache.values(at)(u))))
-    Stream.eval(concurrent.join(8)(s).runLog).map(_.toMap)
+  private def run(at: Long, us: UniformCache.State): UniformCache.Values = {
+    us.map(UniformCache.values(at))
   }
 
-  val GLPipe: Pipe[Task, List[Graphics], Unit] = graphics =>
+  val GLPipe: Pipe[Task, List[Graphics.Graphics], Unit] = graphics =>
     for {
       (nw, nd) <- Stream.eval(session.task(EGLStrategy))
       (d, sfc, ctx) <- Stream.eval(EGL(nw, nd))
       cfg <- Stream.eval(graphicsConfig)
-      (at, loadDsl, graphics) <- (graphics through aggregate(EGLStrategy))
-                                  .mapAccumulate2(
-                                      Graphics.empty(cfg.graph).right[Error]
-                                  ) { (prev, t) =>
-                                    val (at, gs) = t
-                                    val xor = prev.flatMap(run(cfg, gs))
-                                    val next = xor.map(_._1)
-                                    val out = xor.map {
-                                      case (n, gl) =>
-                                        (at, gl.leftWiden[IliadError].value, n)
-                                    }.task
-                                    (next, out)
-                                  }
-                                  .eval
-      _ <- run(at, graphics.uniformCache)
-            .scan(GL.empty.right[Error]) { (prev, ns) =>
-              for {
+      _ <- (graphics through aggregate(EGLStrategy))
+            .mapAccumulate2(
+                (Graphics.empty(cfg.graph), GL.empty).right[Error]
+            ) { (prev, t) =>
+              val (at, gs) = t
+              val xor = for {
                 p <- prev
-                x <- run(loadDsl, p)
-                xx <- run(cfg, x, ns, graphics)
-              } yield xx
+                (prevGr, prevGl) = p
+                q <- run(cfg, gs)(prevGr)
+                (nextGr, loadCmds) = q
+                midGl <- run(loadCmds.leftWiden[IliadError].value, prevGl)
+                nextGl <- run(cfg, midGl, run(at, nextGr.uniformCache), nextGr)
+              } yield (nextGr, nextGl)
+              (xor, xor.task)
             }
-            .evalMap(_.task)
+            .eval
       _ <- Stream.eval(swapBuffers(nd, d, sfc))
     } yield ()
 }

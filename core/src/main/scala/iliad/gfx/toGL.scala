@@ -10,7 +10,7 @@ import cats.implicits._
 
 import CatsExtra._
 
-private object ToGL {
+object ToGL {
 
   type DSL[A] = Free[ToGL, A]
   type Effect[A] = Reader[Graph.Constructed, A]
@@ -75,7 +75,7 @@ private object ToGL {
     }
 }
 
-private sealed trait ToGL[A]
+sealed trait ToGL[A]
 
 private case class ToGLTexture(t: Texture.Instance)
     extends ToGL[GL.Texture.Constructor]
@@ -89,7 +89,7 @@ private case class ToGLOffScreenFramebuffer(
     as: List[(GL.FramebufferAttachment, GL.Framebuffer.AttachmentConstructor)])
     extends ToGL[GL.Framebuffer.Constructor]
 
-private object ToGLInterpreter extends (ToGL ~> ToGL.Effect) {
+object ToGLInterpreter extends (ToGL ~> ToGL.Effect) {
   def apply[A](t: ToGL[A]): ToGL.Effect[A] = t match {
     case ToGLTexture(t) =>
       Reader { c =>

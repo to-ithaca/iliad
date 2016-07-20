@@ -67,7 +67,7 @@ object Node {
     private[gfx] def lNode: LNode[Constructor, String] = LNode(this, name)
   }
 
-  private[gfx] sealed trait Constructed {
+  sealed trait Constructed {
     def constructor: Constructor
   }
 
@@ -76,7 +76,7 @@ object Node {
     def constructor: Constructor
     private[gfx] def lNode: LNode[Instance, String] = LNode(this, name)
   }
-  private[iliad] sealed trait Drawable
+  sealed trait Drawable
 }
 
 object Draw {
@@ -91,7 +91,7 @@ object Draw {
       framebuffer: Framebuffer.Constructor
   ) extends Node.Constructor
 
-  private[gfx] case class Constructed(
+  case class Constructed(
       constructor: Constructor,
       framebuffer: Framebuffer.Constructed
   ) extends Node.Constructed
@@ -110,7 +110,7 @@ object Draw {
       model.model.vertex.ref.buffer.attributes
   }
 
-  private[iliad] case class Drawable(
+  case class Drawable(
       instance: Instance,
       uniforms: List[GL.Uniform]
   ) extends Node.Drawable
@@ -171,8 +171,7 @@ object Texture {
     private[gfx] def double: Constructed = Constructed(this, true)
   }
 
-  private[gfx] case class Constructed(constructor: Constructor,
-                                      isDouble: Boolean)
+  case class Constructed(constructor: Constructor, isDouble: Boolean)
 
   case class Instance(name: String, constructor: Constructor)
       extends Uniform
@@ -193,7 +192,7 @@ object Renderbuffer {
 
 object Framebuffer {
   sealed trait Constructor
-  private[gfx] sealed trait Constructed
+  sealed trait Constructed
   sealed trait Instance
 
   sealed trait OutputConstructor
@@ -208,7 +207,7 @@ object Framebuffer {
       buffers.map(_._2).filterClass[Texture.Constructor]
   }
 
-  private[gfx] case class OffScreenConstructed(
+  case class OffScreenConstructed(
       constructor: OffScreenConstructor,
       textures: List[Texture.Constructed]
   ) extends Constructed

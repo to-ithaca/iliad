@@ -116,7 +116,7 @@ case class LoadFramebuffer(
     extends Load[Framebuffer.Loaded]
 case class LoadSampler(s: Sampler.Constructor) extends Load[Sampler.Loaded]
 
-private object LoadParser extends (Load ~> OpenGL.DSL) {
+object LoadParser extends (Load ~> OpenGL.DSL) {
 
   private def roundUp(size: Int, baseCapacity: Int): Int =
     Math.ceil(size.toDouble / baseCapacity.toDouble).toInt * baseCapacity

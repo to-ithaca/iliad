@@ -1109,7 +1109,9 @@ case object GL_R16UI
     extends IntConstant(0x8234)
     with RenderbufferInternalFormat
     with TextureSizedInternalFormat
-case object GL_R32I extends IntConstant(0x8235) with RenderbufferInternalFormat
+case object GL_R32I
+    extends IntConstant(0x8235)
+    with RenderbufferInternalFormat
     with TextureInternalFormat
 case object GL_R32UI
     extends IntConstant(0x8236)

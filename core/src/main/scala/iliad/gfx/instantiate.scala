@@ -12,39 +12,45 @@ import CatsExtra._
 
 trait InstantiateFunctions {
 
-  def vd(name: String, range: (Int, Int), attributes: Attribute*):
-      GL.Model.VertexRef = {
+  def vref(name: String, attributes: Attribute*): GL.VertexData.Ref = {
     val vb = GL.VertexBuffer.Constructor(attributes.toList.map(_.attribute))
-    val data = GL.VertexData.Ref(name, vb)
-    val (s, e) = range
-    GL.Model.VertexRef(data, GL.DataRange(s, e))
+    GL.VertexData.Ref(name, vb)
   }
 
-  def ed(name: String, bufferName: String, range: (Int, Int)): 
-      GL.Model.ElementRef = {
+  def vd(vr: GL.VertexData.Ref, range: (Int, Int)): GL.Model.VertexRef = {
     val (s, e) = range
-    val data = GL.ElementData.Ref(name, 
-        GL.ElementBuffer.Constructor(bufferName))
-       GL.Model.ElementRef(data, GL.DataRange(s, e))
+    GL.Model.VertexRef(vr, GL.DataRange(s, e))
   }
 
-  def model(name: String, 
-    constructorName: String, vdata: GL.Model.VertexRef, edata: GL.Model.ElementRef): 
-      Model.Instance = {
+  def eref(name: String, bufferName: String): GL.ElementData.Ref =
+    GL.ElementData.Ref(name, GL.ElementBuffer.Constructor(bufferName))
+
+  def ed(er: GL.ElementData.Ref, range: (Int, Int)): GL.Model.ElementRef = {
+    val (s, e) = range
+    GL.Model.ElementRef(er, GL.DataRange(s, e))
+  }
+
+  def model(name: String,
+            constructorName: String,
+            vdata: GL.Model.VertexRef,
+            edata: GL.Model.ElementRef): Model.Instance = {
     val m = GL.Model(vdata, edata)
     Model.Instance(name, Model.Constructor(constructorName), m)
   }
 
-  def png(name: String, size: Vec2i): Texture.Image = 
+  def png(name: String, size: Vec2i): Texture.Image =
     Texture.Image(name, TextureFormat.rgba, size)
 
   def drawInstance(model: Model.Instance,
-    cons: Draw.Constructor,
-           uniforms: (String, Texture.Uniform)*): Draw.Instance =
+                   cons: Draw.Constructor,
+                   uniforms: (String, Texture.Uniform)*): Draw.Instance =
     Draw.Instance(cons, uniforms.toMap, model, Framebuffer.OnScreen, 1)
+
+  def clearScreen(c: Clear.Constructor): Clear.Instance =
+    Clear.Instance(c, Framebuffer.OnScreen)
 }
 
-private[iliad] object Instantiate {
+object Instantiate {
 
   private def framebufferOutput(
       c: Framebuffer.OutputConstructor,

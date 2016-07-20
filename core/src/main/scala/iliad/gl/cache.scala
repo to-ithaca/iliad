@@ -135,7 +135,7 @@ case class SamplerGet(s: Sampler.Constructor)
     extends Cache[Option[Sampler.Loaded]]
 case class SamplerPut(s: Sampler.Loaded) extends Cache[Unit]
 
-private object CacheParser extends (Cache ~> Cache.Effect) {
+object CacheParser extends (Cache ~> Cache.Effect) {
   private val _vertexShaders: Lens[
       Cache.State,
       Map[VertexShader.Source, VertexShader.Compiled]] =

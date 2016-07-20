@@ -46,7 +46,7 @@ case class EnableAttributes(as: Attribute.LoadedAttributes, baseOffset: Int)
 
 case class DrawTriangleModel(range: DataRange) extends Draw[Unit]
 
-private object DrawParser extends (Draw ~> OpenGL.DSL) {
+object DrawParser extends (Draw ~> OpenGL.DSL) {
 
   private def enableAttribute(stride: Int)(
       a: Attribute.Offset): OpenGL.DSL[Unit] =

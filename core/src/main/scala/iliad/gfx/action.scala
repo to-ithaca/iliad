@@ -20,9 +20,9 @@ sealed trait Action
 private case class Show(ns: List[Node.Instance]) extends Action
 
 trait ActionFunctions {
-  private def lift(a: Action): Graphics =
-    shapeless.Coproduct[Graphics](a)
+  private def lift(a: Action): Graphics.Graphics =
+    shapeless.Coproduct[Graphics.Graphics](a)
 
-  def show(ns: List[Node.Instance]): Graphics =
+  def show(ns: List[Node.Instance]): Graphics.Graphics =
     lift(Show(ns))
 }

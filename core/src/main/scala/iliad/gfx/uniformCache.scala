@@ -53,9 +53,10 @@ private case class AnimationPut(n: Draw.Instance, fs: Map[String, AnimationF])
 
 trait UniformCacheFunctions {
 
-  private def lift(a: UniformCache): Graphics =
-    shapeless.Coproduct[Graphics](a)
+  private def lift(a: UniformCache): Graphics.Graphics =
+    shapeless.Coproduct[Graphics.Graphics](a)
 
-  def put(n: Draw.Instance, fs: Map[String, AnimationF]): Graphics =
+  def animate(n: Draw.Instance,
+              fs: Map[String, AnimationF]): Graphics.Graphics =
     lift(AnimationPut(n, fs))
 }

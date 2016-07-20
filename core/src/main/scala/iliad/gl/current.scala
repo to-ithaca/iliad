@@ -57,7 +57,7 @@ case class CurrentVertexBufferSet(v: VertexBuffer.Loaded) extends Current[Unit]
 case class CurrentElementBufferSet(e: ElementBuffer.Loaded)
     extends Current[Unit]
 
-private object CurrentParser extends (Current ~> Current.Effect) {
+object CurrentParser extends (Current ~> Current.Effect) {
 
   private val _program: Lens[Current.State, Option[Program.Linked]] =
     GenLens[Current.State](_.program)
