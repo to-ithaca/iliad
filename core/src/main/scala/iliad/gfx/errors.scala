@@ -34,13 +34,13 @@ case class OffScreenEndNodesError(ns: Set[Node.Constructed])
     extends ConstructError {
   private def names: String = ns.map(_.constructor.name).mkString(", ")
   def message: String =
-    s"""The following end nodes render off screen: $names.  
+    s"""The following end nodes render off screen: $names.
 Note that all end nodes must render to the screen"""
 }
 
 case class PipeFromScreenError(p: Link.Pipe) extends ConstructError {
   def message: String =
-    s"""The following pipe is from the screen: $p.  
+    s"""The following pipe is from the screen: $p.
 The screen has no outputs, so cannot be piped to anything"""
 }
 case class PipeHasUnmatchedTexturesError(p: Link.Pipe,
@@ -49,8 +49,8 @@ case class PipeHasUnmatchedTexturesError(p: Link.Pipe,
   private def msg: String = ts.map(_.name).mkString(", ")
   def message: String =
     s"""The following pipe references textures which are not present in its end node:
-$p
-Missing textures are $msg
+Missing textures: [$msg]
+Pipe: $p
 """
 }
 
@@ -58,9 +58,9 @@ case class PipeHasUnmatchedUniformsError(p: Link.Pipe, us: Set[String])
     extends ConstructError {
   private def msg: String = us.mkString(", ")
   def message: String =
-    s"""The following pipe references uniforms which are not present in its start node: 
-$p
-Missing uniforms are $msg
+    s"""The following pipe references uniforms which are not present in its start node:
+Missing uniforms: [$msg]
+Pipe: $p
 """
 }
 
@@ -68,8 +68,10 @@ sealed trait InstantiationError extends GraphicsError
 case class NodeInstantiationError(d: Draw.Instance, e: InstantiationError)
     extends InstantiationError {
   def message: String =
-    s"""The following draw has an error: $d
-Error: $e"""
+    s"""The following draw has an error: 
+Error: $e
+
+Draw: $d"""
 }
 
 case class RenderbufferMatchError(c: Renderbuffer.Constructor,
@@ -138,7 +140,7 @@ case class TextureUniformMissingError(uniform: String)
 }
 case class AttributeMissingError(a: GL.Attribute.Constructor)
     extends InstantiationError {
-  def message: String = s"Missing attribute $a"
+  def message: String = s"Missing attribute: [$a]"
 }
 case class EndNodeMissingError(l: Link, s: Node.Instance)
     extends InstantiationError {

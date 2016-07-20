@@ -1,8 +1,7 @@
 package iliad
 package gfx
 
-import iliad.std.list._
-import iliad.std.set._
+import iliad.implicits._
 import iliad.{gl => GL}
 
 import cats._
@@ -18,61 +17,71 @@ trait ConstructFunctions {
   def put(l: Link): State[Graph.Constructor, Unit] =
     State.modify(_.addEdge(l.lEdge))
 
-  def model(name: String): Model.Constructor =
-    Model.Constructor(name)
+  def order(ns: (Node.Constructor, Node.Constructor)): State[Graph.Constructor, Unit] = {
+    val (s, e) = ns
+    State.modify(_.addEdge(Link.Order(s, e).lEdge))
+  }
 
-  def vsh(source: String,
-          attributes: List[GL.Attribute.Constructor],
-          textures: List[(String, GL.Sampler.Constructor)])
-    : GL.VertexShader.Source =
-    GL.VertexShader.Source(source, attributes, textures)
+  def pipe(ns: (Draw.Constructor, Draw.Constructor),
+    uniforms: (Texture.Constructor, String)*): State[Graph.Constructor, Unit] = {
+    val (s, e) = ns
+    val us = uniforms.map { case (t, n) => (n, t)}.toMap
+    val p = Link.Pipe(s, e, us)
+    State.modify(_.addEdge(p.lEdge))
+  }
 
-  def fsh(source: String, textures: List[(String, GL.Sampler.Constructor)])
-    : GL.FragmentShader.Source =
-    GL.FragmentShader.Source(source, textures)
+  def vsh(source: String, params: VshParameter*)
+    : GL.VertexShader.Source = {
+    val ps = params.toList
+    val as = ps.filterClass[Attribute].map(_.attribute)
+    val ts = ps.filterClass[Sampler].map(s => (s.name, s.constructor))
+    GL.VertexShader.Source(source, as, ts)
+  }
 
-  def program(v: GL.VertexShader.Source,
-              f: GL.FragmentShader.Source): GL.Program.Unlinked =
-    GL.Program.Unlinked(v, f)
+  def fsh(source: String, params: FshParameter*)
+    : GL.FragmentShader.Source = {
+    val ts = params.toList.filterClass[Sampler].map(s => (s.name, s.constructor))
+        GL.FragmentShader.Source(source, ts)
+  }
 
-  def onScreenDraw(name: String,
-                   program: GL.Program.Unlinked,
-                   model: Model.Constructor,
+
+  def draw(name: String,
+                   v: GL.VertexShader.Source,
+    f: GL.FragmentShader.Source,
+                   model: String,
                    drawType: DrawType,
                    dimension: Dimension): Draw.Constructor =
     Draw.Constructor(
         name,
-        program,
+        GL.Program.Unlinked(v, f),
         drawType.primitive,
         dimension.capabilities,
         GL.ColorMask.none,
         false,
-        model,
+        Model.Constructor(model),
         Framebuffer.OnScreen
     )
 
-  def draw(cons: Draw.Constructor,
-           uniforms: Map[String, Texture.Uniform],
-           model: Model.Instance): Draw.Instance =
-    Draw.Instance(cons, uniforms, model, Framebuffer.OnScreen, 1)
+  def txt(name: String, format: GL.Texture.Format, viewport: Vec2i): Texture.Constructor = Texture.Constructor(name, format, viewport)
 
   def offScreenDraw(
       name: String,
-      program: GL.Program.Unlinked,
-      model: Model.Constructor,
+    v: GL.VertexShader.Source,
+    f: GL.FragmentShader.Source,
+      model: String,
       drawType: DrawType,
       dimension: Dimension,
-      outputs: List[(GL.FramebufferAttachment, Framebuffer.OutputConstructor)])
+      outputs: (GL.FramebufferAttachment, Framebuffer.OutputConstructor)*)
     : Draw.Constructor =
     Draw.Constructor(
         name,
-        program,
+        GL.Program.Unlinked(v, f),
         drawType.primitive,
         dimension.capabilities,
         GL.ColorMask.none,
         false,
-        model,
-        Framebuffer.OffScreenConstructor(outputs)
+      Model.Constructor(model),
+        Framebuffer.OffScreenConstructor(outputs.toList)
     )
 
   def clear(name: String): Clear.Constructor =
@@ -82,6 +91,15 @@ trait ConstructFunctions {
             Set(GL.GL_COLOR_BUFFER_BIT, GL.GL_DEPTH_BUFFER_BIT)),
         Framebuffer.OnScreen
     )
+
+  def offScreenClear(name: String, 
+    outputs: (GL.FramebufferAttachment, Framebuffer.OutputConstructor)*): 
+      Clear.Constructor = Clear.Constructor(
+    name,
+                GL.ChannelBitMask.BitMask(
+            Set(GL.GL_COLOR_BUFFER_BIT, GL.GL_DEPTH_BUFFER_BIT)),
+        Framebuffer.OffScreenConstructor(outputs.toList)
+)
 
   def order(s: Node.Constructor, e: Node.Constructor): Link = Link.Order(s, e)
 }

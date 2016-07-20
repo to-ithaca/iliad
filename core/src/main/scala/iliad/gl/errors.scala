@@ -53,11 +53,11 @@ Please look this value up and label it as an ErrorCode.
 """
 }
 case class ShaderCompileError(log: String) extends GLError {
-  def message: String = s"""Shader failed to compile. Log: 
+  def message: String = s"""Shader failed to compile. Log:
 $log"""
 }
 case class ProgramLinkError(log: String) extends GLError {
-  def message: String = s"""Program failed to compile. Log: 
+  def message: String = s"""Program failed to compile. Log:
 $log"""
 }
 

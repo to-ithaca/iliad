@@ -25,6 +25,7 @@ private final class IsAttribTypeOf[N](a: VertexAttribType)
   val attribType = a
 }
 
+//TODO:This could probably be moved to gfx
 @typeclass
 trait GLAttribute[A] {
   def attribute(name: String): Attribute.Constructor

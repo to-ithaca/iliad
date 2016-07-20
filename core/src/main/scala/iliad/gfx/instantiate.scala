@@ -1,14 +1,48 @@
 package iliad
 package gfx
 
-import iliad.std.list._
-import iliad.gl._
+import iliad.{gl => GL}
+import iliad.implicits._
 
 import cats._
 import cats.data._
 import cats.implicits._
 
 import CatsExtra._
+
+trait InstantiateFunctions {
+
+  def vd(name: String, range: (Int, Int), attributes: Attribute*):
+      GL.Model.VertexRef = {
+    val vb = GL.VertexBuffer.Constructor(attributes.toList.map(_.attribute))
+    val data = GL.VertexData.Ref(name, vb)
+    val (s, e) = range
+    GL.Model.VertexRef(data, GL.DataRange(s, e))
+  }
+
+  def ed(name: String, bufferName: String, range: (Int, Int)): 
+      GL.Model.ElementRef = {
+    val (s, e) = range
+    val data = GL.ElementData.Ref(name, 
+        GL.ElementBuffer.Constructor(bufferName))
+       GL.Model.ElementRef(data, GL.DataRange(s, e))
+  }
+
+  def model(name: String, 
+    constructorName: String, vdata: GL.Model.VertexRef, edata: GL.Model.ElementRef): 
+      Model.Instance = {
+    val m = GL.Model(vdata, edata)
+    Model.Instance(name, Model.Constructor(constructorName), m)
+  }
+
+  def png(name: String, size: Vec2i): Texture.Image = 
+    Texture.Image(name, TextureFormat.rgba, size)
+
+  def drawInstance(model: Model.Instance,
+    cons: Draw.Constructor,
+           uniforms: (String, Texture.Uniform)*): Draw.Instance =
+    Draw.Instance(cons, uniforms.toMap, model, Framebuffer.OnScreen, 1)
+}
 
 private[iliad] object Instantiate {
 

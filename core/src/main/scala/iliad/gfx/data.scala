@@ -225,16 +225,3 @@ object Model {
 
 //TODO: find out what to do with this
 //case class Valve(start: Node.Draw, links: List[Link.Pipe])
-
-abstract class DrawType(val primitive: GL.PrimitiveType)
-object DrawType {
-  case object Triangles extends DrawType(GL.GL_TRIANGLES)
-  case object Points extends DrawType(GL.GL_POINTS)
-}
-
-abstract class Dimension(val capabilities: Set[GL.Capability])
-object Dimension {
-  case object _2D extends Dimension(Set.empty)
-  case object _3D extends Dimension(Set(GL.GL_DEPTH_TEST))
-}
-//we need an example of how to use this
