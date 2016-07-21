@@ -14,8 +14,6 @@ trait ConstructFunctions {
 
   def put(n: Node.Constructor): State[Graph.Constructor, Unit] =
     State.modify(_.addNode(n.lNode))
-  def put(l: Link): State[Graph.Constructor, Unit] =
-    State.modify(_.addEdge(l.lEdge))
 
   def order(ns: (Node.Constructor, Node.Constructor))
     : State[Graph.Constructor, Unit] = {
@@ -104,8 +102,6 @@ trait ConstructFunctions {
           Set(GL.GL_COLOR_BUFFER_BIT, GL.GL_DEPTH_BUFFER_BIT)),
       Framebuffer.OffScreenConstructor(outputs.toList)
   )
-
-  def order(s: Node.Constructor, e: Node.Constructor): Link = Link.Order(s, e)
 }
 
 private[iliad] object Construct {
