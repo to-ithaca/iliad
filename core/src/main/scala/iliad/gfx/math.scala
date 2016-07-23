@@ -10,10 +10,10 @@ import spire.math._
 import spire.algebra._
 import spire.implicits._
 
-case class AxisAngle[A: Trig: Numeric](axis: Vec3[A], θ: A) {
+case class AxisAngle[A: Trig: Ring](axis: Vec3[A], θ: A) {
   def matrix: RotationMatrix[A] = {
-    val one = Numeric[A].one
-    val zero = Numeric[A].zero
+    val one = Ring[A].one
+    val zero = Ring[A].zero
 
     val c0 = Trig[A].cos(θ)
     val c1 = one - c0
@@ -34,7 +34,7 @@ case class AxisAngle[A: Trig: Numeric](axis: Vec3[A], θ: A) {
     matrix.rotate(v)
 }
 
-case class RotationMatrix[A: Numeric](matrix: Mat4[A]) {
+case class RotationMatrix[A: AdditiveMonoid](matrix: Mat4[A]) {
   def rotate(v: Vec3[A])(implicit MV: Mat4VProd[A]): Vec3[A] =
     matrix.times(v.pad(4)).dropUntil(3)
 }

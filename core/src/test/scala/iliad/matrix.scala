@@ -1,13 +1,16 @@
 package iliad
-package kernel
 
-import iliad.kernel.platform.MatrixLibrary
+import iliad.kernel.platform.{MatrixLibrary => MatrixLib}
 
 import breeze.linalg._
 import DenseMatrix._
 import DenseVector._
 
-object X11MatrixLibrary extends MatrixLibrary {
+trait MatrixInstances {
+  implicit val matrixLibrary: MatrixLib = MatrixLibrary
+}
+
+object MatrixLibrary extends MatrixLib {
 
   private def denseMatrix(a: Array[Float]): DenseMatrix[Float] = DenseMatrix(
     (a(0),  a(1),  a(2),  a(3)),

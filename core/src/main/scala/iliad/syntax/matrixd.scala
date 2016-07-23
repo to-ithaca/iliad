@@ -15,5 +15,5 @@ trait MatrixDSyntax extends MatrixContextSyntax {
   type Mat4[A] = MatrixD[nat._4, nat._4, A]
 
   type Mat4Prod[A] = MatrixProduct[nat._4, nat._4, nat._4, A]
-  type Mat4VProd[A] = MatrixProduct[nat._4, nat._4, nat._1, A]
+  type Mat4VProd[A] =  MatrixProduct[nat._4, nat._4, nat._1, A]
 }

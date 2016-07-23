@@ -48,7 +48,8 @@ class VectorDTests extends FunSuite with Discipline {
 
   {
     algebra.InnerProductSpace[VectorD[nat._3, Float], Float]
-    //checkAll("VectorD[nat._3, Double], Double", VectorSpaceLaws[VectorD[nat._3, Rational], Rational].innerProductSpace)
+    //TODO: how do spire's tests work
+    //checkAll("VectorD[nat._3, Rational], Rational", VectorSpaceLaws[VectorD[nat._3, Rational], Rational].innerProductSpace)
   }
 
   {
@@ -83,5 +84,12 @@ class VectorDTests extends FunSuite with Discipline {
     assert(v"1 2 3 4 5".n == 5)
   }
 
+  test("pad pads a matrix to n dimensions") {
+    assert(v"1 2 3".pad(5) === v"1 2 3 0 0")
+  }
+
+  test("dropUntil drops a matrix to n dimensions") {
+    assert(v"1 2 3 4 5".dropUntil(3) === v"1 2 3")
+  }
 }
 

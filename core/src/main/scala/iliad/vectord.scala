@@ -47,17 +47,18 @@ final class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
   def ===[AA <: A](that: VectorD[N, AA])(implicit EA: Eq[A]): Boolean =
     unsized === that.unsized
 
-  def +(that: VectorD[N, A])(implicit NA: Numeric[A]): VectorD[N, A] =
-    map2(that)(NA.plus)
-  def -(that: VectorD[N, A])(implicit NA: Numeric[A]): VectorD[N, A] =
-    map2(that)(_ - _)
-  def *:(a: A)(implicit NA: Numeric[A]): VectorD[N, A] = map(a * _)
-  def ⋅(that: VectorD[N, A])(implicit NA: Numeric[A]): A =
-    map2(that)(_ * _).unsized.foldLeft(NA.zero)(_ + _)
-  def unary_-(implicit NA: Numeric[A]): VectorD[N, A] = map(-_)
+  def +(that: VectorD[N, A])(implicit G: algebra.AdditiveSemigroup[A]): VectorD[N, A] =
+    map2(that)(G.plus)
+  def -(that: VectorD[N, A])(implicit G: algebra.AdditiveGroup[A]): VectorD[N, A] =
+    map2(that)(G.minus)
+  def *:(a: A)(implicit G: algebra.MultiplicativeSemigroup[A]): VectorD[N, A] = 
+    map(a * _)
+  def ⋅(that: VectorD[N, A])(implicit G: algebra.Semiring[A]): A =
+    map2(that)(_ * _).unsized.foldLeft(G.zero)(_ + _)
+  def unary_-(implicit G: algebra.AdditiveGroup[A]): VectorD[N, A] = map(-_)
 
   def cross(that: VectorD[N, A])(implicit ev: N =:= nat._3,
-                                 NA: Numeric[A]): VectorD[nat._3, A] =
+                                 G: algebra.Rng[A]): VectorD[nat._3, A] =
     (unsized, that.unsized) match {
       case (Vector(u1, u2, u3), Vector(v1, v2, v3)) =>
         VectorD.sized(
@@ -65,16 +66,15 @@ final class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
             Vector(u2 * v3 - u3 * v2, u3 * v1 - u1 * v3, u1 * v2 - u2 * v1))
     }
 
-  def pad[D <: Nat](n: Nat)(implicit NA: Numeric[A],
+  def pad[D <: Nat](n: Nat)(implicit G: algebra.AdditiveMonoid[A],
                             DD: Diff.Aux[n.N, N, D],
                             toIntD: ToInt[D],
                             toIntN: ToInt[n.N]): VectorD[n.N, A] =
-    VectorD.sized(n, this.unsized ++ Vector.fill(toIntD())(NA.zero))
+    VectorD.sized(n, this.unsized ++ Vector.fill(toIntD())(G.zero))
 
-  def dropUntil[D <: Nat](n: Nat)(implicit DD: Diff.Aux[N, n.N, D],
-                                  toIntD: ToInt[D],
-                                  toIntN: ToInt[n.N]): VectorD[n.N, A] =
-    VectorD.sized(n, this.unsized.drop(toIntD()))
+  def dropUntil[D <: Nat](n: Nat)(implicit ev: n.N <= N,
+    toIntN: ToInt[n.N]): VectorD[n.N, A] =
+    VectorD.sized(n, this.unsized.take(toIntN()))
 
   def matrix(implicit toInt: ToInt[N]): MatrixD[nat._1, N, A] =
     MatrixD.sized[nat._1, N, A](unsized)
@@ -84,14 +84,20 @@ final class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
 
 object VectorD extends VectorDInstances {
 
-  def zero[N <: Nat, A](implicit NA: Numeric[A],
-                        toInt: ToInt[N]): VectorD[N, A] = fill(NA.zero)
-  def sized[A](i: Nat, unsized: Vector[A])(
-      implicit toInt: ToInt[i.N]): VectorD[i.N, A] =
+  def zero[N <: Nat, A](implicit G: algebra.AdditiveMonoid[A],
+                        toInt: ToInt[N]): VectorD[N, A] = fill(G.zero)
+  def sized[N <: Nat, A](unsized: Vector[A])(
+      implicit toInt: ToInt[N]): VectorD[N, A] =
     if (unsized.length < toInt())
       throw new IllegalArgumentException(
           s"vector $unsized is less than ${toInt()}")
     else new VectorD(unsized)
+
+
+  def sized[A](i: Nat, unsized: Vector[A])(
+      implicit toInt: ToInt[i.N]): VectorD[i.N, A] =
+    sized[i.N, A](unsized)
+
   def fill[A](i: Nat, a: A)(implicit toInt: ToInt[i.N]): VectorD[i.N, A] =
     fill[i.N, A](a)
   def fill[N <: Nat, A](a: A)(implicit toInt: ToInt[N]): VectorD[N, A] =
@@ -133,10 +139,8 @@ private[iliad] trait VectorDInstances1 {
 
   implicit def vectorDIsInnerProductSpace[N <: Nat, A](
       implicit fa: algebra.Field[A],
-      na: Numeric[A],
       toInt: ToInt[N]): algebra.InnerProductSpace[VectorD[N, A], A] =
     new VectorDIsInnerProductSpace[N, A] {
-      val NA = na
       val n = toInt()
       def scalar: algebra.Field[A] = fa
     }
@@ -169,12 +173,10 @@ private[iliad] sealed trait VectorDSemigroup[N <: Nat, A]
 private[iliad] sealed trait VectorDIsInnerProductSpace[N <: Nat, A]
     extends algebra.InnerProductSpace[VectorD[N, A], A] {
 
-  /** Numeric[A] should always be consistent with [[spire.algebra.Field[A]]]*/
-  implicit val NA: Numeric[A]
   def n: Int
   def dot(x: VectorD[N, A], y: VectorD[N, A]): A = x ⋅ y
   def timesl(l: A, x: VectorD[N, A]): VectorD[N, A] = l *: x
   def negate(v: VectorD[N, A]): VectorD[N, A] = -v
-  def zero: VectorD[N, A] = new VectorD(Vector.fill(n)(NA.zero))
+  def zero: VectorD[N, A] = new VectorD(Vector.fill(n)(scalar.zero))
   def plus(x: VectorD[N, A], y: VectorD[N, A]): VectorD[N, A] = x + y
 }

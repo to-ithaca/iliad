@@ -36,6 +36,9 @@ trait AnimationFunctions {
   def animation[A](name: String, value: A)(
       implicit G: GL.GLUniform[A]): AnimationF =
     AnimationF.Constant(name, G.uniform(name, value))
+
+  def animation[A](name: String, f: Long => A)(implicit G: GL.GLUniform[A]): 
+      AnimationF = AnimationF.TimeF(name, f.andThen(v => G.uniform(name, v)))
 }
 
 object UniformCache {

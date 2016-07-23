@@ -64,7 +64,8 @@ lazy val testSettings = Seq(
     "org.spire-math" %% "spire-laws" % "0.11.0" % "test",
     "org.scalatest" %% "scalatest" % "3.0.0-M7" % "test",
     "org.scalacheck" %% "scalacheck" % "1.12.1" % "test",
-    "org.typelevel" %% "discipline" % "0.4" % "test"
+    "org.typelevel" %% "discipline" % "0.4" % "test",
+    "org.scalanlp" %% "breeze" % "0.12" % "test"
   )
 )
 
@@ -113,7 +114,8 @@ lazy val androidSettings = Seq(
 lazy val desktopSettings = Seq(
   libraryDependencies ++= Seq(
     "net.java.dev.jna" % "jna-platform" % jnaVersion,
-    "ch.qos.logback" % "logback-classic" % "1.1.3"
+    "ch.qos.logback" % "logback-classic" % "1.1.3",
+     "org.scalanlp" %% "breeze" % "0.12"
   )
 )
 

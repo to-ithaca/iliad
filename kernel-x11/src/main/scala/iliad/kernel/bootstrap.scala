@@ -30,6 +30,8 @@ trait X11GLDependencies extends GLDependencies with IliadApp {
 
   val EGL14 = iliad.kernel.EGL14
   val GLES30 = iliad.kernel.GLES30
+
+  val MatrixLib = X11MatrixLibrary
 }
 
 trait X11Bootstrap
@@ -51,12 +53,12 @@ trait X11Bootstrap
   private def vsync(s: Signal[Task, Long]): Unit = {
     (for {
       t <- s.get
-      _ <- s.set(t + 5L).schedule(1 second)
+      _ <- s.set(System.currentTimeMillis).schedule(0.05 seconds)
     } yield vsync(s)).unsafeRunAsync(msg => logger.info(msg.toString))
   }
 
   def vsync: Stream[Task, Long] =
-    Stream.eval(async.signalOf[Task, Long](0L)).flatMap { s =>
+    Stream.eval(async.signalOf[Task, Long](System.currentTimeMillis)).flatMap { s =>
       vsync(s)
       s.discrete
     }

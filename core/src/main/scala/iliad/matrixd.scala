@@ -9,6 +9,8 @@ import spire.implicits._
 
 import scala.reflect._
 
+import cats.implicits._
+
 /** A MatrixD[N,M] has width N and height M
   *
   * e.g. a MatrixD[_3,_2] would have the form [ x x x
@@ -51,19 +53,23 @@ final class MatrixD[W <: Nat, H <: Nat, A] private[iliad] (_unsized: Vector[A],
     : MatrixD[W, H, A] = S.times(this, m)
 
   def times(v: VectorD[W, A])(implicit S: MatrixProduct[W, H, nat._1, A],
-                              toIntW: ToInt[W]): VectorD[H, A] =
+                              toIntW: ToInt[W], toIntH: ToInt[H]): VectorD[H, A] =
     S.times(this, v.matrix).vector
+
+  def ===[AA <: A](that: MatrixD[W, H, AA])(implicit EA: cats.Eq[A]): Boolean =
+    unsized === that.unsized
 
   def toArray(implicit ct: ClassTag[A]): Array[A] = unsized.toArray
 
-  def vector(implicit ev: W =:= nat._1): VectorD[H, A] = ???
+  def vector(implicit ev: W =:= nat._1, toInt: ToInt[H]): VectorD[H, A] = 
+    VectorD.sized[H, A](unsized)
 
   override def toString: String = {
-    val as = (0 until height).map(row =>
-          (0 until width).map(col => unsized(col * height + row)))
+    val text = unsized.sliding(width, width)
+      .map(row => row.mkString(" | ")).mkString("\n")
 
-    val text = as.map(_.mkString(" ")).mkString("|")
-    s"MatrixDim: $text"
+    s"""MatrixD:
+$text"""
   }
 }
 
@@ -99,13 +105,45 @@ object MatrixD {
 
   lazy val id4f = identity[nat._4, Float]
 
-  implicit def matrix4MultiplicativeSemigroup[A: Numeric](implicit 
+  implicit def matrix4MultiplicativeSemigroup[A: ConvertableTo: ConvertableFrom](implicit 
       Lib: kernel.platform.MatrixLibrary)
     : MultiplicativeSemigroup[MatrixD[nat._4, nat._4, A]] =
     new Matrix4MultiplicativeSemigroup[A] {
       def L = Lib
-      def NA = Numeric[A]
+      def T = ConvertableTo[A]
+      def F = ConvertableFrom[A]
     }
+}
+
+private [iliad] sealed trait MatrixDEq[W <: Nat, H <: Nat, A] extends cats.Eq[MatrixD[W, H, A]] {
+  implicit val EA: cats.Eq[A]
+  def eqv(x: MatrixD[W, H, A], y: MatrixD[W, H, A]): Boolean = x === y
+}
+
+
+private trait Matrix4MultiplicativeSemigroup[A]
+    extends MultiplicativeSemigroup[MatrixD[nat._4, nat._4, A]] {
+
+  def L: kernel.platform.MatrixLibrary
+  def T: ConvertableTo[A]
+  def F: ConvertableFrom[A]
+
+  def times(m0: MatrixD[nat._4, nat._4, A],
+            m1: MatrixD[nat._4, nat._4, A]): MatrixD[nat._4, nat._4, A] =
+    new MatrixD(
+        L.multiplyMM(m0.map(F.toFloat).toArray, 
+          m1.map(F.toFloat).toArray)
+          .toVector
+          .map(T.fromFloat),
+        m0.width,
+        m0.height)
+}
+
+trait MatrixProduct[W <: Nat, H0 <: Nat, W1 <: Nat, A] {
+  def times(m0: MatrixD[W, H0, A], m1: MatrixD[W1, W, A]): MatrixD[W1, H0, A]
+}
+
+object MatrixProduct {
 
   implicit def squareProduct[N <: Nat, A](
       implicit SS: MultiplicativeSemigroup[MatrixD[N, N, A]]): 
@@ -114,32 +152,13 @@ object MatrixD {
       def S = SS
     }
 
-  implicit def mat4VProduct[A: Numeric](implicit Lib: kernel.platform.MatrixLibrary): 
+  implicit def mat4VProduct[A: ConvertableTo: ConvertableFrom](implicit Lib: kernel.platform.MatrixLibrary): 
       MatrixProduct[nat._4, nat._4, nat._1, A] = new Mat4x4Mat1x4Product[A] {
     def L = Lib
-    def NA = Numeric[A]
+    def T = ConvertableTo[A]
+    def F = ConvertableFrom[A]
   }
-}
 
-private trait Matrix4MultiplicativeSemigroup[A]
-    extends MultiplicativeSemigroup[MatrixD[nat._4, nat._4, A]] {
-
-  def L: kernel.platform.MatrixLibrary
-  def NA: Numeric[A]
-
-  def times(m0: MatrixD[nat._4, nat._4, A],
-            m1: MatrixD[nat._4, nat._4, A]): MatrixD[nat._4, nat._4, A] =
-    new MatrixD(
-        L.multiplyMM(m0.map(NA.toFloat).toArray, 
-          m1.map(NA.toFloat).toArray)
-          .toVector
-          .map(NA.fromFloat),
-        m0.width,
-        m0.height)
-}
-
-trait MatrixProduct[W <: Nat, H0 <: Nat, W1 <: Nat, A] {
-  def times(m0: MatrixD[W, H0, A], m1: MatrixD[W1, W, A]): MatrixD[W1, H0, A]
 }
 
 private trait SquareMatrixProduct[N <: Nat, A] extends MatrixProduct[N, N, N, A] {
@@ -152,14 +171,15 @@ private trait SquareMatrixProduct[N <: Nat, A] extends MatrixProduct[N, N, N, A]
 
 private trait Mat4x4Mat1x4Product[A] extends MatrixProduct[nat._4, nat._4, nat._1, A] {
   def L: kernel.platform.MatrixLibrary
-  def NA: Numeric[A]
+  def T: ConvertableTo[A]
+  def F: ConvertableFrom[A]
 
   def times(m0: MatrixD[nat._4, nat._4, A],
             m1: MatrixD[nat._1, nat._4, A]): MatrixD[nat._1, nat._4, A] =
     MatrixD.sized(
         nat._1,
         nat._4,
-        L.multiplyMV(m0.map(NA.toFloat).toArray, m1.map(NA.toFloat).toArray)
+        L.multiplyMV(m0.map(F.toFloat).toArray, m1.map(F.toFloat).toArray)
           .toVector
-          .map(NA.fromFloat))
+          .map(T.fromFloat))
 }
