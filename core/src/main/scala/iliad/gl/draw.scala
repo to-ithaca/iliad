@@ -22,6 +22,8 @@ object Draw {
            t: Texture.Loaded,
            s: Sampler.Loaded): DSL[Unit] =
     BindTextureUniform(unit, location, t, s).free
+  def bind(uniform: Uniform.Loaded, value: Uniform.Value): DSL[Unit] =
+    BindUniform(uniform, value).free
   def bind(v: VertexBuffer.Loaded): DSL[Unit] = BindVertexBuffer(v).free
   def bind(e: ElementBuffer.Loaded): DSL[Unit] = BindElementBuffer(e).free
   def enable(as: Attribute.LoadedAttributes, baseOffset: Int): DSL[Unit] =
@@ -39,6 +41,7 @@ case class BindTextureUniform(unit: TextureUnit,
                               t: Texture.Loaded,
                               s: Sampler.Loaded)
     extends Draw[Unit]
+case class BindUniform(u: Uniform.Loaded, v: Uniform.Value) extends Draw[Unit]
 case class BindVertexBuffer(v: VertexBuffer.Loaded) extends Draw[Unit]
 case class BindElementBuffer(e: ElementBuffer.Loaded) extends Draw[Unit]
 case class EnableAttributes(as: Attribute.LoadedAttributes, baseOffset: Int)
@@ -63,6 +66,8 @@ object DrawParser extends (Draw ~> OpenGL.DSL) {
     case UseProgram(p) => OpenGL.useProgram(p.id)
     case BindTextureUniform(unit, location, t, s) =>
       OpenGL.bindTextureUniform(unit, location, t.frontId, s.id)
+    case BindUniform(uniform, value) =>
+      value.bind(uniform.location)
     case BindVertexBuffer(v) => OpenGL.bindVertexBuffer(v.id)
     case BindElementBuffer(e) => OpenGL.bindElementBuffer(e.id)
     case EnableAttributes(as, baseOffset) =>

@@ -10,14 +10,20 @@ import cats.implicits._
 import shapeless._
 import shapeless.ops.nat._
 
+import scala.reflect._
+
 //TODO: Really think we should parameterize this?
 final class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
 
   import LTEq._
+  import LT._
 
   private def unsized = _unsized
 
-  def apply(i: Nat)(implicit ev: i.N <= N, toInt: ToInt[i.N]): A =
+  private[iliad] def toArray(implicit Ct: ClassTag[A]): Array[A] =
+    unsized.toArray
+
+  def apply(i: Nat)(implicit ev: i.N < N, toInt: ToInt[i.N]): A =
     unsized(toInt())
 
   def map[B](f: A => B): VectorD[N, B] = new VectorD(unsized map f)
@@ -49,6 +55,29 @@ final class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
   def ⋅(that: VectorD[N, A])(implicit NA: Numeric[A]): A =
     map2(that)(_ * _).unsized.foldLeft(NA.zero)(_ + _)
   def unary_-(implicit NA: Numeric[A]): VectorD[N, A] = map(-_)
+
+  def cross(that: VectorD[N, A])(implicit ev: N =:= nat._3,
+                                 NA: Numeric[A]): VectorD[nat._3, A] =
+    (unsized, that.unsized) match {
+      case (Vector(u1, u2, u3), Vector(v1, v2, v3)) =>
+        VectorD.sized(
+            3,
+            Vector(u2 * v3 - u3 * v2, u3 * v1 - u1 * v3, u1 * v2 - u2 * v1))
+    }
+
+  def pad[D <: Nat](n: Nat)(implicit NA: Numeric[A],
+                            DD: Diff.Aux[n.N, N, D],
+                            toIntD: ToInt[D],
+                            toIntN: ToInt[n.N]): VectorD[n.N, A] =
+    VectorD.sized(n, this.unsized ++ Vector.fill(toIntD())(NA.zero))
+
+  def dropUntil[D <: Nat](n: Nat)(implicit DD: Diff.Aux[N, n.N, D],
+                                  toIntD: ToInt[D],
+                                  toIntN: ToInt[n.N]): VectorD[n.N, A] =
+    VectorD.sized(n, this.unsized.drop(toIntD()))
+
+  def matrix(implicit toInt: ToInt[N]): MatrixD[nat._1, N, A] =
+    MatrixD.sized[nat._1, N, A](unsized)
 
   override def toString: String = unsized.toString
 }

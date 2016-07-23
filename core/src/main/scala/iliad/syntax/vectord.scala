@@ -16,4 +16,7 @@ trait VectorDSyntax extends VectorContextSyntax {
   type Vec2f = VectorD[nat._2, Float]
   type Vec3f = VectorD[nat._3, Float]
   type Vec4f = VectorD[nat._4, Float]
+  type Vec2[A] = VectorD[nat._2, A]
+  type Vec3[A] = VectorD[nat._3, A]
+  type Vec4[A] = VectorD[nat._4, A]
 }

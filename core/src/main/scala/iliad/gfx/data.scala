@@ -44,7 +44,7 @@ object Graph {
       copy(graph = next)
     }
 
-    private[gfx] def nodes(us: Map[Draw.Instance, List[GL.Uniform]])
+    private[gfx] def nodes(us: Map[Draw.Instance, List[GL.Uniform.Value]])
       : Reader[GraphTraversal, UnsetUniformError Xor Vector[Node.Drawable]] =
       Reader[GraphTraversal, UnsetUniformError Xor Vector[Node.Drawable]](
           _.apply(graph).traverse {
@@ -112,7 +112,7 @@ object Draw {
 
   case class Drawable(
       instance: Instance,
-      uniforms: List[GL.Uniform]
+      uniforms: List[GL.Uniform.Value]
   ) extends Node.Drawable
 }
 

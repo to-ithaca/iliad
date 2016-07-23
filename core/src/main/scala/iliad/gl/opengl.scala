@@ -6,6 +6,7 @@ import iliad.kernel.platform.GLES30Library
 import iliad.std.int._
 import iliad.std.list._
 import iliad.syntax.vectord._
+import iliad.syntax.matrixd._
 
 import cats._
 import cats.data._
@@ -185,9 +186,7 @@ object OpenGL {
                     data,
                     capacity)
 
-  private def textureData(t: Texture.Constructor,
-                          data: Option[Texture.Data],
-                          id: Int): DSL[Unit] =
+  private def emptyTextureData(t: Texture.Constructor, id: Int): DSL[Unit] =
     for {
       _ <- GLBindTexture(id).free
       _ <- GLTexImage2D(t.format.internal,
@@ -195,18 +194,63 @@ object OpenGL {
                         t.viewport.y,
                         t.format.pixel,
                         t.format.pixelType,
-                        data.map(_.data).getOrElse(null)).free
+                        null).free
     } yield ()
 
+  private def singleTextureData(t: Texture.Constructor,
+                                id: Int,
+                                data: Buffer): DSL[Unit] =
+    for {
+      _ <- GLBindTexture(id).free
+      _ <- GLTexImage2D(t.format.internal,
+                        t.viewport.x,
+                        t.viewport.y,
+                        t.format.pixel,
+                        t.format.pixelType,
+                        data).free
+    } yield ()
+
+  private def textureData(t: Texture.Constructor,
+                          id: Int,
+                          rect: Rect[Int],
+                          data: Buffer): DSL[Unit] =
+    for {
+      _ <- GLTexSubImage2D(rect.bottomLeft.x,
+                           rect.bottomLeft.y,
+                           rect.width,
+                           rect.height,
+                           t.format.pixel,
+                           t.format.pixelType,
+                           data).free
+    } yield ()
+
+  private def textureData(t: Texture.Constructor,
+                          id: Int,
+                          data: Texture.GroupData): DSL[Unit] =
+    for {
+      _ <- emptyTextureData(t, id)
+      _ <- data.subData.toList.traverseUnit {
+            case (rect, d) => textureData(t, id, rect, d.data)
+          }
+    } yield ()
+
+  private def textureData(t: Texture.Constructor,
+                          data: Texture.Data,
+                          id: Int): DSL[Unit] = data match {
+    case Texture.Empty => emptyTextureData(t, id)
+    case Texture.SingleData(d, _) => singleTextureData(t, id, d)
+    case g: Texture.GroupData => textureData(t, id, g)
+  }
+
   def makeSingleTexture(t: Texture.SingleConstructor,
-                        data: Option[Texture.Data]): DSL[Int] =
+                        data: Texture.Data): DSL[Int] =
     for {
       id <- GLGenTextures(1).free
       _ <- textureData(t, data, id.head)
     } yield id.head
 
   def makeBufferedTexture(t: Texture.DoubleConstructor,
-                          data: Option[Texture.Data]): DSL[(Int, Int)] =
+                          data: Texture.Data): DSL[(Int, Int)] =
     for {
       ids <- GLGenTextures(2).free
       front = ids.head
@@ -329,6 +373,15 @@ object OpenGL {
   def bindUniform4f(location: Int, value: Vec4f): DSL[Unit] =
     GLUniform4f(location, value).free
 
+  def bindUniformMatrix2f(location: Int, value: Mat2f): DSL[Unit] =
+    GLUniformMatrix2f(location, value).free
+
+  def bindUniformMatrix3f(location: Int, value: Mat3f): DSL[Unit] =
+    GLUniformMatrix3f(location, value).free
+
+  def bindUniformMatrix4f(location: Int, value: Mat4f): DSL[Unit] =
+    GLUniformMatrix4f(location, value).free
+
   def bindTextureUniform(unit: TextureUnit,
                          location: Int,
                          texture: Int,
@@ -398,6 +451,14 @@ case class GLTexImage2D(internalFormat: TextureInternalFormat,
                         pixelType: TexturePixelType,
                         data: Buffer)
     extends OpenGL[Unit]
+case class GLTexSubImage2D(xOffset: Int,
+                           yOffset: Int,
+                           width: Int,
+                           height: Int,
+                           format: TextureFormat,
+                           pixelType: TexturePixelType,
+                           data: Buffer)
+    extends OpenGL[Unit]
 
 case class GLGenRenderbuffers(number: Int) extends OpenGL[Set[Int]]
 case class GLBindRenderbuffer(renderbuffer: Int) extends OpenGL[Unit]
@@ -449,6 +510,10 @@ case class GLUniform3i(location: Int, value: Vec3i) extends OpenGL[Unit]
 case class GLUniform3f(location: Int, value: Vec3f) extends OpenGL[Unit]
 case class GLUniform4i(location: Int, value: Vec4i) extends OpenGL[Unit]
 case class GLUniform4f(location: Int, value: Vec4f) extends OpenGL[Unit]
+
+case class GLUniformMatrix2f(location: Int, value: Mat2f) extends OpenGL[Unit]
+case class GLUniformMatrix3f(location: Int, value: Mat3f) extends OpenGL[Unit]
+case class GLUniformMatrix4f(location: Int, value: Mat4f) extends OpenGL[Unit]
 
 case class GLDrawElements(mode: PrimitiveType,
                           count: Int,

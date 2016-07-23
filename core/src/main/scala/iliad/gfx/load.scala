@@ -39,7 +39,7 @@ private case class PutVertices(r: VertexData.Ref, d: VertexData.Data)
     extends Load
 private case class PutElements(r: ElementData.Ref, d: ElementData.Data)
     extends Load
-private case class PutTexture(t: Texture.Instance, d: Option[gl.Texture.Data])
+private case class PutTexture(t: Texture.Instance, d: gl.Texture.Data)
     extends Load
 private case class PutRenderbuffer(r: Renderbuffer.Instance) extends Load
 private case class PutFramebuffer(f: Framebuffer.Instance) extends Load
@@ -61,8 +61,7 @@ trait LoadFunctions {
   def load(r: ElementData.Ref, d: ElementData.Data): Graphics.Graphics =
     lift(PutElements(r, d))
 
-  def load(t: Texture.Instance,
-           d: Option[gl.Texture.Data]): Graphics.Graphics =
+  def load(t: Texture.Instance, d: gl.Texture.Data): Graphics.Graphics =
     lift(PutTexture(t, d))
 
   def load(r: Renderbuffer.Instance): Graphics.Graphics =

@@ -135,8 +135,7 @@ object GL {
         } yield ()
     }
 
-  def load(t: Texture.Constructor,
-           d: Option[Texture.Data]): DSL[Texture.Loaded] =
+  def load(t: Texture.Constructor, d: Texture.Data): DSL[Texture.Loaded] =
     getOrElse(Cache.get(t).freekF[GL])(for {
       tl <- Load(t, d).freekF[GL]
       _ <- Cache.put(tl).freekF[GL]
@@ -231,8 +230,15 @@ object GL {
       ts: Map[String, Texture.Constructor]): DSL[GLError Xor Unit] = {
     p.textureUniforms(ts)
       .traverse(_.traverse(set).map(_.sequenceUnit))
-      .map(_.leftWiden[GLError].flatMap(identity))
+      .map(_.flatMap(identity))
   }
+
+  private def set(u: Program.UniformValue): DSL[Unit] =
+    Draw.bind(u.uniform, u.value).freekF[GL]
+
+  private def set(p: Program.Linked,
+                  us: List[Uniform.Value]): DSL[UnsetUniformError Xor Unit] =
+    p.uniforms(us).traverse(_.traverseUnit(set))
 
   private def set(vb: VertexBuffer.Loaded): DSL[Unit] =
     ensure(Current.contains(vb))(
@@ -258,7 +264,8 @@ object GL {
       p <- ensure(Cache.get(draw.program), ProgramNotLoadedError(draw.program))
             .leftWiden[GLError]
       _ <- xort(set(p))
-      _ <- XorT(set(p, draw.textureUniforms)).leftWiden[GLError]
+      _ <- XorT(set(p, draw.textureUniforms))
+      _ <- XorT(set(p, draw.uniforms)).leftWiden[GLError]
       vb <- ensure(Cache.get(draw.vertexBuffer),
                    VertexBufferNotLoadedError(draw.vertexBuffer))
              .leftWiden[GLError]

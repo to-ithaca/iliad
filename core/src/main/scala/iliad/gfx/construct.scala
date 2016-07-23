@@ -34,13 +34,15 @@ trait ConstructFunctions {
     val ps = params.toList
     val as = ps.filterClass[Attribute].map(_.attribute)
     val ts = ps.filterClass[Sampler].map(s => (s.name, s.constructor))
-    GL.VertexShader.Source(source, as, ts)
+    val us = ps.filterClass[Uniform].map(_.uniform)
+    GL.VertexShader.Source(source, as, ts, us)
   }
 
   def fsh(source: String, params: FshParameter*): GL.FragmentShader.Source = {
-    val ts =
-      params.toList.filterClass[Sampler].map(s => (s.name, s.constructor))
-    GL.FragmentShader.Source(source, ts)
+    val ps = params.toList
+    val ts = ps.filterClass[Sampler].map(s => (s.name, s.constructor))
+    val us = ps.filterClass[Uniform].map(_.uniform)
+    GL.FragmentShader.Source(source, ts, us)
   }
 
   def draw(name: String,

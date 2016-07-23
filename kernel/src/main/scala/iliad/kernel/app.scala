@@ -23,7 +23,11 @@ trait ScreenDependencies {
   def vsync: fs2.Stream[Task, Long]
 }
 
-trait GLDependencies extends ScreenDependencies {
+trait MatrixDependencies {
+  implicit def MatrixLib: platform.MatrixLibrary
+}
+
+trait GLDependencies extends ScreenDependencies with MatrixDependencies {
 
   type EGLDisplay
   type EGLSurface

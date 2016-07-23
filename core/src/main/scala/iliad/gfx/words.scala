@@ -24,6 +24,14 @@ object Attribute {
     Attribute(GL.GLAttribute[A].attribute(name))
 }
 
+case class Uniform(uniform: GL.Uniform.Constructor)
+    extends VshParameter
+    with FshParameter
+object Uniform {
+  def apply[A](name: String)(implicit G: GL.GLUniform[A]): Uniform =
+    Uniform(GL.Uniform.Constructor(name))
+}
+
 case class Sampler(name: String, constructor: GL.Sampler.Constructor)
     extends VshParameter
     with FshParameter

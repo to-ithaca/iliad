@@ -3,12 +3,18 @@ package iliad
 import shapeless._
 import shapeless.ops.nat._
 
+import spire.math._
+import spire.algebra._
+import spire.implicits._
+
 import scala.reflect._
 
 /** A MatrixD[N,M] has width N and height M
   *
   * e.g. a MatrixD[_3,_2] would have the form [ x x x
-  *                                             x x x ] */
+  *                                             x x x ] 
+  *  Matrices are stored in row-major order
+  */
 final class MatrixD[W <: Nat, H <: Nat, A] private[iliad] (_unsized: Vector[A],
                                                            val width: Int,
                                                            val height: Int) {
@@ -40,8 +46,17 @@ final class MatrixD[W <: Nat, H <: Nat, A] private[iliad] (_unsized: Vector[A],
     map(x => NA.minus(NA.zero, x))
   def timesl(a: A)(implicit NA: Numeric[A]): MatrixD[W, H, A] =
     map(x => NA.times(x, a))
+  def times(m: MatrixD[W, H, A])(
+      implicit S: MultiplicativeSemigroup[MatrixD[W, H, A]])
+    : MatrixD[W, H, A] = S.times(this, m)
+
+  def times(v: VectorD[W, A])(implicit S: MatrixProduct[W, H, nat._1, A],
+                              toIntW: ToInt[W]): VectorD[H, A] =
+    S.times(this, v.matrix).vector
 
   def toArray(implicit ct: ClassTag[A]): Array[A] = unsized.toArray
+
+  def vector(implicit ev: W =:= nat._1): VectorD[H, A] = ???
 
   override def toString: String = {
     val as = (0 until height).map(row =>
@@ -69,5 +84,82 @@ object MatrixD {
     new MatrixD(id, toInt(), toInt())
   }
 
+  def sized[W <: Nat, H <: Nat, A](unsized: Vector[A])(
+      implicit toIntW: ToInt[W],
+      toIntH: ToInt[H]): MatrixD[W, H, A] =
+    if (unsized.length != toIntW() * toIntH())
+      throw new IllegalArgumentException(
+          s"matrix $unsized does not have dimensions ${toIntW()} ${toIntH()}")
+    else new MatrixD(unsized, toIntW(), toIntH())
+
+  def sized[A](w: Nat, h: Nat, unsized: Vector[A])(
+      implicit toIntW: ToInt[w.N],
+      toIntH: ToInt[h.N]): MatrixD[w.N, h.N, A] =
+    sized[w.N, h.N, A](unsized)
+
   lazy val id4f = identity[nat._4, Float]
+
+  implicit def matrix4MultiplicativeSemigroup[A: Numeric](implicit 
+      Lib: kernel.platform.MatrixLibrary)
+    : MultiplicativeSemigroup[MatrixD[nat._4, nat._4, A]] =
+    new Matrix4MultiplicativeSemigroup[A] {
+      def L = Lib
+      def NA = Numeric[A]
+    }
+
+  implicit def squareProduct[N <: Nat, A](
+      implicit SS: MultiplicativeSemigroup[MatrixD[N, N, A]]): 
+      MatrixProduct[N, N, N, A] =
+    new SquareMatrixProduct[N, A] {
+      def S = SS
+    }
+
+  implicit def mat4VProduct[A: Numeric](implicit Lib: kernel.platform.MatrixLibrary): 
+      MatrixProduct[nat._4, nat._4, nat._1, A] = new Mat4x4Mat1x4Product[A] {
+    def L = Lib
+    def NA = Numeric[A]
+  }
+}
+
+private trait Matrix4MultiplicativeSemigroup[A]
+    extends MultiplicativeSemigroup[MatrixD[nat._4, nat._4, A]] {
+
+  def L: kernel.platform.MatrixLibrary
+  def NA: Numeric[A]
+
+  def times(m0: MatrixD[nat._4, nat._4, A],
+            m1: MatrixD[nat._4, nat._4, A]): MatrixD[nat._4, nat._4, A] =
+    new MatrixD(
+        L.multiplyMM(m0.map(NA.toFloat).toArray, 
+          m1.map(NA.toFloat).toArray)
+          .toVector
+          .map(NA.fromFloat),
+        m0.width,
+        m0.height)
+}
+
+trait MatrixProduct[W <: Nat, H0 <: Nat, W1 <: Nat, A] {
+  def times(m0: MatrixD[W, H0, A], m1: MatrixD[W1, W, A]): MatrixD[W1, H0, A]
+}
+
+private trait SquareMatrixProduct[N <: Nat, A] extends MatrixProduct[N, N, N, A] {
+
+  def S: MultiplicativeSemigroup[MatrixD[N, N, A]]
+
+  def times(m0: MatrixD[N, N, A], m1: MatrixD[N, N, A]): MatrixD[N, N, A] =
+    S.times(m0, m1)
+}
+
+private trait Mat4x4Mat1x4Product[A] extends MatrixProduct[nat._4, nat._4, nat._1, A] {
+  def L: kernel.platform.MatrixLibrary
+  def NA: Numeric[A]
+
+  def times(m0: MatrixD[nat._4, nat._4, A],
+            m1: MatrixD[nat._1, nat._4, A]): MatrixD[nat._1, nat._4, A] =
+    MatrixD.sized(
+        nat._1,
+        nat._4,
+        L.multiplyMV(m0.map(NA.toFloat).toArray, m1.map(NA.toFloat).toArray)
+          .toVector
+          .map(NA.fromFloat))
 }
