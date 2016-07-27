@@ -45,7 +45,7 @@ object Graphics {
   private def liftUniformCache(fa: UniformCache.Effect): PRG =
     KleisliExtra.lift(
         fa.applyLens(_uniformCache)
-          .transformF(a => a.value.right[NonEmptyList[GraphicsError]])
+          .transformF(a => a.leftMap(e => NonEmptyList(e, Nil)))
           .map(_ => XorT.pure(())))
 
   private def transform(g: Graphics): PRG = g match {

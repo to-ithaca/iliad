@@ -236,7 +236,6 @@ object Model {
 
 object Texture {
 
-  //TODO: data may have several sub parts, each with 
   sealed trait Data
   case object Empty extends Data
   case class SingleData(data: Buffer, size: Int) extends Data

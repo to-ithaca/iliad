@@ -34,4 +34,7 @@ object MatrixLibrary extends MatrixLib {
     array(denseMatrix(m0) * denseMatrix(m1))
   def multiplyMV(m: Array[Float],v: Array[Float]): Array[Float] = 
     array(denseMatrix(m) * denseVector(v))
+
+  def invertM(m: Array[Float]): Array[Float] =
+    array(inv[DenseMatrix[Float], DenseMatrix[Float]](denseMatrix(m)))
 }

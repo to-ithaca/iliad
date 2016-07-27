@@ -53,14 +53,17 @@ trait X11Bootstrap
   private def vsync(s: Signal[Task, Long]): Unit = {
     (for {
       t <- s.get
-      _ <- s.set(System.currentTimeMillis).schedule(0.05 seconds)
+      _ <- {
+        s.set(System.currentTimeMillis).schedule(0.01666 seconds)
+      }
     } yield vsync(s)).unsafeRunAsync(msg => logger.info(msg.toString))
   }
 
   def vsync: Stream[Task, Long] =
-    Stream.eval(async.signalOf[Task, Long](System.currentTimeMillis)).flatMap { s =>
-      vsync(s)
-      s.discrete
+    Stream.eval(async.signalOf[Task, Long](System.currentTimeMillis)).flatMap {
+      s =>
+        vsync(s)
+        s.discrete
     }
 
   private def initThreads(): Error Xor Unit = {
@@ -116,7 +119,8 @@ trait X11Bootstrap
     }
   }
 
-  private val inputMask = new NativeLong(ExposureMask | ButtonPressMask)
+  private val inputMask = new NativeLong(
+      ExposureMask | ButtonPressMask | ButtonReleaseMask | Button1MotionMask | LeaveWindowMask)
 
   private def addInputDetection(d: Display, w: Window): Unit = {
     logger.debug("Adding input detection")
@@ -168,6 +172,8 @@ trait X11Bootstrap
 
         var shouldDraw = true
         while (shouldDraw) {
+          //only handleEvents every 70ms so EGL can have display
+          Thread.sleep(70)
           x.XLockDisplay(d)
           handleEvents(d)
           shouldDraw = !shouldClose(d)

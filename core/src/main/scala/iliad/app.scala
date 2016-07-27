@@ -163,8 +163,13 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
 
   val UniformS = Strategy.fromFixedDaemonPool(8, "uniform-cache")
 
-  private def run(at: Long, us: UniformCache.State): UniformCache.Values = {
-    us.map(UniformCache.values(at))
+  private def run(
+      at: Long,
+      us: UniformCache.State): (UniformCache.State, UniformCache.Values) = {
+    val r = us.map(UniformCache.values(at))
+    val nextS = r.mapValues { case (_, st) => st }
+    val vs = r.mapValues { case (vs, _) => vs }
+    (nextS, vs)
   }
 
   val GLPipe: Pipe[Task, List[Graphics.Graphics], Unit] = graphics =>
@@ -183,11 +188,14 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
                 q <- run(cfg, gs)(prevGr)
                 (nextGr, loadCmds) = q
                 midGl <- run(loadCmds.leftWiden[IliadError].value, prevGl)
-                nextGl <- run(cfg, midGl, run(at, nextGr.uniformCache), nextGr)
-              } yield (nextGr, nextGl)
+                (nextUc, us) = run(at, nextGr.uniformCache)
+                nextGl <- run(cfg, midGl, us, nextGr)
+              } yield (nextGr.copy(uniformCache = nextUc), nextGl)
               (xor, xor.task)
             }
             .eval
-      _ <- Stream.eval(swapBuffers(nd, d, sfc))
+            .flatMap { _ =>
+              Stream.eval(swapBuffers(nd, d, sfc))
+            }
     } yield ()
 }

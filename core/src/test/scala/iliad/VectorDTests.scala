@@ -84,8 +84,12 @@ class VectorDTests extends FunSuite with Discipline {
     assert(v"1 2 3 4 5".n == 5)
   }
 
-  test("pad pads a matrix to n dimensions") {
-    assert(v"1 2 3".pad(5) === v"1 2 3 0 0")
+  test("padZero pads a matrix with 0 to n dimensions") {
+    assert(v"1 2 3".padZero(5) === v"1 2 3 0 0")
+  }
+
+  test("padOne pads a matrix with 1 to n dimensions") {
+    assert(v"1 2 3".padOne(5) === v"1 2 3 1 1")
   }
 
   test("dropUntil drops a matrix to n dimensions") {

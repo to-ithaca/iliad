@@ -11,18 +11,14 @@ trait EventStream extends EventHandler {
   private implicit val S: Strategy = Strategy.fromFixedDaemonPool(8, "worker")
 
   private def baseStream[A](register: (A => Unit) => Unit)(
-      implicit R: Async.Run[Task]): Stream[Task, A] = {
-    for {
-      q <- Stream.eval(async.unboundedQueue[Task, A])
-      _ <- Stream.suspend {
-            register { (a: A) =>
-              R.unsafeRunAsyncEffects(q.enqueue1(a))(_ => ())
-            }
-            Stream.emit(())
-          }
-      a <- q.dequeue
-    } yield a
-  }
+      implicit R: Async.Run[Task]): Stream[Task, A] =
+    Stream.eval(async.unboundedQueue[Task, A]).flatMap { q =>
+      register { (a: A) =>
+        println(s"REGISTERING EVENT $a")
+        q.enqueue1(a).unsafeRunAsync(msg => println(s"RAN REGISTRATION $msg"))
+      }
+      q.dequeue
+    }
 
-  def eventStream: Stream[Task, InputEvent] = baseStream(onTap)
+  def eventStream: Stream[Task, InputEvent] = baseStream(onEvent)
 }

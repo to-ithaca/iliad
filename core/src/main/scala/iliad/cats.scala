@@ -45,8 +45,12 @@ object StateTExtra {
   def inspect[F[_]: Applicative, S, A](f: S => F[A]): StateT[F, S, A] =
     StateT(s => f(s).map(s -> _))
 
+  def modify[F[_]: Applicative, S](f: S => F[S]): StateT[F, S, Unit] =
+    StateT(s => f(s).map(ss => (ss, ())))
+
   def lift[F[_]: Applicative, S, A](fa: F[A]): StateT[F, S, A] =
     StateT(s => fa.map(a => s -> a))
+
 }
 
 object KleisliExtra {

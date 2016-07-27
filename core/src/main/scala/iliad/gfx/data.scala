@@ -45,12 +45,12 @@ object Graph {
     }
 
     private[gfx] def nodes(us: Map[Draw.Instance, List[GL.Uniform.Value]])
-      : Reader[GraphTraversal, UnsetUniformError Xor Vector[Node.Drawable]] =
-      Reader[GraphTraversal, UnsetUniformError Xor Vector[Node.Drawable]](
+      : Reader[GraphTraversal, UnsetUniformsError Xor Vector[Node.Drawable]] =
+      Reader[GraphTraversal, UnsetUniformsError Xor Vector[Node.Drawable]](
           _.apply(graph).traverse {
         case c: Clear.Instance => c.right
         case d: Draw.Instance =>
-          us.get(d).map(Draw.Drawable(d, _)).toRightXor(UnsetUniformError(d))
+          us.get(d).map(Draw.Drawable(d, _)).toRightXor(UnsetUniformsError(d))
       })
   }
 }

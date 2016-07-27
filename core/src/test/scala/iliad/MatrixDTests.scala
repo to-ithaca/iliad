@@ -16,6 +16,8 @@ import cats.implicits._
 import shapeless._
 import shapeless.ops.nat._
 
+import spire.implicits._
+
 class MatrixDTests extends FunSuite with GeneratorDrivenPropertyChecks {
 
   {
@@ -27,6 +29,18 @@ class MatrixDTests extends FunSuite with GeneratorDrivenPropertyChecks {
     implicit val L: iliad.kernel.platform.MatrixLibrary = MatrixLibrary
     implicitly[spire.algebra.MultiplicativeSemigroup[MatrixD[nat._4, nat._4, Double]]]
   }
+
+
+  {
+    implicit val L: iliad.kernel.platform.MatrixLibrary = MatrixLibrary
+    implicitly[spire.algebra.Group[MatrixD[nat._4, nat._4, Float]]]
+  }
+
+  {
+    implicit val L: iliad.kernel.platform.MatrixLibrary = MatrixLibrary
+    implicitly[spire.algebra.Group[MatrixD[nat._4, nat._4, Double]]]
+  }
+
 
   {
     implicit val L: iliad.kernel.platform.MatrixLibrary = MatrixLibrary
@@ -90,7 +104,7 @@ class MatrixDTests extends FunSuite with GeneratorDrivenPropertyChecks {
    
     test("identity matrix multiplied by a vector returns the vector") {
       val id = MatrixD.identity[nat._4, Int]
-      val bounded = boundedIntArbitrary(-1000, 1000)
+      val bounded = boundedArbitrary(-1000, 1000)
       val vectors = vectorDArbitrary[nat._4, Int](bounded, ToInt[nat._4])
 
       forAll(vectors.arbitrary) { v =>
@@ -100,7 +114,7 @@ class MatrixDTests extends FunSuite with GeneratorDrivenPropertyChecks {
 
     test("identity matrix multiplied by a matrix returns the matrix") {
       val id = MatrixD.identity[nat._4, Int]
-      val bounded = boundedIntArbitrary(-1000, 1000)
+      val bounded = boundedArbitrary(-1000, 1000)
       val ms = matrixDArbitrary[nat._4, nat._4, Int](bounded, ToInt[nat._4], ToInt[nat._4])
 
       forAll(ms.arbitrary) { m =>
@@ -108,6 +122,9 @@ class MatrixDTests extends FunSuite with GeneratorDrivenPropertyChecks {
       }
     }
 
-
+    test("inverse of the identity matrix is the identity matrix") {
+      val id = MatrixD.identity[nat._4, Int]
+      assert(id.inverse() === id)
+    }
   }
 }

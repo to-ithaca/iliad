@@ -8,7 +8,7 @@ package object gfx
     with UniformCacheFunctions
     with AnimationFunctions
     with ConstructFunctions
-    with InstantiateFunctions 
+    with InstantiateFunctions
     with ShaderFunctions {
 
   type GraphTraversal = Graph.QInstance => Vector[Node.Instance]
