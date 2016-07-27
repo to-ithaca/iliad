@@ -11,6 +11,22 @@ import cats.implicits._
 
 import com.typesafe.scalalogging._
 
+object EGLInterpreter {
+
+  def logInterpreter[NDisp, NWin, Disp, Cfg, Sfc, Ctx](
+      implicit ct: ClassTag[Cfg])
+    : EGL[NDisp, NWin, Disp, Cfg, Sfc, Ctx, ?] ~> ReaderT[
+        Xor[EGLError, ?],
+        EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
+        ?] =
+    new EGLDebugInterpreter(
+        new EGLInterpreter[NDisp, NWin, Disp, Cfg, Sfc, Ctx]
+          .compose(
+              new EffectfulLogBefore[EGL[NDisp, NWin, Disp, Cfg, Sfc, Ctx, ?]](
+                  _.toString))
+          .andThen(new EffectfulLogAfter))
+}
+
 final class EffectfulLogBefore[F[_]](showK: F[_] => String)
     extends LazyLogging
     with (F ~> F) {
@@ -34,32 +50,32 @@ final class EGLDebugInterpreter[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](
         EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
         ?])
     extends (EGL[NDisp, NWin, Disp, Cfg, Sfc, Ctx, ?] ~> ReaderT[
-        Xor[String, ?],
+        Xor[EGLError, ?],
         EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
         ?]) {
 
-  private val lift: Id ~> Xor[String, ?] = new (Id ~> Xor[String, ?]) {
-    def apply[A](fa: Id[A]): Xor[String, A] = fa.right
+  private val lift: Id ~> Xor[EGLError, ?] = new (Id ~> Xor[EGLError, ?]) {
+    def apply[A](fa: Id[A]): Xor[EGLError, A] = fa.right
   }
 
-  private val _errorCodes: Set[EGLError] = SealedEnum.values[EGLError]
+  private val _errorCodes: Set[EGLErrorCode] = SealedEnum.values[EGLErrorCode]
 
-  private def onError(method: String)(value: Int): String Xor Unit =
+  private def onError(method: String)(value: Int): EGLError Xor Unit =
     if (value == EGL_SUCCESS.value) ().right
     else
       _errorCodes.find(_.value == value) match {
-        case Some(code) => s"Call failed with error $code".left
-        case None => s"Call failed with unknown error $value".left
+        case Some(code) => EGLCallFailedError(method, code).left
+        case None => EGLCallFailedUnknownError(method, value).left
       }
 
   private def debug(method: String)
-    : ReaderT[Xor[String, ?],
+    : ReaderT[Xor[EGLError, ?],
               EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
               Unit] =
     interpret(EGLGetError).transform(lift).mapF(_.flatMap(onError(method)))
 
   def apply[A](fa: EGL[NDisp, NWin, Disp, Cfg, Sfc, Ctx, A])
-    : ReaderT[Xor[String, ?],
+    : ReaderT[Xor[EGLError, ?],
               EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
               A] =
     for {
@@ -98,7 +114,7 @@ final class EGLInterpreter[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]
                   A]]
       case EGLBindAPI(api) => reader(_.eglBindAPI(api.value))
       case EGLCreateWindowSurface(disp, cfg, nw, attribs) =>
-        //explicit cast because type isn't inferred      
+        //explicit cast because type isn't inferred
         reader(_.eglCreateWindowSurface(disp, cfg, nw, attribs.toArray))
           .asInstanceOf[Reader[
                   EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
@@ -126,7 +142,7 @@ final class EGLInterpreter[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]
         }
       case EGLSwapInterval(dpy, interval) =>
         reader(_.eglSwapInterval(dpy, interval))
-      //explit cast because type isn't inferred  
+      //explit cast because type isn't inferred
       case EGL_DEFAULT_DISPLAY() =>
         reader(_.EGL_DEFAULT_DISPLAY).asInstanceOf[Reader[
                 EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],

@@ -4,11 +4,8 @@ package gl
 import iliad.std.list._
 import iliad.syntax.vectord._
 
-import simulacrum.typeclass
-
 import java.nio.Buffer
 
-import cats._
 import cats.data._
 import cats.implicits._
 
@@ -53,17 +50,17 @@ object Program {
       }
 
     def loaded(as: List[Attribute.Constructor])
-      : String Xor Attribute.LoadedAttributes =
+      : UndefinedAttributeError Xor Attribute.LoadedAttributes =
       as.traverse(a =>
-              loaded(a).toRightXor(s"Location for attribute is undefined: $a"))
+              loaded(a).toRightXor(UndefinedAttributeError(unlinked, a)))
         .map(Attribute.LoadedAttributes)
 
     def textureUniforms(ts: Map[String, Texture.Constructor])
-      : String Xor List[TextureUniform] =
+      : UndefinedTextureUniformError Xor List[TextureUniform] =
       textureUniforms.zipWithIndex.traverse {
         case ((name, location), index) =>
           ts.get(name)
-            .toRightXor(s"Unable to find uniform for texture $name")
+            .toRightXor(UndefinedTextureUniformError(unlinked, name))
             .map(
                 t =>
                   TextureUniform(Bounded.element[TextureUnit](index),
@@ -144,12 +141,13 @@ object ElementBuffer {
   case class Loaded(id: Int,
                     filled: Int,
                     capacity: Int,
-                    constructor: Constructor) {}
+                    constructor: Constructor)
 
   object Loaded {
     val _filled: Lens[Loaded, Int] = GenLens[Loaded](_.filled)
     val _capacity: Lens[Loaded, Int] = GenLens[Loaded](_.capacity)
   }
+
   def inc(l: Loaded, size: Int): Loaded =
     l &|-> Loaded._filled modify (_ + size)
   def fits(l: Loaded, size: Int): Boolean =
@@ -254,7 +252,8 @@ object Renderbuffer {
 object Framebuffer {
   sealed trait Constructor {
     def attachments: List[(FramebufferAttachment, AttachmentConstructor)]
-    def textures = attachments.map(_._2).filterClass[Texture.Constructor]
+    def textures: List[Texture.Constructor] =
+      attachments.map(_._2).filterClass[Texture.Constructor]
   }
 
   sealed trait AttachmentConstructor
@@ -310,11 +309,10 @@ object Capabilities {
   val depth: List[Capability] = List(GL_DEPTH_TEST)
 }
 
-//TODO: add colorMask etc. to state and draw
 case class DrawOp(model: Model,
                   program: Program.Unlinked,
-  textureUniforms: Map[String, Texture.Constructor],
-  uniforms: List[Uniform],
+                  textureUniforms: Map[String, Texture.Constructor],
+                  uniforms: List[Uniform],
                   framebuffer: Framebuffer.Constructor,
                   colorMask: ColorMask,
                   primitive: PrimitiveType,

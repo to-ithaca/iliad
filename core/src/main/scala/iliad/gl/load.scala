@@ -4,13 +4,13 @@ package gl
 import iliad.CatsExtra._
 
 import cats._
-import cats.free._, Free._
+import cats.free._
 
 object Load {
   type DSL[A] = Free[Load, A]
 
-  def parse[F[_]: Monad](i: GL.Interpreter[F]): Load ~> F =
-    LoadParser.andThen(GL.interpret(i))
+  def parse[F[_]: Monad](i: OpenGL.Interpreter[F]): Load ~> F =
+    LoadParser.andThen(OpenGL.interpret(i))
 
   def apply(s: VertexShader.Source): DSL[VertexShader.Compiled] =
     LoadVertexShader(s).free
@@ -116,22 +116,22 @@ case class LoadFramebuffer(
     extends Load[Framebuffer.Loaded]
 case class LoadSampler(s: Sampler.Constructor) extends Load[Sampler.Loaded]
 
-private object LoadParser extends (Load ~> GL.DSL) {
+object LoadParser extends (Load ~> OpenGL.DSL) {
 
   private def roundUp(size: Int, baseCapacity: Int): Int =
     Math.ceil(size.toDouble / baseCapacity.toDouble).toInt * baseCapacity
 
-  def apply[A](load: Load[A]): GL.DSL[A] = load match {
+  def apply[A](load: Load[A]): OpenGL.DSL[A] = load match {
     case LoadVertexShader(s) =>
-      GL.makeVertexShader(s.text).map(VertexShader.Compiled(_, s))
+      OpenGL.makeVertexShader(s.text).map(VertexShader.Compiled(_, s))
     case LoadFragmentShader(s) =>
-      GL.makeFragmentShader(s.text).map(FragmentShader.Compiled(_, s))
+      OpenGL.makeFragmentShader(s.text).map(FragmentShader.Compiled(_, s))
     case LoadProgram(vs, fs) =>
       for {
-        id <- GL.makeProgram(vs.id, fs.id)
-        _ <- GL.useProgram(id)
-        as <- GL.getAttributeLocations(id, vs.source.attributeNames)
-        us <- GL.getUniformLocations(
+        id <- OpenGL.makeProgram(vs.id, fs.id)
+        _ <- OpenGL.useProgram(id)
+        as <- OpenGL.getAttributeLocations(id, vs.source.attributeNames)
+        us <- OpenGL.getUniformLocations(
                  id,
                  vs.source.textureNames ++ fs.source.textureNames)
       } yield
@@ -139,53 +139,59 @@ private object LoadParser extends (Load ~> GL.DSL) {
 
     case LoadCreateVertexBuffer(r, d, pageSize, b) =>
       val capacity = roundUp(d.size, pageSize)
-      GL.makeVertexBuffer(d.data, d.size, capacity)
+      OpenGL
+        .makeVertexBuffer(d.data, d.size, capacity)
         .map(
             VertexBuffer.loadNew(_, b, r, d.size, capacity)
         )
     case LoadCreateElementBuffer(r, d, pageSize, b) =>
       val capacity = roundUp(d.size, pageSize)
-      GL.makeElementBuffer(d.data, d.size, capacity)
+      OpenGL
+        .makeElementBuffer(d.data, d.size, capacity)
         .map(
             ElementBuffer.loadNew(_, b, r, d.size, capacity)
         )
     case LoadInsertVertexBuffer(r, d, pageSize, b) =>
-      GL.insertVertices(b.id, b.filled, d.size, d.data)
+      OpenGL
+        .insertVertices(b.id, b.filled, d.size, d.data)
         .map(_ => VertexBuffer.insert(b, r, d.size))
     case LoadInsertElementBuffer(r, d, pageSize, b) =>
-      GL.insertElements(b.id, b.filled, d.size, d.data)
+      OpenGL
+        .insertElements(b.id, b.filled, d.size, d.data)
         .map(_ => ElementBuffer.insert(b, r, d.size))
     case LoadCopyVertexBuffer(r, d, pageSize, b) =>
       val capacity = roundUp(d.size, pageSize)
-      GL.copyVertices(b.id, b.filled, d.size, d.data, capacity)
+      OpenGL
+        .copyVertices(b.id, b.filled, d.size, d.data, capacity)
         .map(VertexBuffer.copy(_, b, r, d.size, capacity))
     case LoadCopyElementBuffer(r, d, pageSize, b) =>
       val capacity = roundUp(d.size, pageSize)
-      GL.copyElements(b.id, b.filled, d.size, d.data, capacity)
+      OpenGL
+        .copyElements(b.id, b.filled, d.size, d.data, capacity)
         .map(
             ElementBuffer.copy(_, b, r, d.size, capacity)
         )
     case LoadTexture(t, d) =>
       t match {
         case s: Texture.SingleConstructor =>
-          GL.makeSingleTexture(s, d) map ((Texture.SingleLoaded(s, _)))
+          OpenGL.makeSingleTexture(s, d) map ((Texture.SingleLoaded(s, _)))
         case dd: Texture.DoubleConstructor =>
-          GL.makeBufferedTexture(dd, d).map {
+          OpenGL.makeBufferedTexture(dd, d).map {
             case (f, b) => Texture.DoubleLoaded(dd, f, b)
           }
       }
     case LoadRenderbuffer(r) =>
-      GL.makeRenderbuffer(r).map(Renderbuffer.Loaded(r, _))
+      OpenGL.makeRenderbuffer(r).map(Renderbuffer.Loaded(r, _))
     case LoadFramebuffer(f, as) =>
       f match {
         case s: Framebuffer.SingleConstructor =>
-          GL.makeSingleFramebuffer(as).map(Framebuffer.SingleLoaded(s, _))
+          OpenGL.makeSingleFramebuffer(as).map(Framebuffer.SingleLoaded(s, _))
         case d: Framebuffer.DoubleConstructor =>
-          GL.makeBufferedFramebuffer(as) map {
+          OpenGL.makeBufferedFramebuffer(as) map {
             case (ff, b) => Framebuffer.DoubleLoaded(d, ff, b)
           }
       }
     case LoadSampler(s) =>
-      GL.makeSampler(s).map(Sampler.Loaded(s, _))
+      OpenGL.makeSampler(s).map(Sampler.Loaded(s, _))
   }
 }

@@ -70,7 +70,8 @@ trait Win32GLDependencies extends GLDependencies {
 abstract class Win32Bootstrap(name: String, val width: Int, val height: Int)
     extends Win32EventHandler
     with IliadApp
-    with Win32GLDependencies with LazyLogging {
+    with Win32GLDependencies
+    with LazyLogging {
 
   //TODO: fix this
   implicit val SS = Strategy.fromFixedDaemonPool(1, "vsync-thread")
@@ -83,7 +84,7 @@ abstract class Win32Bootstrap(name: String, val width: Int, val height: Int)
     } yield vsync(s)).unsafeRunAsync(msg => logger.info(msg.toString))
   }
 
-  def vsync: Stream[Task, Long] = 
+  def vsync: Stream[Task, Long] =
     Stream.eval(async.signalOf[Task, Long](0L)).flatMap { s =>
       vsync(s)
       s.discrete
@@ -114,7 +115,7 @@ class Win32(name: String, width: Int, height: Int, delegate: Win32EventHandler) 
   }
 
   def checkNull[A](action: String)(a: A): Error Xor A =
-    if (a == null) Error(0, "$action unexpectedly returned null").left
+    if (a == null) Error(0, s"$action unexpectedly returned null").left
     else a.right
 
   def register: Error Xor WNDCLASSEX = {

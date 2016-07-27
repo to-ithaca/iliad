@@ -15,6 +15,13 @@ object CatsExtra {
     new TraverseOps(fa)
   implicit def xortOps[F[_], A, B](xort: XorT[F, A, B]): XorTOps[F, A, B] =
     new XorTOps(xort)
+  implicit def xorOps[A, B](xor: Xor[A, B]): XorOps[A, B] =
+    new XorOps(xor)
+  implicit def validatedNelOps[E, A](
+      v: ValidatedNel[E, A]): ValidatedNelOps[E, A] =
+    new ValidatedNelOps(v)
+  implicit def oneAndOps[F[_], A](o: OneAnd[F, A]): OneAndOps[F, A] =
+    new OneAndOps(o)
 }
 
 final class FreeOps[F[_], A](f: Free[F, A]) {
@@ -49,4 +56,25 @@ object KleisliExtra {
 final class XorTOps[F[_], A, B](xort: XorT[F, A, B]) {
   def transformF[G[_]](f: F[A Xor B] => G[A Xor B]): XorT[G, A, B] =
     XorT(f(xort.value))
+
+  def leftWiden[AA >: A](implicit F: Functor[F]): XorT[F, AA, B] =
+    xort.leftMap(a => a)
+}
+
+final class XorOps[A, B](xor: Xor[A, B]) {
+  def leftWiden[AA >: A]: Xor[AA, B] = xor.leftMap(a => a)
+
+  //TODO: this should not be here
+  def task: fs2.util.Task[B] =
+    xor
+      .bimap(a => fs2.util.Task.fail(new Error(a.toString)), fs2.util.Task.now)
+      .merge[fs2.util.Task[B]]
+}
+
+final class ValidatedNelOps[E, A](v: ValidatedNel[E, A]) {
+  def widen[EE >: E]: ValidatedNel[EE, A] = v.leftMap(_.map(identity))
+}
+
+final class OneAndOps[F[_], A](o: OneAnd[F, A]) {
+  def widen[AA >: A](implicit FF: Functor[F]): OneAnd[F, AA] = o.map(identity)
 }

@@ -10,8 +10,8 @@ import cats.implicits._
 object Draw {
   type DSL[A] = Free[Draw, A]
 
-  def parse[F[_]: Monad](i: GL.Interpreter[F]): Draw ~> F =
-    DrawParser.andThen(GL.interpret(i))
+  def parse[F[_]: Monad](i: OpenGL.Interpreter[F]): Draw ~> F =
+    DrawParser.andThen(OpenGL.interpret(i))
 
   def bind(f: Framebuffer.Loaded): DSL[Unit] =
     BindFramebuffer(f).free
@@ -46,27 +46,28 @@ case class EnableAttributes(as: Attribute.LoadedAttributes, baseOffset: Int)
 
 case class DrawTriangleModel(range: DataRange) extends Draw[Unit]
 
-private object DrawParser extends (Draw ~> GL.DSL) {
+object DrawParser extends (Draw ~> OpenGL.DSL) {
 
-  private def enableAttribute(stride: Int)(a: Attribute.Offset): GL.DSL[Unit] =
-    GL.enableAttribute(a.loaded.location,
-                       a.loaded.constructor.elementSize,
-                       a.loaded.constructor.`type`,
-                       stride,
-                       a.offset)
+  private def enableAttribute(stride: Int)(
+      a: Attribute.Offset): OpenGL.DSL[Unit] =
+    OpenGL.enableAttribute(a.loaded.location,
+                           a.loaded.constructor.elementSize,
+                           a.loaded.constructor.`type`,
+                           stride,
+                           a.offset)
 
-  def apply[A](draw: Draw[A]): GL.DSL[A] = draw match {
+  def apply[A](draw: Draw[A]): OpenGL.DSL[A] = draw match {
     case BindFramebuffer(f) =>
-      GL.bindFramebuffer(f.frontId)
-    case ClearFrame(bitMask) => GL.clear(bitMask)
-    case UseProgram(p) => GL.useProgram(p.id)
+      OpenGL.bindFramebuffer(f.frontId)
+    case ClearFrame(bitMask) => OpenGL.clear(bitMask)
+    case UseProgram(p) => OpenGL.useProgram(p.id)
     case BindTextureUniform(unit, location, t, s) =>
-      GL.bindTextureUniform(unit, location, t.frontId, s.id)
-    case BindVertexBuffer(v) => GL.bindVertexBuffer(v.id)
-    case BindElementBuffer(e) => GL.bindElementBuffer(e.id)
+      OpenGL.bindTextureUniform(unit, location, t.frontId, s.id)
+    case BindVertexBuffer(v) => OpenGL.bindVertexBuffer(v.id)
+    case BindElementBuffer(e) => OpenGL.bindElementBuffer(e.id)
     case EnableAttributes(as, baseOffset) =>
       as.offsets(baseOffset).traverse(enableAttribute(as.stride)).map(_ => ())
     case DrawTriangleModel(range: DataRange) =>
-      GL.drawTriangles(range.start, range.end)
+      OpenGL.drawTriangles(range.start, range.end)
   }
 }

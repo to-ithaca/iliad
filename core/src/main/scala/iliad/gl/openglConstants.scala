@@ -31,6 +31,7 @@ case object GL_COLOR_BUFFER_BIT
     extends BitmaskConstant(0x00004000)
     with ChannelBit
 
+//TODO: what is a sized internal format vs internal format?
 sealed trait TextureUnit extends IntConstant
 sealed trait ColorAttachment extends IntConstant with ColorBuffer
 
@@ -1108,7 +1109,10 @@ case object GL_R16UI
     extends IntConstant(0x8234)
     with RenderbufferInternalFormat
     with TextureSizedInternalFormat
-case object GL_R32I extends IntConstant(0x8235) with RenderbufferInternalFormat
+case object GL_R32I
+    extends IntConstant(0x8235)
+    with RenderbufferInternalFormat
+    with TextureInternalFormat
 case object GL_R32UI
     extends IntConstant(0x8236)
     with RenderbufferInternalFormat

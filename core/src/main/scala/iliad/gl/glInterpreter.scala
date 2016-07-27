@@ -7,9 +7,11 @@ import cats._
 import cats.data._
 import cats.implicits._
 
+import CatsExtra._
+
 import java.nio.IntBuffer
 
-object GLInterpreter extends (GL.Interpreter[GL.NoEffect]) {
+object GLInterpreter extends (OpenGL.Interpreter[OpenGL.NoEffect]) {
 
   private def genObject(r: Reader[GLES30Library, (Int, IntBuffer) => Unit],
                         num: Int): Reader[GLES30Library, Set[Int]] = r map {
@@ -21,7 +23,7 @@ object GLInterpreter extends (GL.Interpreter[GL.NoEffect]) {
       arr.toSet
   }
 
-  def apply[A](gl: GL[A]): Reader[GLES30Library, A] = gl match {
+  def apply[A](gl: OpenGL[A]): Reader[GLES30Library, A] = gl match {
 
     case GLGetError => Reader(_.glGetError())
 
@@ -168,83 +170,96 @@ object GLInterpreter extends (GL.Interpreter[GL.NoEffect]) {
       Reader(_.glBindSampler(Bounded.indexOf(unit), sampler))
     case GLUniform1i(location, value) => Reader(_.glUniform1i(location, value))
     case GLUniform1f(location, value) => Reader(_.glUniform1f(location, value))
-    case GLUniform2i(location, value) => Reader(_.glUniform2i(location, value(0), value(1)))
-    case GLUniform2f(location, value) => Reader(_.glUniform2f(location, value(0), value(1)))
-    case GLUniform3i(location, value) => Reader(_.glUniform3i(location, value(0), value(1), value(2)))
-    case GLUniform3f(location, value) => Reader(_.glUniform3f(location, value(0), value(1), value(3)))
-    case GLUniform4i(location, value) => Reader(_.glUniform4i(location, value(0), value(1), value(3), value(4)))
-    case GLUniform4f(location, value) => Reader(_.glUniform4f(location, value(0), value(1), value(3), value(4)))
+    case GLUniform2i(location, value) =>
+      Reader(_.glUniform2i(location, value(0), value(1)))
+    case GLUniform2f(location, value) =>
+      Reader(_.glUniform2f(location, value(0), value(1)))
+    case GLUniform3i(location, value) =>
+      Reader(_.glUniform3i(location, value(0), value(1), value(2)))
+    case GLUniform3f(location, value) =>
+      Reader(_.glUniform3f(location, value(0), value(1), value(3)))
+    case GLUniform4i(location, value) =>
+      Reader(_.glUniform4i(location, value(0), value(1), value(3), value(4)))
+    case GLUniform4f(location, value) =>
+      Reader(_.glUniform4f(location, value(0), value(1), value(3), value(4)))
 
     case GLDrawElements(mode, count, t, offset) =>
       Reader(_.glDrawElements(mode.value, count, t.value, offset))
-    case GLClear(bitMask) => Reader{ r =>
-      r.glClearColor(1f, 0f, 0f, 1f)
-      r.glClear(bitMask.value)
-    }
+    case GLClear(bitMask) =>
+      Reader { r =>
+        r.glClearColor(1f, 0f, 0f, 1f)
+        r.glClear(bitMask.value)
+      }
   }
 }
 
 final class GLLogInterpreter[F[_]: Monad](
-    interpret: GL.Interpreter[GL.Effect[F, ?]])
-    extends (GL.Interpreter[GL.LogEffect[F, ?]]) {
+    interpret: OpenGL.Interpreter[OpenGL.Effect[F, ?]])
+    extends (OpenGL.Interpreter[OpenGL.LogEffect[F, ?]]) {
 
-  private val logAfter: F ~> GL.Logger[F, ?] = new (F ~> GL.Logger[F, ?]) {
-    def apply[A](fa: F[A]): GL.Logger[F, A] =
-      WriterT(fa.map(v => (List(s"returned $v"), v)))
-  }
+  private val logAfter: F ~> OpenGL.Logger[F, ?] =
+    new (F ~> OpenGL.Logger[F, ?]) {
+      def apply[A](fa: F[A]): OpenGL.Logger[F, A] =
+        WriterT(fa.map(v => (List(s"returned $v"), v)))
+    }
 
-  def logBefore(s: String): GL.LogEffect[F, Unit] =
+  def logBefore(s: String): OpenGL.LogEffect[F, Unit] =
     ReaderT(_ => WriterT.tell[F, List[String]](List(s)))
 
-  def apply[A](gl: GL[A]): GL.LogEffect[F, A] = {
+  def apply[A](gl: OpenGL[A]): OpenGL.LogEffect[F, A] = {
     logBefore(s"calling $gl") >>
     interpret(gl).transform(logAfter)
   }
 }
 
 final class GLDebugInterpreter[F[_]: Monad](
-    interpret: GL.Interpreter[GL.Effect[F, ?]])
-    extends (GL.Interpreter[GL.DebugEffect[F, ?]]) {
+    interpret: OpenGL.Interpreter[OpenGL.Effect[F, ?]])
+    extends (OpenGL.Interpreter[OpenGL.DebugEffect[F, ?]]) {
 
-  private val lift: F ~> XorT[F, String, ?] = new (F ~> XorT[F, String, ?]) {
-    def apply[A](fa: F[A]): XorT[F, String, A] = XorT.right(fa)
+  private val lift: F ~> XorT[F, GLError, ?] = new (F ~> XorT[F, GLError, ?]) {
+    def apply[A](fa: F[A]): XorT[F, GLError, A] = XorT.right(fa)
   }
 
   private val _errorCodes: Set[ErrorCode] = SealedEnum.values[ErrorCode]
 
-  private def onError(method: String)(value: Int): String Xor Unit =
+  private def onError(method: String)(value: Int): GLError Xor Unit =
     if (value == GL_NO_ERROR.value) ().right
     else
       _errorCodes.find(_.value == value) match {
-        case Some(code) => s"Call failed with error $code".left
-        case None => s"Call failed with unknown error $value".left
+        case Some(code) =>
+          CallFailedError(method, code).left
+        case None =>
+          CallFailedUnknownError(method, value).left
       }
 
-  private def debug(method: String): GL.DebugEffect[F, Unit] =
-    GL.getError
+  private def debug(method: String): OpenGL.DebugEffect[F, Unit] =
+    OpenGL.getError
       .foldMap(interpret)
       .transform(lift)
       .mapF(_.subflatMap(onError(method)))
 
-  private def onCompileError(log: Option[String]): String Xor Unit =
-    log.map(l => s"Compilation failed with error $l").toLeftXor(())
+  private def onCompileError(
+      log: Option[String]): ShaderCompileError Xor Unit =
+    log.map(l => ShaderCompileError(l)).toLeftXor(())
 
-  private def onLinkError(log: Option[String]): String Xor Unit =
-    log.map(l => s"Link failed with error $l").toLeftXor(())
+  private def onLinkError(log: Option[String]): ProgramLinkError Xor Unit =
+    log.map(l => ProgramLinkError(l)).toLeftXor(())
 
   private def shaderLog(shader: Int) =
-    GL.getCompileError(shader)
+    OpenGL
+      .getCompileError(shader)
       .foldMap(interpret)
       .transform(lift)
       .mapF(_.subflatMap(onCompileError))
 
   private def programLog(program: Int) =
-    GL.getLinkError(program)
+    OpenGL
+      .getLinkError(program)
       .foldMap(interpret)
       .transform(lift)
       .mapF(_.subflatMap(onLinkError))
 
-  def apply[A](gl: GL[A]): GL.DebugEffect[F, A] = gl match {
+  def apply[A](gl: OpenGL[A]): OpenGL.DebugEffect[F, A] = gl match {
 
     case GLCompileShader(shader) =>
       for {

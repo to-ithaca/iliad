@@ -115,7 +115,6 @@ final class BridgeInstanceMacro(val c: whitebox.Context) extends SymbolMacro {
   }
 }
 
-
 final class BridgeMacro(val c: whitebox.Context) extends SymbolMacro {
 
   import c.universe._
@@ -128,15 +127,18 @@ final class BridgeMacro(val c: whitebox.Context) extends SymbolMacro {
 
   def mkMethods(companion: Type): Tree = {
     mkTrees(companion)(
-      m => m.isMethod && m.isPublic && !m.isConstructor && !deprecated(m) && !objectMethods.contains(m),
-      s => mkMethod(companion)(s.asMethod)
+        m =>
+          m.isMethod && m.isPublic && !m.isConstructor && !deprecated(m) && !objectMethods
+            .contains(m),
+        s => mkMethod(companion)(s.asMethod)
     )
   }
 
   def mkTrees(companion: Type)(f: Symbol => Boolean, g: Symbol => Tree): Tree =
     q"""..${companion.members.filter(f).map(g)}"""
   def deprecated(s: Symbol): Boolean = s.annotations exists { a =>
-    c.typecheck(a.tree).tpe.typeSymbol == symbolOf[Deprecated] }
+    c.typecheck(a.tree).tpe.typeSymbol == symbolOf[Deprecated]
+  }
   def errorMsg(s: TypeName): String =
     s"Cannot find Static for interface to bind to for ${s.decodedName}"
 
@@ -149,9 +151,11 @@ final class BridgeMacro(val c: whitebox.Context) extends SymbolMacro {
   def mkTpe(annottees: Expr[Any]*): Tree = {
     annottees.map(_.tree) match {
       case List(q"""abstract trait $name extends $parent with ..$traits""") =>
-        addMethods(name)(methods => q"""trait $name extends $parent with ..$traits { ..$methods }""")
+        addMethods(name)(methods =>
+              q"""trait $name extends $parent with ..$traits { ..$methods }""")
       case List(q"""abstract trait $name extends $parent""") =>
-        addMethods(name)(methods => q"""trait $name extends $parent { ..$methods }""")
+        addMethods(name)(methods =>
+              q"""trait $name extends $parent { ..$methods }""")
       case _ =>
         c.abort(c.enclosingPosition, "Can only bind to empty trait")
     }

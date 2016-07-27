@@ -23,7 +23,7 @@ sealed trait EGLAPI extends IntConstant
 
 sealed trait DisplayProperty extends IntConstant
 
-sealed trait EGLError extends IntConstant
+sealed trait EGLErrorCode extends IntConstant
 
 object ConfigAttrib {
   def apply(k: ConfigAttrib,
@@ -45,18 +45,18 @@ object ContextAttrib {
 }
 
 case object EGL_ALPHA_SIZE extends IntConstant(0x3021) with ConfigAttrib
-case object EGL_BAD_ACCESS extends IntConstant(0x3002) with EGLError
-case object EGL_BAD_ALLOC extends IntConstant(0x3003) with EGLError
-case object EGL_BAD_ATTRIBUTE extends IntConstant(0x3004) with EGLError
-case object EGL_BAD_CONFIG extends IntConstant(0x3005) with EGLError
-case object EGL_BAD_CONTEXT extends IntConstant(0x3006) with EGLError
+case object EGL_BAD_ACCESS extends IntConstant(0x3002) with EGLErrorCode
+case object EGL_BAD_ALLOC extends IntConstant(0x3003) with EGLErrorCode
+case object EGL_BAD_ATTRIBUTE extends IntConstant(0x3004) with EGLErrorCode
+case object EGL_BAD_CONFIG extends IntConstant(0x3005) with EGLErrorCode
+case object EGL_BAD_CONTEXT extends IntConstant(0x3006) with EGLErrorCode
 case object EGL_BAD_CURRENT_SURFACE extends IntConstant(0x3007)
-case object EGL_BAD_DISPLAY extends IntConstant(0x3008) with EGLError
-case object EGL_BAD_MATCH extends IntConstant(0x3009) with EGLError
+case object EGL_BAD_DISPLAY extends IntConstant(0x3008) with EGLErrorCode
+case object EGL_BAD_MATCH extends IntConstant(0x3009) with EGLErrorCode
 case object EGL_BAD_NATIVE_PIXMAP extends IntConstant(0x300A)
-case object EGL_BAD_NATIVE_WINDOW extends IntConstant(0x300B) with EGLError
-case object EGL_BAD_PARAMETER extends IntConstant(0x300C) with EGLError
-case object EGL_BAD_SURFACE extends IntConstant(0x300D) with EGLError
+case object EGL_BAD_NATIVE_WINDOW extends IntConstant(0x300B) with EGLErrorCode
+case object EGL_BAD_PARAMETER extends IntConstant(0x300C) with EGLErrorCode
+case object EGL_BAD_SURFACE extends IntConstant(0x300D) with EGLErrorCode
 case object EGL_BLUE_SIZE extends IntConstant(0x3022) with IntConfigAttrib
 case object EGL_BUFFER_SIZE extends IntConstant(0x3020) with IntConfigAttrib
 case object EGL_CONFIG_CAVEAT extends IntConstant(0x3027) with EnumConfigAttrib
@@ -88,7 +88,7 @@ case object EGL_NATIVE_VISUAL_TYPE extends IntConstant(0x302F)
 case object EGL_NON_CONFORMANT_CONFIG
     extends IntConstant(0x3051)
     with ConfigAttribValue
-case object EGL_NOT_INITIALIZED extends IntConstant(0x3001) with EGLError
+case object EGL_NOT_INITIALIZED extends IntConstant(0x3001) with EGLErrorCode
 case object EGL_PBUFFER_BIT extends IntConstant(0x0001) with ConfigAttribValue
 case object EGL_PIXMAP_BIT extends IntConstant(0x0002)
 case object EGL_READ extends IntConstant(0x305A)
