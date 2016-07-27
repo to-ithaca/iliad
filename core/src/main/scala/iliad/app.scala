@@ -161,8 +161,6 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
                   gs: Graphics.State): Xor[Error, GL.State] =
     run(Graphics.draws(gs, us).run(cfg).value, gls)
 
-  val UniformS = Strategy.fromFixedDaemonPool(8, "uniform-cache")
-
   private def run(
       at: Long,
       us: UniformCache.State): (UniformCache.State, UniformCache.Values) = {
