@@ -44,13 +44,18 @@ object Graph {
       copy(graph = next)
     }
 
-    private[gfx] def nodes(us: Map[Draw.Instance, List[GL.Uniform.Value]])
-      : Reader[GraphTraversal, UnsetUniformsError Xor Vector[Node.Drawable]] =
-      Reader[GraphTraversal, UnsetUniformsError Xor Vector[Node.Drawable]](
+    private[gfx] def nodes(scopes: UniformCache.Values)
+      : Reader[GraphTraversal, GraphicsError Xor Vector[Node.Drawable]] =
+      Reader[GraphTraversal, GraphicsError Xor Vector[Node.Drawable]](
           _.apply(graph).traverse {
         case c: Clear.Instance => c.right
         case d: Draw.Instance =>
-          us.get(d).map(Draw.Drawable(d, _)).toRightXor(UnsetUniformsError(d))
+              d.uniformScopes.toList.traverse {
+                case (name, scope) => for {
+                  us <- scopes.get(scope).toRightXor(UnsetScopeError(scope))
+                  v <- us.get(name).toRightXor(UnsetUniformError(name, scope))
+                } yield v
+              }.map(Draw.Drawable(d, _))
       })
   }
 }
@@ -98,7 +103,8 @@ object Draw {
 
   case class Instance(
       constructor: Constructor,
-      uniforms: Map[String, Texture.Uniform],
+      textureUniforms: Map[String, Texture.Uniform],
+    uniformScopes: Map[String, UniformScope],
       model: Model.Instance,
       framebuffer: Framebuffer.Instance,
       numInstances: Int
@@ -222,5 +228,7 @@ object Model {
   case class Instance(name: String, constructor: Constructor, model: GL.Model)
 }
 
+
+case class UniformScope(name: String)
 //TODO: find out what to do with this
 //case class Valve(start: Node.Draw, links: List[Link.Pipe])

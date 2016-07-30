@@ -52,7 +52,9 @@ lazy val commonSettings = Seq(
     "org.typelevel" %% "cats-laws" % catsVersion % "test",
     "com.github.julien-truffaut" %% "monocle-core" % monocleVersion,
     "com.github.julien-truffaut"  %%  "monocle-macro" % monocleVersion,
-    "com.projectseptember" %% "freek" % "0.3.0",
+    "com.projectseptember" %% "freek" % "0.5.0" 
+      exclude("org.typelevel", "cats_2.11")
+    exclude("org.typelevel", "cats-laws_2.11"),
     "oncue.quiver" %% "core" % "5.3.57",
     "org.slf4j" % "slf4j-api" % "1.7.13",
     "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0"
@@ -107,7 +109,8 @@ lazy val androidSettings = Seq(
   (unmanagedClasspath in Compile) := (unmanagedClasspath in Compile).value ++ androidDependencies.value,
   libraryDependencies ++= Seq(
     "com.github.tony19" % "logback-android-core" % "1.1.1-5",
-    "com.github.tony19" % "logback-android-classic" % "1.1.1-5" exclude("com.google.android", "android")
+    "com.github.tony19" % "logback-android-classic" % "1.1.1-5" 
+      exclude("com.google.android", "android")
   )
 )
 

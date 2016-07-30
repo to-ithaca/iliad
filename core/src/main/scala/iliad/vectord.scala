@@ -55,6 +55,8 @@ final class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
     map2(that)(G.minus)
   def *:(a: A)(implicit G: algebra.MultiplicativeSemigroup[A]): VectorD[N, A] =
     map(a * _)
+  def -(a: A)(implicit G: algebra.AdditiveGroup[A]): VectorD[N, A] = 
+    map(_ - a)
 
   def ⋅(that: VectorD[N, A])(implicit G: algebra.Semiring[A]): A =
     map2(that)(_ * _).unsized.foldLeft(G.zero)(_ + _)

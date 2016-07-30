@@ -48,7 +48,7 @@ object ToGL {
   private def apply(n: Draw.Drawable): DSL[GL.DrawOp] =
     for {
       f <- apply(n.instance.framebuffer)
-      tus <- apply(n.instance.uniforms)
+      tus <- apply(n.instance.textureUniforms)
     } yield
       GL.DrawOp(n.instance.model.model,
                 n.instance.constructor.program,

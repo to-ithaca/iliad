@@ -13,6 +13,10 @@ object InputEvent {
       Math.sqrt(dx * dx + dy * dy).toFloat
     }
   }
+
+  case class DragStarted(start: Tap, current: Tap) extends InputEvent
+  case class DragContinuing(start: Tap, tail: List[Tap]) extends InputEvent
+  case class DragFinished(start: Tap, tail: List[Tap]) extends InputEvent
 }
 
 object EventHandler {

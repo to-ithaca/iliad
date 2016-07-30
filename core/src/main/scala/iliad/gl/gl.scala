@@ -4,7 +4,7 @@ package gl
 import iliad.kernel.platform.GLES30Library
 
 import cats._
-import cats.data.{State => CatsState, ReaderT, StateT, Xor, XorT}
+import cats.data._
 import cats.free._
 import cats.implicits._
 
@@ -17,42 +17,41 @@ import FreekExtra._
 import MonocleExtra._
 import CatsExtra._
 
-object GL {
+// To workaround SI-7139 `object GL` needs to be defined inside the package object
+// next to the type alias
+trait GLFunctions {
 
-  case class State(cache: Cache.State, current: Current.State)
-  type GL[A] =
-    (Load :|: Cache :|: Draw :|: Current :|: OpenGL :|: FXNil)#Cop[A]
-  type DSL[A] = Free[GL, A]
-  type PRG[F[_], A] = ReaderT[StateT[F, State, ?], GLES30Library, A]
+  type DSL[A] = Free[GLProgram.Cop, A]
+  type PRG[F[_], A] = ReaderT[StateT[F, GL.State, ?], GLES30Library, A]
 
-  def empty: State = State(Cache.State.empty, Current.State.empty)
+  def empty: GL.State = GL.State(Cache.State.empty, Current.State.empty)
 
-  val _cache: Lens[State, Cache.State] = GenLens[State](_.cache)
-  val _current: Lens[State, Current.State] = GenLens[State](_.current)
+  val _cache: Lens[GL.State, Cache.State] = GenLens[GL.State](_.cache)
+  val _current: Lens[GL.State, Current.State] = GenLens[GL.State](_.current)
 
   private def liftOpenGL[F[_]: Monad]: OpenGL.Effect[F, ?] ~> PRG[F, ?] =
     new (OpenGL.Effect[F, ?] ~> PRG[F, ?]) {
       def apply[A](eff: ReaderT[F, GLES30Library, A]): PRG[F, A] =
-        eff.mapF(_.liftT[StateT[?[_], State, ?]])
+        eff.mapF(_.liftT[StateT[?[_], GL.State, ?]])
     }
 
-  def liftS[F[_]: Monad, A](s: CatsState[State, A]): PRG[F, A] =
+  def liftS[F[_]: Monad, A](s: State[GL.State, A]): PRG[F, A] =
     ReaderT(_ => s.transformF(sa => Applicative[F].pure(sa.value)))
 
   private def liftCache[F[_]: Monad]: Cache.Effect ~> PRG[F, ?] =
     new (Cache.Effect ~> PRG[F, ?]) {
-      def apply[A](eff: CatsState[Cache.State, A]): PRG[F, A] =
-        liftS(eff.applyLens[State](_cache))
+      def apply[A](eff: State[Cache.State, A]): PRG[F, A] =
+        liftS(eff.applyLens[GL.State](_cache))
     }
 
   private def liftCurrent[F[_]: Monad]: Current.Effect ~> PRG[F, ?] =
     new (Current.Effect ~> PRG[F, ?]) {
-      def apply[A](eff: CatsState[Current.State, A]): PRG[F, A] =
-        liftS(eff.applyLens[State](_current))
+      def apply[A](eff: State[Current.State, A]): PRG[F, A] =
+        liftS(eff.applyLens[GL.State](_current))
     }
 
   def runner[F[_]: Monad](
-      f: OpenGL.Interpreter[OpenGL.Effect[F, ?]]): Interpreter[GL, PRG[F, ?]] =
+      f: OpenGL.Interpreter[OpenGL.Effect[F, ?]]): Interpreter[GLProgram.Cop, PRG[F, ?]] =
     Load.parse(f).andThen(liftOpenGL) :&:
       CacheParser.andThen(liftCache[F]) :&:
         Draw.parse(f).andThen(liftOpenGL) :&:
@@ -60,7 +59,7 @@ object GL {
             f.andThen(liftOpenGL)
 
   private def getOrElse[A](f: DSL[Option[A]])(g: => DSL[A]): DSL[A] =
-    f.flatMap(_.map(Free.pure[GL, A]).getOrElse(g))
+    f.flatMap(_.map(Free.pure[GLProgram.Cop, A]).getOrElse(g))
 
   private def load(s: VertexShader.Source): DSL[VertexShader.Compiled] =
     getOrElse(Cache.get(s).freekF[GL])(for {
@@ -89,7 +88,7 @@ object GL {
       _ <- Current.set(u.buffer).freekF[GL]
     } yield ()
 
-  def load(r: VertexData.Ref, d: VertexData.Data, pageSize: Int): DSL[Unit] =
+  private def loadVertices(r: VertexData.Ref, d: VertexData.Data, pageSize: Int): DSL[Unit] =
     Cache.get(r.buffer).freekF[GL] flatMap {
       case Some(prev) =>
         if (VertexBuffer.fits(prev, d.size))
@@ -109,13 +108,19 @@ object GL {
         } yield ()
     }
 
+  def load(r: VertexData.Ref, d: VertexData.Data, pageSize: Int): DSL[VertexDataAlreadyLoaded Xor Unit] = 
+    Cache.get(r).freekF[GL] flatMap {
+      case Some(_) => Free.pure(VertexDataAlreadyLoaded(r).left)
+      case None => loadVertices(r, d, pageSize).map(_.right) 
+    }
+
   private def add(u: ElementBuffer.Update): DSL[Unit] =
     for {
       _ <- Cache.put(u).freekF[GL]
       _ <- Current.set(u.buffer).freekF[GL]
     } yield ()
 
-  def load(r: ElementData.Ref, d: ElementData.Data, pageSize: Int): DSL[Unit] =
+  private def loadElements(r: ElementData.Ref, d: ElementData.Data, pageSize: Int): DSL[Unit] =
     Cache.get(r.buffer).freekF[GL] flatMap {
       case Some(prev) =>
         if (ElementBuffer.fits(prev, d.size))
@@ -133,6 +138,13 @@ object GL {
           b <- Load.create(r, d, pageSize, r.buffer).freekF[GL]
           _ <- add(b)
         } yield ()
+    }
+
+  def load(r: ElementData.Ref, d: ElementData.Data, pageSize: Int): 
+      DSL[ElementDataAlreadyLoaded Xor Unit] =
+    Cache.get(r).freekF[GL] flatMap {
+      case Some(_) => Free.pure(ElementDataAlreadyLoaded(r).left)
+      case None => loadElements(r, d, pageSize).map(_.right)
     }
 
   def load(t: Texture.Constructor, d: Texture.Data): DSL[Texture.Loaded] =

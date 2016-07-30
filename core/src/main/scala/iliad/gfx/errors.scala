@@ -4,34 +4,32 @@ package gfx
 import iliad.{gl => GL}
 
 sealed trait GraphicsError extends IliadError
-case class UnsetUniformsError(d: Draw.Instance) extends GraphicsError {
-  def message: String =
-    s"""No uniforms have not been set for draw instance:
-    $d"""
+
+case class UnsetScopeError(s: UniformScope) extends GraphicsError {
+  def message: String = 
+    s"Scope $s has not been set"
 }
 
-case class UnsetUniformError(d: Draw.Instance, name: String)
+case class UnsetUniformError(name: String, s: UniformScope)
     extends GraphicsError {
   def message: String =
-    s"""Uniform [$name] has not been set for draw instance:
-$d"""
+    s"Uniform [$name] has not been set for scope [$s]"
 }
 
-case class DoubleUniformFoldError(d: Draw.Instance, name: String)
+case class DoubleUniformFoldError(s: UniformScope, name: String)
     extends GraphicsError {
   def message: String =
     s"""Uniform [$name] has been folded over twice in a frame
-for draw instance:
-$d"""
+for scope [$s]"""
 }
 
-case class UniformTypeMatchError(d: Draw.Instance,
+case class UniformTypeMatchError(s: UniformScope,
                                  name: String,
                                  exception: Throwable)
     extends GraphicsError {
   def message: String =
     s"""Uniform [$name] has been updated with an inconsistent type.
-Draw instance: $d
+Scope: [$s]
 Exception: $exception
 """
 }

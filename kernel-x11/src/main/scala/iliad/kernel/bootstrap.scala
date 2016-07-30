@@ -45,6 +45,8 @@ trait X11Bootstrap
   def width: Int
   def height: Int
 
+  val pageSize: Int = 1024
+
   private val x = iliad.kernel.platform.unix.X11.INSTANCE
 
   override val lockDisplay = Some(x.XLockDisplay _)
@@ -56,7 +58,10 @@ trait X11Bootstrap
       _ <- {
         s.set(System.currentTimeMillis).schedule(0.01666 seconds)
       }
-    } yield vsync(s)).unsafeRunAsync(msg => logger.info(msg.toString))
+    } yield vsync(s)).unsafeRunAsync(_.toXor match {
+      case Xor.Left(err) => logger.error(s"Error during vsync: $err")
+      case Xor.Right(_) =>
+    })
   }
 
   def vsync: Stream[Task, Long] =
@@ -153,7 +158,7 @@ trait X11Bootstrap
     val e = new XEvent()
     val hasEvent = x.XCheckMaskEvent(d, inputMask, e)
     if (hasEvent) {
-      logger.info("received event")
+      logger.debug("received XEvent")
       handleEvent(e)
     }
   }

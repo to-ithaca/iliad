@@ -1,5 +1,7 @@
 package iliad
 
+import iliad.kernel.platform.MatrixLibrary
+
 import shapeless._
 import shapeless.ops.nat._
 
@@ -52,10 +54,10 @@ final class MatrixD[W <: Nat, H <: Nat, A] private[iliad] (_unsized: Vector[A],
       implicit S: MultiplicativeSemigroup[MatrixD[W, H, A]])
     : MatrixD[W, H, A] = S.times(this, m)
 
-  def times(v: VectorD[W, A])(implicit S: MatrixProduct[W, H, nat._1, A],
+ def times(v: VectorD[W, A])(implicit S: MatrixProduct[W, H, nat._1, A],
                               toIntW: ToInt[W],
                               toIntH: ToInt[H]): VectorD[H, A] =
-    S.prod(this, v.matrix).vector
+   S.prod(this, v.matrix).vector
 
   def ===[AA <: A](that: MatrixD[W, H, AA])(implicit EA: cats.Eq[A]): Boolean =
     unsized === that.unsized
@@ -108,14 +110,12 @@ object MatrixD {
 
   lazy val id4f = identity[nat._4, Float]
 
-  implicit def matrix4Group[A: ConvertableTo: ConvertableFrom: Ring](
-      implicit Lib: kernel.platform.MatrixLibrary)
+  implicit def matrix4Group[A: Ring](
+      implicit ma: MatrixAlgebra[nat._4, A])
     : Group[MatrixD[nat._4, nat._4, A]] with MultiplicativeSemigroup[
         MatrixD[nat._4, nat._4, A]] =
     new Matrix4Group[A] {
-      def L = Lib
-      def T = ConvertableTo[A]
-      def F = ConvertableFrom[A]
+      def MA = ma
       def R = Ring[A]
     }
 }
@@ -130,15 +130,11 @@ private trait Matrix4Group[A]
     extends Group[MatrixD[nat._4, nat._4, A]]
     with MultiplicativeSemigroup[MatrixD[nat._4, nat._4, A]] {
 
-  def L: kernel.platform.MatrixLibrary
-  def T: ConvertableTo[A]
-  def F: ConvertableFrom[A]
+  def MA: MatrixAlgebra[nat._4, A]
   implicit def R: Ring[A]
 
   def inverse(m: MatrixD[nat._4, nat._4, A]): MatrixD[nat._4, nat._4, A] =
-    new MatrixD(L.invertM(m.map(F.toFloat).toArray).toVector.map(T.fromFloat),
-                m.width,
-                m.height)
+    MA.inverse(m)
 
   def id: MatrixD[nat._4, nat._4, A] = MatrixD.identity[nat._4, A]
 
@@ -148,51 +144,81 @@ private trait Matrix4Group[A]
 
   def times(m0: MatrixD[nat._4, nat._4, A],
             m1: MatrixD[nat._4, nat._4, A]): MatrixD[nat._4, nat._4, A] =
-    new MatrixD(
-        L.multiplyMM(m0.map(F.toFloat).toArray, m1.map(F.toFloat).toArray)
-          .toVector
-          .map(T.fromFloat),
-        m0.width,
-        m0.height)
+    MA.times(m0, m1)
 }
+
 
 trait MatrixProduct[W <: Nat, H0 <: Nat, W1 <: Nat, A] {
   def prod(m0: MatrixD[W, H0, A], m1: MatrixD[W1, W, A]): MatrixD[W1, H0, A]
 }
 
 object MatrixProduct {
-
   implicit def squareProduct[N <: Nat, A](
-      implicit SS: MultiplicativeSemigroup[MatrixD[N, N, A]])
+      implicit ma: MatrixAlgebra[N, A])
     : MatrixProduct[N, N, N, A] = new SquareMatrixProduct[N, A] {
-    def S = SS
+    def MA = ma
   }
 
-  implicit def mat4VProduct[A: ConvertableTo: ConvertableFrom](
-      implicit Lib: kernel.platform.MatrixLibrary)
-    : MatrixProduct[nat._4, nat._4, nat._1, A] = new Mat4x4Mat1x4Product[A] {
-    def L = Lib
-    def T = ConvertableTo[A]
-    def F = ConvertableFrom[A]
+  implicit def matVProduct[N <: Nat, A](
+      implicit ma: MatrixAlgebra[N, A])
+    : MatrixProduct[N, N, nat._1, A] = new MatNx1Product[N, A] {
+    def MA = ma
   }
 }
 
 private trait SquareMatrixProduct[N <: Nat, A]
     extends MatrixProduct[N, N, N, A] {
-  def S: MultiplicativeSemigroup[MatrixD[N, N, A]]
+  def MA: MatrixAlgebra[N, A]
 
   def prod(m0: MatrixD[N, N, A], m1: MatrixD[N, N, A]): MatrixD[N, N, A] =
-    S.times(m0, m1)
+    MA.times(m0, m1)
 }
 
-private trait Mat4x4Mat1x4Product[A]
-    extends MatrixProduct[nat._4, nat._4, nat._1, A] {
+private trait MatNx1Product[N <: Nat, A]
+    extends MatrixProduct[N, N, nat._1, A] {
+  def MA: MatrixAlgebra[N, A]
+
+  def prod(m0: MatrixD[N, N, A],
+           m1: MatrixD[nat._1, N, A]): MatrixD[nat._1, N, A] =
+    MA.timesv(m0, m1)
+}
+
+object MatrixAlgebra {
+  implicit def matrix4Algebra[A: ConvertableFrom : ConvertableTo](implicit l: MatrixLibrary): MatrixAlgebra[nat._4, A]
+  = new Matrix4Algebra[A] {
+    val L = l
+    val T = ConvertableTo[A]
+    val F = ConvertableFrom[A]
+  }
+}
+
+trait MatrixAlgebra[N <: Nat, A] {
+  def times(m0: MatrixD[N, N, A], m1: MatrixD[N, N, A]): MatrixD[N, N, A]
+  def inverse(m0: MatrixD[N, N, A]): MatrixD[N, N, A]
+  def timesv(m0: MatrixD[N, N, A], m1: MatrixD[nat._1, N, A]): MatrixD[nat._1, N, A]
+}
+
+private trait Matrix4Algebra[A] extends MatrixAlgebra[nat._4, A] {
   def L: kernel.platform.MatrixLibrary
   def T: ConvertableTo[A]
   def F: ConvertableFrom[A]
 
-  def prod(m0: MatrixD[nat._4, nat._4, A],
-           m1: MatrixD[nat._1, nat._4, A]): MatrixD[nat._1, nat._4, A] =
+  def times(m0: MatrixD[nat._4, nat._4, A],
+            m1: MatrixD[nat._4, nat._4, A]): MatrixD[nat._4, nat._4, A] =
+    new MatrixD(
+        L.multiplyMM(m0.map(F.toFloat).toArray, m1.map(F.toFloat).toArray)
+          .toVector
+          .map(T.fromFloat),
+        m0.width,
+        m0.height)
+
+ def inverse(m: MatrixD[nat._4, nat._4, A]): MatrixD[nat._4, nat._4, A] =
+    new MatrixD(L.invertM(m.map(F.toFloat).toArray).toVector.map(T.fromFloat),
+                m.width,
+                m.height)
+
+  def timesv(m0: MatrixD[nat._4, nat._4, A],
+    m1: MatrixD[nat._1, nat._4, A]): MatrixD[nat._1, nat._4, A] =
     MatrixD.sized(
         nat._1,
         nat._4,

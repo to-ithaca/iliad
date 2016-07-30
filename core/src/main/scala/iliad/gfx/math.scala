@@ -30,16 +30,23 @@ case class AxisAngle[A: Trig: Ring](axis: Vec3[A], θ: A) {
     )
   }
 
-  def rotate(v: Vec3[A])(implicit MV: Mat4VProd[A]): Vec3[A] =
+  def rotate(v: Vec3[A])(implicit MA: MatrixAlgebra[nat._4, A]): Vec3[A] =
     matrix.rotate(v)
 }
 
 case class RotationMatrix[A: AdditiveMonoid](matrix: Mat4[A]) {
-  def rotate(v: Vec3[A])(implicit MV: Mat4VProd[A]): Vec3[A] =
+  def rotate(v: Vec3[A])(implicit MA: MatrixAlgebra[nat._4, A]): Vec3[A] =
     matrix.times(v.padZero(4)).dropUntil(3)
 }
 
 case class TransformationMatrix[A: Ring](matrix: Mat4[A]) {
-  def transform(v: Vec3[A])(implicit MV: Mat4VProd[A]): Vec4[A] =
+  def transform(v: Vec3[A])(implicit MA: MatrixAlgebra[nat._4, A]): Vec4[A] =
     matrix.times(v.padOne(4))
+}
+
+/** Sign is in a right handed rotation system */
+sealed abstract class Rotation(val sign: Sign)
+object Rotation {
+  case object Anticlockwise extends Rotation(Sign.Positive)
+  case object Clockwise extends Rotation(Sign.Negative)
 }

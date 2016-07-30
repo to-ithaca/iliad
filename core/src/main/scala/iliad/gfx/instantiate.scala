@@ -43,8 +43,9 @@ trait InstantiateFunctions {
 
   def drawInstance(model: Model.Instance,
                    cons: Draw.Constructor,
-                   uniforms: (String, Texture.Uniform)*): Draw.Instance =
-    Draw.Instance(cons, uniforms.toMap, model, Framebuffer.OnScreen, 1)
+    uniforms: Map[String, UniformScope],
+                   textureUniforms: (String, Texture.Uniform)*): Draw.Instance =
+    Draw.Instance(cons, textureUniforms.toMap,uniforms, model, Framebuffer.OnScreen, 1)
 
   def clearScreen(c: Clear.Constructor): Clear.Instance =
     Clear.Instance(c, Framebuffer.OnScreen)
@@ -100,7 +101,7 @@ object Instantiate {
   private def textures(
       n: Draw.Instance): ValidatedNel[TextureUniformMissingError, Unit] =
     n.constructor.program.textureNames.traverseUnit { name =>
-      n.uniforms.get(name) match {
+      n.textureUniforms.get(name) match {
         case Some(_) => ().valid
         case None => TextureUniformMissingError(name).invalidNel
       }

@@ -62,6 +62,9 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
                                 EGLContext],
                ?] = EGLInterpreter.logInterpreter
 
+  private lazy val GLInterpreter = 
+    GL.runner(OpenGL.run)
+
   private def EGLTask(window: NativeWindow, display: NativeDisplay)(
       cattrs: Attributes[ConfigAttrib, ConfigAttribValue],
       wattrs: Attributes[WindowAttrib, WindowAttribValue],
@@ -133,27 +136,35 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
         .map(_.get)
 
   private def aggregate(implicit S: Strategy)
-    : Pipe[Task, List[Graphics.Graphics], (Long, List[Graphics.Graphics])] =
+    : Pipe[Task, List[Graphics], (Long, List[Graphics])] =
     q =>
       (vsync through2 q)(aggregateRight).map {
         case (at, cmds) => (at, cmds.flatten.toList)
     }
 
-  private def run(cfg: Graphics.Config, gs: List[Graphics.Graphics])(
+  private def run(cfg: Graphics.Config, gs: List[Graphics])(
       s: Graphics.State)
     : Error Xor (Graphics.State, XorT[GL.DSL, GLError, Unit]) =
     Graphics(gs).run(cfg).run(s).leftMap(s => new Error(s.toString))
 
-  private def run[A](gl: GL.DSL[IliadError Xor A],
+  //TODO: encapsulate the handling of the effect in the runner
+  private def runDebug[A](gl: GL.DSL[IliadError Xor A],
                      s: GL.State): Xor[Error, GL.State] = {
-    val interpreter = GL.runner(iliad.gl.OpenGL.debugLog)
-    val prg = gl.interpret(interpreter)
+    val prg = gl.interpret(GL.runner(OpenGL.debugLog))
     val (log, xor) = prg.run(GLES30).run(s).value.run
     log.foreach(l => logger.debug(l))
     xor.flatMap {
       case (nextS, xxor) => xxor.map(_ => nextS)
     }.leftMap(s => new Error(s.toString))
   }
+
+ private def run[A](gl: GL.DSL[IliadError Xor A],
+                     s: GL.State): Xor[Error, GL.State] = {
+    val prg = gl.interpret(GLInterpreter)
+    val (nextS, xor) = prg.run(GLES30).run(s)
+    xor.leftMap(s => new Error(s.toString)).map(_ => nextS)
+  }
+
 
   private def run(cfg: Graphics.Config,
                   gls: GL.State,
@@ -163,14 +174,10 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
 
   private def run(
       at: Long,
-      us: UniformCache.State): (UniformCache.State, UniformCache.Values) = {
-    val r = us.map(UniformCache.values(at))
-    val nextS = r.mapValues { case (_, st) => st }
-    val vs = r.mapValues { case (vs, _) => vs }
-    (nextS, vs)
-  }
+      us: UniformCache.State): (UniformCache.State, UniformCache.Values) =
+    UniformCache.values(at).run(us).value
 
-  val GLPipe: Pipe[Task, List[Graphics.Graphics], Unit] = graphics =>
+  val GLPipe: Pipe[Task, List[Graphics], Unit] = graphics =>
     for {
       (nw, nd) <- Stream.eval(session.task(EGLStrategy))
       (d, sfc, ctx) <- Stream.eval(EGL(nw, nd))
@@ -188,7 +195,9 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
                 midGl <- run(loadCmds.leftWiden[IliadError].value, prevGl)
                 (nextUc, us) = run(at, nextGr.uniformCache)
                 nextGl <- run(cfg, midGl, us, nextGr)
-              } yield (nextGr.copy(uniformCache = nextUc), nextGl)
+              } yield {
+                (nextGr.copy(uniformCache = nextUc), nextGl)
+              }
               (xor, xor.task)
             }
             .eval

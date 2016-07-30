@@ -1,6 +1,9 @@
 package iliad
 
+import iliad.gfx.{Panel, Carpenter, CuboidSurface}
+
 import iliad.syntax.all._
+import iliad.kernel.InputEvent
 
 import org.scalacheck._
 
@@ -86,6 +89,36 @@ trait ArbitraryInstances {
       x0y1 <- vectorDArbitrary[nat._3, A].arbitrary.filter(_ =!= x0y0)
       x1y0 <- vectorDArbitrary[nat._3, A].arbitrary.filter(v => v =!= x0y0 &&  v =!= x0y1)
     } yield BoundedPlane(x0y0, x0y1, x1y0)
+  }
+
+  implicit def tapArbitrary: Arbitrary[InputEvent.Tap] = Arbitrary {
+    for {
+      x <- Gen.choose(0f, 1f)
+      y <- Gen.choose(0f, 1f)
+      t <- Gen.choose(0L, 30000L)
+    } yield InputEvent.Tap(t, x, y)
+  }
+
+  implicit def swipeArbitrary: Arbitrary[InputEvent.Swipe] = Arbitrary {
+    for {
+      s <- tapArbitrary.arbitrary
+      e <- tapArbitrary.arbitrary.filter { e => 
+        (e.x != s.x || e.y != s.y) && e.at > s.at
+      }
+    } yield InputEvent.Swipe(s, e)
+  }
+
+  def cuboidPanelArbitrary[A : spire.math.Fractional](
+    a: Arbitrary[A], i: Arbitrary[Int]):
+      Arbitrary[Panel[(Vec3[A], CuboidSurface)]] = Arbitrary {
+    for {
+      x <- a.arbitrary
+      xSeg <- i.arbitrary
+      y <- a.arbitrary
+      ySeg <- i.arbitrary
+      z <- a.arbitrary
+      zSeg <- i.arbitrary
+    } yield Carpenter.cuboid.shape(x, xSeg, y, ySeg, z, zSeg)
   }
 }
 

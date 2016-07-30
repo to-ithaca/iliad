@@ -64,22 +64,27 @@ trait AnimationFunctions {
 }
 
 object UniformCache {
-  type State = Map[Draw.Instance, Map[String, CachedFunction]]
-  type Values = Map[Draw.Instance, List[GL.Uniform.Value]]
+  type State = Map[UniformScope, Map[String, CachedFunction]]
+  type Values = Map[UniformScope, Map[String, GL.Uniform.Value]]
   type Effect = StateT[GraphicsError Xor ?, State, Unit]
 
   private val root = Iso.id[State]
 
   private[gfx] def apply(a: UniformCache): Effect = a match {
-    case UniformPut(n, fs) => StateTExtra.modify(s => (s + (n -> fs)).right)
-    case UniformFold(n, name, f) =>
+    case UniformPut(scope, fs) => StateTExtra.modify(s => (s + (scope -> fs)).right)
+    case UniformUpdate(scope, name, f) => StateTExtra.modify( s =>
+      s.get(scope).toRightXor(UnsetScopeError(scope)).map( _ =>
+        (root ^|-? index(scope) ^|-> at(name) set Some(f))(s)
+      )
+    )
+    case UniformFold(scope, name, f) =>
       StateTExtra.modify { (fs: State) =>
         for {
-          us <- fs.get(n).toRightXor(UnsetUniformsError(n))
-          u <- us.get(name).toRightXor(UnsetUniformError(n, name))
+          us <- fs.get(scope).toRightXor(UnsetScopeError(scope))
+          u <- us.get(name).toRightXor(UnsetUniformError(name, scope))
           cf <- u match {
                  case _: CachedFunction.Fold[_] =>
-                   DoubleUniformFoldError(n, name).left
+                   DoubleUniformFoldError(scope, name).left
                  case prev: CachedFunction.UniformFunction[_] =>
                    //nasty, but we need to get around type erasure somehow
                    Xor
@@ -90,15 +95,15 @@ object UniformCache {
                        cast.toString
                        cast
                      })
-                     .leftMap(e => UniformTypeMatchError(n, name, e))
+                     .leftMap(e => UniformTypeMatchError(scope, name, e))
                      .map(p => CachedFunction.Fold(p, f))
                }
-        } yield (root ^|-? index(n) ^|-> at(name) set Some(cf))(fs)
+        } yield (root ^|-? index(scope) ^|-> at(name) set Some(cf))(fs)
       }
   }
 
   private[iliad] def uniformValues(at: Long)
-    : CatsState[Map[String, CachedFunction], List[GL.Uniform.Value]] =
+    : CatsState[Map[String, CachedFunction], Map[String, GL.Uniform.Value]] =
     CatsState { fs =>
       val both: Map[String, (GL.Uniform.Value, CachedFunction)] = fs.map {
         case (name, u: CachedFunction.UniformFunction[_]) =>
@@ -107,43 +112,52 @@ object UniformCache {
           val uf = f(at)
           name -> (uf(at, name), uf)
       }.toMap
-      val out = both.values.map(_._1).toList
-      val nextS = both.mapValues(_._2)
-      (nextS, out)
+      val next = both.mapValues { case (_, f) => f }
+      val out = both.mapValues { case (value, _) => value }
+      (next, out)
     }
 
-  private[iliad] def values(at: Long)(
-      tup: (Draw.Instance, Map[String, CachedFunction]))
-    : (Draw.Instance, (List[GL.Uniform.Value], Map[String, CachedFunction])) = {
-    val (d, fs) = tup
-    val (nextfs, vs) = uniformValues(at).run(fs).value
-    (d, (vs, nextfs))
-  }
+  private[iliad] def values(at: Long): 
+      CatsState[State, Values] =
+    CatsState { state =>
+      val both = state.mapValues { fs =>
+        uniformValues(at).run(fs).value
+      }
+      val next = both.mapValues { case (fs, _) => fs}
+      val out = both.mapValues { case (_, vs) => vs}
+      (next, out)
+    }
 }
 
 sealed trait UniformCache
 
-private case class UniformPut(n: Draw.Instance,
+private case class UniformPut(s: UniformScope,
                               fs: Map[String, CachedFunction])
     extends UniformCache
-private case class UniformFold[A](n: Draw.Instance,
+private case class UniformFold[A](s: UniformScope,
                                   name: String,
                                   f: (Long,
                                       A) => CachedFunction.UniformFunction[A])
     extends UniformCache
 
+private case class UniformUpdate(s: UniformScope, name: String, f: CachedFunction) 
+    extends UniformCache
+
 trait UniformCacheFunctions {
 
-  private def lift(a: UniformCache): Graphics.Graphics =
-    shapeless.Coproduct[Graphics.Graphics](a)
+  private def lift(a: UniformCache): Graphics =
+    shapeless.Coproduct[Graphics](a)
 
-  def animate(n: Draw.Instance,
-              fs: (String, CachedFunction)*): Graphics.Graphics =
-    lift(UniformPut(n, fs.toMap))
+  def putScope(s: UniformScope,
+              fs: (String, CachedFunction)*): Graphics =
+    lift(UniformPut(s, fs.toMap))
 
-  def fold[A](n: Draw.Instance,
+  def foldUniform[A](s: UniformScope,
               name: String,
               f: (Long,
-                  A) => CachedFunction.UniformFunction[A]): Graphics.Graphics =
-    lift(UniformFold(n, name, f))
+                  A) => CachedFunction.UniformFunction[A]): Graphics =
+    lift(UniformFold(s, name, f))
+
+  def updateUniform(s: UniformScope, name: String, f: CachedFunction): Graphics = 
+    lift(UniformUpdate(s, name, f))
 }

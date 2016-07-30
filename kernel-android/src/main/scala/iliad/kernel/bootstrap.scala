@@ -4,14 +4,15 @@ import scala.reflect._
 
 import iliad.kernel._
 
+import android.os.SystemClock
 import android.app.Activity
 import android.app.Fragment
 import android.os.Bundle
 import android.util.Log
 import android.view._
 import android.graphics.Point
-import android.support.v4.view.GestureDetectorCompat
 import android.content.Context
+import android.support.v4.view.GestureDetectorCompat
 
 import fs2._
 import fs2.util._
@@ -37,9 +38,11 @@ trait AndroidDependencies extends GLDependencies with IliadApp {
 
   val EGL14 = iliad.kernel.EGL14
   val GLES30 = iliad.kernel.GLES30
+
+  val MatrixLib = AndroidMatrixLibrary
 }
 
-trait AndroidVSync {
+trait AndroidVSync extends LazyLogging {
 
   private implicit val S: Strategy = Strategy.fromFixedDaemonPool(1, "vsync")
 
@@ -49,11 +52,13 @@ trait AndroidVSync {
     _choreographer.postFrameCallback {
       new Choreographer.FrameCallback() {
         def doFrame(frameTimeNanos: Long): Unit = {
-          s.set(frameTimeNanos).unsafeAttemptRun.toXor match {
+          val millis = frameTimeNanos / 1000000L + 
+          System.currentTimeMillis - SystemClock.uptimeMillis
+          s.set(millis).unsafeAttemptRun.toXor match {
             case Xor.Right(_) =>
             case Xor.Left(err) =>
               throw new Error(
-                s"Failed to set vsync signal at time $frameTimeNanos. ${err.getMessage}"
+                s"Failed to set vsync signal at time $millis. ${err.getMessage}"
               )
           }
           _choreographer.postFrameCallback(this)
@@ -79,8 +84,6 @@ trait AndroidBootstrap extends Activity with AndroidEventHandler
   def subFragment: Int
   def subView: Int
 
-  var detector: GestureDetectorCompat = _
-
   var _width: Int = _
   var _height: Int = _
   def width: Int = _width
@@ -101,17 +104,14 @@ trait AndroidBootstrap extends Activity with AndroidEventHandler
     detector = new GestureDetectorCompat(this, this)
     detector.setOnDoubleTapListener(this)
 
+    recogniser = EventRecogniser.Blank(width, height)
+
     if (savedInstanceState == null) {
       val transaction = getFragmentManager.beginTransaction()
       val fragment = new AndroidFragment(app, subView, fragmentXML, session)
       transaction.replace(subFragment, fragment)
       transaction.commit()
     }
-  }
-
-  override def onTouchEvent(event: MotionEvent): Boolean = {
-    detector.onTouchEvent(event)      
-    super.onTouchEvent(event)
   }
 
   override def onCreateOptionsMenu(menu: Menu): Boolean = true

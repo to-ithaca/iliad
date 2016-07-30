@@ -6,7 +6,12 @@ import iliad.kernel._
 import fs2._
 import fs2.util._
 
-trait EventStream extends EventHandler {
+import cats.data._
+import cats.implicits._
+
+import com.typesafe.scalalogging._
+
+trait EventStream extends EventHandler with LazyLogging {
 
   private implicit val S: Strategy = Strategy.fromFixedDaemonPool(8, "worker")
 
@@ -14,8 +19,10 @@ trait EventStream extends EventHandler {
       implicit R: Async.Run[Task]): Stream[Task, A] =
     Stream.eval(async.unboundedQueue[Task, A]).flatMap { q =>
       register { (a: A) =>
-        println(s"REGISTERING EVENT $a")
-        q.enqueue1(a).unsafeRunAsync(msg => println(s"RAN REGISTRATION $msg"))
+        q.enqueue1(a).unsafeRunAsync(_.toXor match {
+          case Xor.Left(err) => logger.error(s"Error registering event $err")
+          case _ =>
+        })
       }
       q.dequeue
     }

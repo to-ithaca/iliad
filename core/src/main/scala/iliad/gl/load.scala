@@ -165,12 +165,12 @@ object LoadParser extends (Load ~> OpenGL.DSL) {
         .insertElements(b.id, b.filled, d.size, d.data)
         .map(_ => ElementBuffer.insert(b, r, d.size))
     case LoadCopyVertexBuffer(r, d, pageSize, b) =>
-      val capacity = roundUp(d.size, pageSize)
+      val capacity = roundUp(d.size + b.filled, pageSize)
       OpenGL
         .copyVertices(b.id, b.filled, d.size, d.data, capacity)
         .map(VertexBuffer.copy(_, b, r, d.size, capacity))
     case LoadCopyElementBuffer(r, d, pageSize, b) =>
-      val capacity = roundUp(d.size, pageSize)
+      val capacity = roundUp(d.size + b.filled, pageSize)
       OpenGL
         .copyElements(b.id, b.filled, d.size, d.data, capacity)
         .map(

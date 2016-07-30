@@ -2,6 +2,15 @@ package iliad
 package gl
 
 sealed trait GLError extends IliadError
+
+case class VertexDataAlreadyLoaded(r: VertexData.Ref) extends GLError {
+  def message: String = s"Vertex data has already been loaded: $r"
+}
+
+case class ElementDataAlreadyLoaded(r: ElementData.Ref) extends GLError {
+  def message: String = s"Element data has already been loaded: $r"
+}
+
 case class TextureNotLoadedError(t: Texture.Constructor) extends GLError {
   def message: String = s"Texture has not been loaded: $t"
 }
