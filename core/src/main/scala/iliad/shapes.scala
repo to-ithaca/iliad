@@ -94,6 +94,9 @@ case class BoundedLine[A: Field: NRoot: PartialOrder](start: Vec3[A],
   }
 
   def direction: Vec3[A] = line.direction
+  def distance: A = (end - start).norm
+  def midpoint: Vec3[A] = (end + start) :/ Field[A].fromInt(2)
+
   def ===[AA <: A](that: BoundedLine[AA])(implicit ea: Eq[A]): Boolean =
     start === that.start && end === that.end
 }
@@ -175,4 +178,122 @@ object BoundedPlane {
 private[iliad] sealed trait BoundedPlaneEq[A] extends Eq[BoundedPlane[A]] {
   implicit val EA: Eq[A]
   def eqv(x: BoundedPlane[A], y: BoundedPlane[A]): Boolean = x === y
+}
+
+case class Line2[A: Fractional](p0: Vec2[A], direction: Vec2[A]) {
+
+  def ===[AA <: A](that: Line2[AA])(implicit ea: Eq[A]): Boolean =
+    p0 === that.p0 && direction === that.direction
+
+  /** Finds the point of intersection
+    * @param θ the minumum angle between intersecting lines
+    *          θ = 0 gives the most precise intersecion, but falls prey to zero errors
+    * @param α the maximum angle between the line and an axis for the line to be 
+    *          considered parallel to the x or y axis
+    *          α = 0 gives the most precise description, but falls prey to zero errors
+    */
+  def intersection(o: Line2[A], θ: A, α: A)(
+      implicit T: Trig[A]): Option[Vec2[A]] = {
+    if ((direction ⋅ o.direction).abs >= Trig[A].cos(θ)) None
+    else {
+      val β =
+        if (o.direction.x.abs <= Trig[A].sin(α))
+          o.p0.x - p0.x / direction.x
+        else if (o.direction.y.abs <= Trig[A].sin(α))
+          o.p0.y - p0.y / direction.y
+        else {
+          val dp = p0 - o.p0
+          (o.direction.y * dp.x - o.direction.x * dp.y) /
+          (o.direction.x * direction.y - o.direction.y * direction.x)
+        }
+      Some(p0 + direction :* β)
+    }
+  }
+
+  def intersects(o: Line2[A], θ: A, α: A)(implicit T: Trig[A]): Boolean =
+    intersection(o, θ, α).nonEmpty
+
+  def normal: Vec2[A] = v"${-direction.y} ${direction.x}"
+
+  def distance(p: Vec2[A]): A = ((p - p0) ⋅ normal).abs
+
+  def contains(p: Vec2[A], ds: A): Boolean = distance(p) < ds
+
+  def equivalent(that: Line2[A], ds: A)(implicit EA: Eq[A]): Boolean =
+    direction === that.direction && contains(that.p0, ds)
+}
+
+object Line2 {
+
+  def line[A: Fractional](p0: Vec2[A], direction: Vec2[A]): Line2[A] =
+    Line2(p0, direction.normalize)
+
+  implicit def line2Eq[A](implicit ea: Eq[A]): Eq[Line2[A]] = new Line2Eq[A] {
+    val EA = ea
+  }
+}
+
+private[iliad] sealed trait Line2Eq[A] extends Eq[Line2[A]] {
+  implicit val EA: Eq[A]
+  def eqv(x: Line2[A], y: Line2[A]): Boolean = x === y
+}
+
+case class BoundedLine2[A](start: Vec2[A], end: Vec2[A]) {
+  def line(implicit F: Fractional[A]): Line2[A] =
+    Line2(start, (end - start).normalize)
+
+  def map[B](f: A => B): BoundedLine2[B] =
+    BoundedLine2(start.map(f), end.map(f))
+
+  def length(implicit F: Fractional[A]): A = (end - start).norm
+
+  /**
+    * Returns true if a point on the infinite line is within the finite bounds
+    *  @param β the minimum distance from the end points that a point must lie
+    *  @param p a point on the infinite line
+    */
+  def withinBounds(ds: A)(p: Vec2[A])(implicit F: Fractional[A]): Boolean = {
+    val l = (p - start) ⋅ direction
+    l >= ds && l <= (length - ds)
+  }
+
+  def intersection(o: BoundedLine2[A], θ: A, α: A, ds: A)(
+      implicit F: Fractional[A],
+      T: Trig[A]): Option[Vec2[A]] =
+    line
+      .intersection(o.line, θ, α)
+      .filter(withinBounds(ds))
+      .filter(o.withinBounds(ds))
+
+  def intersects(o: BoundedLine2[A], θ: A, α: A, β: A)(
+      implicit F: Fractional[A],
+      T: Trig[A]): Boolean =
+    intersection(o, θ, α, β).nonEmpty
+
+  def direction(implicit F: Fractional[A]): Vec2[A] = line.direction
+  def distance(implicit F: Fractional[A]): A = (end - start).norm
+  def midpoint(implicit F: Fractional[A]): Vec2[A] =
+    (end + start) :/ Field[A].fromInt(2)
+
+  def overlays(o: BoundedLine2[A], ds: A, β: A)(implicit F: Fractional[A],
+                                                EA: Eq[A]): Boolean =
+    line.equivalent(o.line, ds) &&
+      (withinBounds(β)(o.start) || withinBounds(β)(o.end))
+
+  def ===[AA <: A](that: BoundedLine2[AA])(implicit ea: Eq[A]): Boolean =
+    start === that.start && end === that.end
+}
+
+//TODO: add functor instance
+
+object BoundedLine2 {
+  implicit def boundedLine2Eq[A](implicit ea: Eq[A]): Eq[BoundedLine2[A]] =
+    new BoundedLine2Eq[A] {
+      val EA = ea
+    }
+}
+
+private[iliad] sealed trait BoundedLine2Eq[A] extends Eq[BoundedLine2[A]] {
+  implicit val EA: Eq[A]
+  def eqv(x: BoundedLine2[A], y: BoundedLine2[A]): Boolean = x === y
 }

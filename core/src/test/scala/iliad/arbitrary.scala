@@ -36,9 +36,9 @@ trait ArbitraryInstances {
     }    
   }
 
-  def normalArbitrary[A : spa.NRoot : spa.PartialOrder](implicit arb: Arbitrary[A], F: spa.Field[A]): Arbitrary[VectorD[nat._3, A]] = 
+  def normalArbitrary[N <: Nat, A : spa.NRoot : spa.PartialOrder](implicit arb: Arbitrary[A], F: spa.Field[A], toInt: ToInt[N]): Arbitrary[VectorD[N, A]] = 
     Arbitrary {
-    vectorDArbitrary[nat._3, A].arbitrary
+    vectorDArbitrary[N, A].arbitrary
       .map(_.normalize)
     .filter { v => 
       val n = v.norm
@@ -63,7 +63,7 @@ trait ArbitraryInstances {
   implicit def lineArbitrary[A: spa.Field : spa.NRoot : spa.PartialOrder : spa.Eq](implicit arb: Arbitrary[A]): Arbitrary[Line[A]] = Arbitrary {
     for {
       p <- vectorDArbitrary[nat._3, A].arbitrary
-      n <- normalArbitrary[A].arbitrary
+      n <- normalArbitrary[nat._3, A].arbitrary
     } yield Line(p, n.normalize)
   }
 
@@ -79,7 +79,7 @@ trait ArbitraryInstances {
     Arbitrary {
     for {
       p <- vectorDArbitrary[nat._3, A].arbitrary
-      n <- normalArbitrary[A].arbitrary
+      n <- normalArbitrary[nat._3, A].arbitrary
     } yield Plane(p, n)
     }
 
@@ -91,21 +91,44 @@ trait ArbitraryInstances {
     } yield BoundedPlane(x0y0, x0y1, x1y0)
   }
 
-  implicit def tapArbitrary: Arbitrary[InputEvent.Tap] = Arbitrary {
+  implicit def line2Arbitrary[A: spire.math.Fractional : spa.PartialOrder : spa.Eq](implicit arb: Arbitrary[A]): Arbitrary[Line2[A]] = Arbitrary {
+    for {
+      p <- vectorDArbitrary[nat._2, A].arbitrary
+      n <- normalArbitrary[nat._2, A].arbitrary
+    } yield Line2(p, n.normalize)
+  }
+
+  implicit def boundedLine2Arbitrary[A: spa.Field : spa.NRoot : spa.Eq : spa.PartialOrder](implicit arb: Arbitrary[A]): Arbitrary[BoundedLine2[A]] = Arbitrary {
+    for {
+      s <- vectorDArbitrary[nat._2, A].arbitrary
+      e <- vectorDArbitrary[nat._2, A].arbitrary
+      .filter(_ =!= s)
+    } yield BoundedLine2(s, e)
+  }
+
+
+
+  implicit def pointArbitrary: Arbitrary[InputEvent.Point] = Arbitrary {
     for {
       x <- Gen.choose(0f, 1f)
       y <- Gen.choose(0f, 1f)
       t <- Gen.choose(0L, 30000L)
-    } yield InputEvent.Tap(t, x, y)
+    } yield InputEvent.Point(t, x, y)
   }
 
-  implicit def swipeArbitrary: Arbitrary[InputEvent.Swipe] = Arbitrary {
+  def tapArbitrary: Arbitrary[InputEvent.Tap] = Arbitrary {
+    pointArbitrary.arbitrary.map(InputEvent.Tap)
+  }
+
+  implicit def swipeArbitrary: Arbitrary[InputEvent.DragBecameSwipe] = Arbitrary {
     for {
-      s <- tapArbitrary.arbitrary
-      e <- tapArbitrary.arbitrary.filter { e => 
+      s <- pointArbitrary.arbitrary
+      n <- Gen.choose(1, 10)
+      t <- traverse((0 to n).toList.map(_ => pointArbitrary.arbitrary))
+      e <- pointArbitrary.arbitrary.filter { e => 
         (e.x != s.x || e.y != s.y) && e.at > s.at
       }
-    } yield InputEvent.Swipe(s, e)
+    } yield InputEvent.DragBecameSwipe(s, t :+ e)
   }
 
   def cuboidPanelArbitrary[A : spire.math.Fractional](

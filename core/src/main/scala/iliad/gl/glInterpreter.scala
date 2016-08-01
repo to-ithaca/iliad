@@ -182,6 +182,8 @@ object GLInterpreter extends (OpenGL.Interpreter[OpenGL.NoEffect]) {
                                   normalized,
                                   stride,
                                   offset))
+    case GLVertexAttribIPointer(location, size, t, stride, offset) =>
+      Reader(_.glVertexAttribIPointer(location, size, t.value, stride, offset))
     case GLActiveTexture(unit) => Reader(_.glActiveTexture(unit.value))
     case GLBindSampler(unit, sampler) =>
       Reader(_.glBindSampler(Bounded.indexOf(unit), sampler))

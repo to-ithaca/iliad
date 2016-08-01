@@ -19,10 +19,11 @@ trait EventStream extends EventHandler with LazyLogging {
       implicit R: Async.Run[Task]): Stream[Task, A] =
     Stream.eval(async.unboundedQueue[Task, A]).flatMap { q =>
       register { (a: A) =>
-        q.enqueue1(a).unsafeRunAsync(_.toXor match {
-          case Xor.Left(err) => logger.error(s"Error registering event $err")
-          case _ =>
-        })
+        q.enqueue1(a)
+          .unsafeRunAsync(_.toXor match {
+            case Xor.Left(err) => logger.error(s"Error registering event $err")
+            case _ =>
+          })
       }
       q.dequeue
     }

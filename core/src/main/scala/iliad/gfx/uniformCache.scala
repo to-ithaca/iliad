@@ -71,12 +71,14 @@ object UniformCache {
   private val root = Iso.id[State]
 
   private[gfx] def apply(a: UniformCache): Effect = a match {
-    case UniformPut(scope, fs) => StateTExtra.modify(s => (s + (scope -> fs)).right)
-    case UniformUpdate(scope, name, f) => StateTExtra.modify( s =>
-      s.get(scope).toRightXor(UnsetScopeError(scope)).map( _ =>
-        (root ^|-? index(scope) ^|-> at(name) set Some(f))(s)
-      )
-    )
+    case UniformPut(scope, fs) =>
+      StateTExtra.modify(s => (s + (scope -> fs)).right)
+    case UniformUpdate(scope, name, f) =>
+      StateTExtra.modify(
+          s =>
+            s.get(scope)
+              .toRightXor(UnsetScopeError(scope))
+              .map(_ => (root ^|-? index(scope) ^|-> at(name) set Some(f))(s)))
     case UniformFold(scope, name, f) =>
       StateTExtra.modify { (fs: State) =>
         for {
@@ -117,22 +119,20 @@ object UniformCache {
       (next, out)
     }
 
-  private[iliad] def values(at: Long): 
-      CatsState[State, Values] =
+  private[iliad] def values(at: Long): CatsState[State, Values] =
     CatsState { state =>
       val both = state.mapValues { fs =>
         uniformValues(at).run(fs).value
       }
-      val next = both.mapValues { case (fs, _) => fs}
-      val out = both.mapValues { case (_, vs) => vs}
+      val next = both.mapValues { case (fs, _) => fs }
+      val out = both.mapValues { case (_, vs) => vs }
       (next, out)
     }
 }
 
 sealed trait UniformCache
 
-private case class UniformPut(s: UniformScope,
-                              fs: Map[String, CachedFunction])
+private case class UniformPut(s: UniformScope, fs: Map[String, CachedFunction])
     extends UniformCache
 private case class UniformFold[A](s: UniformScope,
                                   name: String,
@@ -140,7 +140,9 @@ private case class UniformFold[A](s: UniformScope,
                                       A) => CachedFunction.UniformFunction[A])
     extends UniformCache
 
-private case class UniformUpdate(s: UniformScope, name: String, f: CachedFunction) 
+private case class UniformUpdate(s: UniformScope,
+                                 name: String,
+                                 f: CachedFunction)
     extends UniformCache
 
 trait UniformCacheFunctions {
@@ -148,16 +150,17 @@ trait UniformCacheFunctions {
   private def lift(a: UniformCache): Graphics =
     shapeless.Coproduct[Graphics](a)
 
-  def putScope(s: UniformScope,
-              fs: (String, CachedFunction)*): Graphics =
+  def putScope(s: UniformScope, fs: (String, CachedFunction)*): Graphics =
     lift(UniformPut(s, fs.toMap))
 
   def foldUniform[A](s: UniformScope,
-              name: String,
-              f: (Long,
-                  A) => CachedFunction.UniformFunction[A]): Graphics =
+                     name: String,
+                     f: (Long,
+                         A) => CachedFunction.UniformFunction[A]): Graphics =
     lift(UniformFold(s, name, f))
 
-  def updateUniform(s: UniformScope, name: String, f: CachedFunction): Graphics = 
+  def updateUniform(s: UniformScope,
+                    name: String,
+                    f: CachedFunction): Graphics =
     lift(UniformUpdate(s, name, f))
 }

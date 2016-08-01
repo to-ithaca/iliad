@@ -9,10 +9,10 @@ object DrawType {
   case object Points extends DrawType(GL.GL_POINTS)
 }
 
-abstract class Dimension(val capabilities: Set[GL.Capability])
+abstract class Dimension(val capabilities: Map[GL.Capability, Boolean])
 object Dimension {
-  case object _2D extends Dimension(Set.empty)
-  case object _3D extends Dimension(Set(GL.GL_DEPTH_TEST))
+  case object _2D extends Dimension(Map(GL.GL_DEPTH_TEST -> false))
+  case object _3D extends Dimension(Map(GL.GL_DEPTH_TEST -> true))
 }
 
 sealed trait VshParameter

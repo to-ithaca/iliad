@@ -348,7 +348,7 @@ case class DrawOp(model: Model,
                   framebuffer: Framebuffer.Constructor,
                   colorMask: ColorMask,
                   primitive: PrimitiveType,
-                  capabilities: Set[Capability],
+                  capabilities: Map[Capability, Boolean],
                   numInstances: Int) {
   val vertexModel: Model.VertexRef = model.vertex
   val vertexData: VertexData.Ref = vertexModel.ref

@@ -74,7 +74,7 @@ trait AndroidVSync extends LazyLogging {
 }
 
 trait AndroidBootstrap extends Activity with AndroidEventHandler
-    with AndroidDependencies with AndroidVSync with LazyLogging {
+    with AndroidDependencies with AndroidVSync with LazyLogging with View.OnLayoutChangeListener {
   app: IliadApp =>
 
   val pageSize: Int = 1024
@@ -94,32 +94,32 @@ trait AndroidBootstrap extends Activity with AndroidEventHandler
     super.onCreate(savedInstanceState)
     setContentView(mainXML)
 
-    val wm: WindowManager = getSystemService(Context.WINDOW_SERVICE).asInstanceOf[WindowManager];
-    val display = wm.getDefaultDisplay();
-    val size = new Point()
-    display.getSize(size)
-    _width = size.x
-    _height = size.y
-
     detector = new GestureDetectorCompat(this, this)
     detector.setOnDoubleTapListener(this)
 
-    recogniser = EventRecogniser.Blank(width, height)
+    recogniser = EventRecogniser.Blank
 
     if (savedInstanceState == null) {
       val transaction = getFragmentManager.beginTransaction()
-      val fragment = new AndroidFragment(app, subView, fragmentXML, session)
+      val fragment = new AndroidFragment(this, subView, fragmentXML, session)
       transaction.replace(subFragment, fragment)
       transaction.commit()
     }
   }
+
+   override def onLayoutChange(v: View, left: Int, top: Int, right: Int, bottom: Int,
+     oldLeft: Int, oldTop: Int, oldRight: Int, oldBottom: Int) {
+     _width = right - left
+     _height = bottom - top
+     logger.info(s"width and height are $width $height")
+   }
 
   override def onCreateOptionsMenu(menu: Menu): Boolean = true
   override def onPrepareOptionsMenu(menu: Menu): Boolean = true
   override def onOptionsItemSelected(item: MenuItem): Boolean = true
 }
 
-final class AndroidFragment(app: IliadApp, subView: Int, fragmentXML: Int,
+final class AndroidFragment(app: AndroidBootstrap, subView: Int, fragmentXML: Int,
   session: BlockingPromise[(SurfaceHolder, Int)]) extends Fragment with LazyLogging {
 
   override def onCreateView(inflater: LayoutInflater ,container: ViewGroup, savedInstanceState: Bundle) = {
@@ -130,6 +130,7 @@ final class AndroidFragment(app: IliadApp, subView: Int, fragmentXML: Int,
   override def onViewCreated(v: View, savedInstanceState: Bundle): Unit = {
     logger.info("AndroidFragment.onViewCreated: created view. Running app")
     val view = v.findViewById(subView).asInstanceOf[SurfaceView]
+    view.addOnLayoutChangeListener(app)
     session.set((view.getHolder(), EGL14.EGL_DEFAULT_DISPLAY))
     app.run()
   }

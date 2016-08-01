@@ -46,10 +46,10 @@ trait GraphicsFunctions {
   }
 
   def apply(gs: List[Graphics]): Graphics.PRG = {
-    val start =
-      ReaderT.pure[StateT[Xor[NonEmptyList[GraphicsError], ?], Graphics.State, ?],
-                   Graphics.Config,
-                   XorT[GL.DSL, GLError, Unit]](XorT.pure(()))
+    val start = ReaderT
+      .pure[StateT[Xor[NonEmptyList[GraphicsError], ?], Graphics.State, ?],
+            Graphics.Config,
+            XorT[GL.DSL, GLError, Unit]](XorT.pure(()))
     gs.foldLeft(start) { (b, g) =>
       for {
         x <- b

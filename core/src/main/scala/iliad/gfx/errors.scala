@@ -6,7 +6,7 @@ import iliad.{gl => GL}
 sealed trait GraphicsError extends IliadError
 
 case class UnsetScopeError(s: UniformScope) extends GraphicsError {
-  def message: String = 
+  def message: String =
     s"Scope $s has not been set"
 }
 

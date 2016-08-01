@@ -41,11 +41,17 @@ trait InstantiateFunctions {
   def png(name: String, size: Vec2i): Texture.Image =
     Texture.Image(name, TextureFormat.rgba, size)
 
-  def drawInstance(model: Model.Instance,
-                   cons: Draw.Constructor,
-    uniforms: Map[String, UniformScope],
-                   textureUniforms: (String, Texture.Uniform)*): Draw.Instance =
-    Draw.Instance(cons, textureUniforms.toMap,uniforms, model, Framebuffer.OnScreen, 1)
+  def drawInstance(
+      model: Model.Instance,
+      cons: Draw.Constructor,
+      uniforms: Map[String, UniformScope],
+      textureUniforms: (String, Texture.Uniform)*): Draw.Instance =
+    Draw.Instance(cons,
+                  textureUniforms.toMap,
+                  uniforms,
+                  model,
+                  Framebuffer.OnScreen,
+                  1)
 
   def clearScreen(c: Clear.Constructor): Clear.Instance =
     Clear.Instance(c, Framebuffer.OnScreen)
@@ -132,6 +138,8 @@ object Instantiate {
         case _ => None
       }
     }.toList.sequence)
+
+  //TODO: validate that all uniform scopes are set
 
   private def validate(
       d: Draw.Instance): ValidatedNel[InstantiationError, Unit] = {

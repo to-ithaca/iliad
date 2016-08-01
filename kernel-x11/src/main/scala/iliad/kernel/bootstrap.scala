@@ -155,11 +155,11 @@ trait X11Bootstrap
   }
 
   private def handleEvents(d: Display): Unit = {
-    val e = new XEvent()
-    val hasEvent = x.XCheckMaskEvent(d, inputMask, e)
-    if (hasEvent) {
+    var e = new XEvent()
+    while (x.XCheckMaskEvent(d, inputMask, e)) {
       logger.debug("received XEvent")
       handleEvent(e)
+      e = new XEvent()
     }
   }
 

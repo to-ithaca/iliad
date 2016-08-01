@@ -10,6 +10,8 @@ import cats.free._
 import monocle._
 import monocle.macros._
 import monocle.syntax.all._
+import monocle.std.map._
+import monocle.function.all._
 
 object Current {
   type DSL[A] = Free[Current, A]
@@ -26,20 +28,30 @@ object Current {
     getContains(v)(CurrentVertexBufferGet)
   def contains(e: ElementBuffer.Loaded): DSL[Boolean] =
     getContains(e)(CurrentElementBufferGet)
+  def contains(m: ColorMask): DSL[Boolean] =
+    getContains(m)(CurrentColorMaskGet)
+
+  def get(c: Capability): DSL[Option[Boolean]] =
+    CurrentCapabilityGet(c).free
 
   def set(p: Program.Linked): DSL[Unit] = CurrentProgramSet(p).free
   def set(f: Framebuffer.Loaded): DSL[Unit] =
     CurrentFramebufferSet(f).free
   def set(v: VertexBuffer.Loaded): DSL[Unit] = CurrentVertexBufferSet(v).free
   def set(e: ElementBuffer.Loaded): DSL[Unit] = CurrentElementBufferSet(e).free
+  def set(m: ColorMask): DSL[Unit] = CurrentColorMaskSet(m).free
+  def enable(c: Capability): DSL[Unit] = CurrentCapabilitySet(c, true).free
+  def disable(c: Capability): DSL[Unit] = CurrentCapabilitySet(c, false).free
 
   case class State(framebuffer: Option[Framebuffer.Loaded],
                    program: Option[Program.Linked],
                    vertexBuffer: Option[VertexBuffer.Loaded],
-                   elementBuffer: Option[ElementBuffer.Loaded])
+                   elementBuffer: Option[ElementBuffer.Loaded],
+                   colorMask: Option[ColorMask],
+                   capabilities: Map[Capability, Boolean])
 
   object State {
-    val empty: State = State(None, None, None, None)
+    val empty: State = State(None, None, None, None, None, Map.empty)
   }
 }
 
@@ -50,11 +62,16 @@ case object CurrentFramebufferGet extends Current[Option[Framebuffer.Loaded]]
 case object CurrentVertexBufferGet extends Current[Option[VertexBuffer.Loaded]]
 case object CurrentElementBufferGet
     extends Current[Option[ElementBuffer.Loaded]]
+case object CurrentColorMaskGet extends Current[Option[ColorMask]]
+case class CurrentCapabilityGet(c: Capability) extends Current[Option[Boolean]]
 
 case class CurrentProgramSet(p: Program.Linked) extends Current[Unit]
 case class CurrentFramebufferSet(f: Framebuffer.Loaded) extends Current[Unit]
 case class CurrentVertexBufferSet(v: VertexBuffer.Loaded) extends Current[Unit]
 case class CurrentElementBufferSet(e: ElementBuffer.Loaded)
+    extends Current[Unit]
+case class CurrentColorMaskSet(m: ColorMask) extends Current[Unit]
+case class CurrentCapabilitySet(c: Capability, value: Boolean)
     extends Current[Unit]
 
 object CurrentParser extends (Current ~> Current.Effect) {
@@ -71,6 +88,12 @@ object CurrentParser extends (Current ~> Current.Effect) {
   private val _elementBuffer: Lens[Current.State, Option[ElementBuffer.Loaded]] =
     GenLens[Current.State](_.elementBuffer)
 
+  private val _colorMask: Lens[Current.State, Option[ColorMask]] =
+    GenLens[Current.State](_.colorMask)
+
+  private val _capabilities: Lens[Current.State, Map[Capability, Boolean]] =
+    GenLens[Current.State](_.capabilities)
+
   def apply[A](current: Current[A]): Current.Effect[A] = current match {
     case CurrentProgramGet => CatsState.inspect(_ &|-> _program get)
     case CurrentProgramSet(p) => CatsState.modify(_ &|-> _program set Some(p))
@@ -84,5 +107,12 @@ object CurrentParser extends (Current ~> Current.Effect) {
       CatsState.inspect(_ &|-> _elementBuffer get)
     case CurrentElementBufferSet(b) =>
       CatsState.modify(_ &|-> _elementBuffer set Some(b))
+    case CurrentColorMaskGet => CatsState.inspect(_ &|-> _colorMask get)
+    case CurrentColorMaskSet(m) =>
+      CatsState.modify(_ &|-> _colorMask set Some(m))
+    case CurrentCapabilityGet(c) =>
+      CatsState.inspect(_ &|-> _capabilities ^|-> at(c) get)
+    case CurrentCapabilitySet(c, v) =>
+      CatsState.modify(_ &|-> _capabilities ^|-> at(c) set Some(v))
   }
 }

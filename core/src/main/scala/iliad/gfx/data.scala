@@ -50,12 +50,13 @@ object Graph {
           _.apply(graph).traverse {
         case c: Clear.Instance => c.right
         case d: Draw.Instance =>
-              d.uniformScopes.toList.traverse {
-                case (name, scope) => for {
-                  us <- scopes.get(scope).toRightXor(UnsetScopeError(scope))
-                  v <- us.get(name).toRightXor(UnsetUniformError(name, scope))
-                } yield v
-              }.map(Draw.Drawable(d, _))
+          d.uniformScopes.toList.traverse {
+            case (name, scope) =>
+              for {
+                us <- scopes.get(scope).toRightXor(UnsetScopeError(scope))
+                v <- us.get(name).toRightXor(UnsetUniformError(name, scope))
+              } yield v
+          }.map(Draw.Drawable(d, _))
       })
   }
 }
@@ -89,7 +90,7 @@ object Draw {
       name: String,
       program: GL.Program.Unlinked,
       primitive: GL.PrimitiveType,
-      capabilities: Set[GL.Capability],
+      capabilities: Map[GL.Capability, Boolean],
       colorMask: GL.ColorMask,
       isInstanced: Boolean,
       model: Model.Constructor,
@@ -104,7 +105,7 @@ object Draw {
   case class Instance(
       constructor: Constructor,
       textureUniforms: Map[String, Texture.Uniform],
-    uniformScopes: Map[String, UniformScope],
+      uniformScopes: Map[String, UniformScope],
       model: Model.Instance,
       framebuffer: Framebuffer.Instance,
       numInstances: Int
@@ -227,7 +228,6 @@ object Model {
   case class Constructor(name: String)
   case class Instance(name: String, constructor: Constructor, model: GL.Model)
 }
-
 
 case class UniformScope(name: String)
 //TODO: find out what to do with this

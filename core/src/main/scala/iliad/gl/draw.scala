@@ -15,6 +15,8 @@ object Draw {
 
   def bind(f: Framebuffer.Loaded): DSL[Unit] =
     BindFramebuffer(f).free
+  def bind(m: ColorMask): DSL[Unit] =
+    BindColorMask(m).free
   def clear(m: ChannelBitMask): DSL[Unit] = ClearFrame(m).free
   def use(p: Program.Linked): DSL[Unit] = UseProgram(p).free
   def bind(unit: TextureUnit,
@@ -34,6 +36,9 @@ object Draw {
 sealed trait Draw[A]
 
 case class BindFramebuffer(f: Framebuffer.Loaded) extends Draw[Unit]
+case class BindColorMask(c: ColorMask) extends Draw[Unit]
+case class Enable(c: Capability) extends Draw[Unit]
+case class Disable(c: Capability) extends Draw[Unit]
 case class ClearFrame(bitMask: ChannelBitMask) extends Draw[Unit]
 case class UseProgram(p: Program.Linked) extends Draw[Unit]
 case class BindTextureUniform(unit: TextureUnit,
@@ -53,15 +58,30 @@ object DrawParser extends (Draw ~> OpenGL.DSL) {
 
   private def enableAttribute(stride: Int)(
       a: Attribute.Offset): OpenGL.DSL[Unit] =
-    OpenGL.enableAttribute(a.loaded.location,
-                           a.loaded.constructor.elementSize,
-                           a.loaded.constructor.`type`,
-                           stride,
-                           a.offset)
+    a.loaded.constructor.`type` match {
+      case it: VertexAttribIType =>
+        OpenGL.enableAttributeI(a.loaded.location,
+                                a.loaded.constructor.elementSize,
+                                it,
+                                stride,
+                                a.offset)
+      case t: VertexAttribType =>
+        OpenGL.enableAttribute(a.loaded.location,
+                               a.loaded.constructor.elementSize,
+                               a.loaded.constructor.`type`,
+                               stride,
+                               a.offset)
+    }
 
   def apply[A](draw: Draw[A]): OpenGL.DSL[A] = draw match {
     case BindFramebuffer(f) =>
       OpenGL.bindFramebuffer(f.frontId)
+    case BindColorMask(m) =>
+      OpenGL.colorMask(m.r, m.g, m.b, m.a)
+    case Enable(c) =>
+      OpenGL.enable(c)
+    case Disable(c) =>
+      OpenGL.disable(c)
     case ClearFrame(bitMask) => OpenGL.clear(bitMask)
     case UseProgram(p) => OpenGL.useProgram(p.id)
     case BindTextureUniform(unit, location, t, s) =>

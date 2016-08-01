@@ -18,14 +18,15 @@ object Load {
   private def lift[A](f: Graphics.Config => GL.DSL[A]): Effect =
     Reader(cfg => XorT.right[GL.DSL, GLError, Unit](f(cfg).map(_ => ())))
 
-  private def liftXor[E <: GLError, A](f: Graphics.Config => GL.DSL[E Xor A]): Effect = 
+  private def liftXor[E <: GLError, A](
+      f: Graphics.Config => GL.DSL[E Xor A]): Effect =
     Reader(cfg => XorT(f(cfg)).map(_ => ()).leftWiden[GLError])
 
   private[gfx] def apply(l: Load): Effect = l match {
     case PutProgram(p) => lift(GL.load(p))
-    case PutVertices(r, d) => 
+    case PutVertices(r, d) =>
       liftXor(cfg => GL.load(r, d, cfg.pageSize))
-    case PutElements(r, d) => 
+    case PutElements(r, d) =>
       liftXor(cfg => GL.load(r, d, cfg.pageSize))
     case PutTexture(t, d) =>
       lift(cfg => GL.load(ToGL.run(ToGL(t)).run(cfg.graph), d))
@@ -53,8 +54,7 @@ trait LoadFunctions {
   private def lift(l: Load): Graphics =
     shapeless.Coproduct[Graphics](l)
 
-  def load(
-      vf: (VertexShader.Source, FragmentShader.Source)): Graphics = {
+  def load(vf: (VertexShader.Source, FragmentShader.Source)): Graphics = {
     val (v, f) = vf
     lift(PutProgram(Program.Unlinked(v, f)))
   }

@@ -38,22 +38,26 @@ sealed trait EventRecogniser {
 
 object EventRecogniser {
 
-  private def buttonEvent(e: XEvent, width: Int, height: Int): InputEvent.Tap = {
+  private def buttonEvent(e: XEvent,
+                          width: Int,
+                          height: Int): InputEvent.Point = {
     e.readField("xbutton")
     e.xbutton.readField("x")
     e.xbutton.readField("y")
     val xFraction = e.xbutton.x.toFloat / width.toFloat
     val yFraction = 1f - e.xbutton.y.toFloat / height.toFloat
-    InputEvent.Tap(System.currentTimeMillis, xFraction, yFraction)
+    InputEvent.Point(System.currentTimeMillis, xFraction, yFraction)
   }
 
-  private def motionEvent(e: XEvent, width: Int, height: Int): InputEvent.Tap = {
+  private def motionEvent(e: XEvent,
+                          width: Int,
+                          height: Int): InputEvent.Point = {
     e.readField("xmotion")
     e.xmotion.readField("x")
     e.xmotion.readField("y")
     val xFraction = e.xmotion.x.toFloat / width.toFloat
     val yFraction = 1f - e.xmotion.y.toFloat / height.toFloat
-    InputEvent.Tap(System.currentTimeMillis, xFraction, yFraction)
+    InputEvent.Point(System.currentTimeMillis, xFraction, yFraction)
   }
 
   /**Captures events without propagation */
@@ -84,9 +88,9 @@ object EventRecogniser {
                           height: Int): (EventRecogniser, Option[InputEvent]) =
       e.`type` match {
         case ButtonPress =>
-          logger.debug("Blank: detected button press")
-          val tap = buttonEvent(e, width, height)
-          MouseDown(tap) -> Option.empty
+          logger.info("Blank: detected button press")
+          val point = buttonEvent(e, width, height)
+          MouseDown(point) -> Option.empty
         case MotionNotify =>
           this -> Option.empty
         case ButtonRelease =>
@@ -99,20 +103,23 @@ object EventRecogniser {
       }
   }
 
-  case class MouseDown(tap: InputEvent.Tap)
+  case class MouseDown(point: InputEvent.Point)
       extends EventRecogniser
       with LazyLogging {
     def handle(e: XEvent)(width: Int,
                           height: Int): (EventRecogniser, Option[InputEvent]) =
       e.`type` match {
         case ButtonRelease =>
-          logger.debug(s"MouseDown: detected tap: $tap")
+          val tap = InputEvent.Tap(point)
+          logger.info(s"MouseDown: detected tap: $tap")
           Blank -> Some(tap)
         case MotionNotify =>
-          logger.debug("MouseDown: detected motionNotify")
-          Swipe(tap) -> Option.empty
+          logger.info("MouseDown: detected motionNotify")
+          val current = motionEvent(e, width, height)
+          DragContinuing(point, List(current)) -> Some(
+              InputEvent.DragStarted(point, current))
         case LeaveNotify =>
-          logger.debug("MouseDown: detected leaveNotity")
+          logger.warn("MouseDown: detected leaveNotity")
           Blank -> Option.empty
         case other =>
           logger.warn("MouseDown: Unhandled event of type {}", other)
@@ -120,7 +127,8 @@ object EventRecogniser {
       }
   }
 
-  case class Swipe(start: InputEvent.Tap)
+  case class DragContinuing(start: InputEvent.Point,
+                            tail: List[InputEvent.Point])
       extends EventRecogniser
       with LazyLogging {
     def handle(e: XEvent)(width: Int,
@@ -128,58 +136,29 @@ object EventRecogniser {
       e.`type` match {
         case ButtonRelease =>
           val end = buttonEvent(e, width, height)
-          val swipe = InputEvent.Swipe(start, end)
-          if (swipe.distance < 0.1) {
-            logger.debug("Swipe: detected tap")
-            this -> Some(start)
+          if (InputEvent.distance(start, end) < 0.1) {
+            logger.info("DragContinuing: detected tap")
+            Blank -> Some(InputEvent.Tap(start))
+          } else if (end.at - start.at < 1000L) {
+            logger.info("DragContinuing: detected swipe")
+            Blank -> Some(InputEvent.DragBecameSwipe(start, tail :+ end))
           } else {
-            logger.debug(s"Swipe: detected swipe: $swipe")
-            this -> Some(swipe)
+            logger.info(s"DragContinuing: detected drag finish")
+            Blank -> Some(InputEvent.DragFinished(start, tail :+ end))
           }
         case MotionNotify =>
-          logger.debug("Swipe: detected motionNotify")
-          val t = System.currentTimeMillis
-          if(t - start.at > 600L) {
-            val tap = motionEvent(e, width, height)
-            Drag(start, List(tap)) -> Some(InputEvent.DragStarted(start, tap))
-          } 
-          else this -> Option.empty
+          logger.debug("DragContinuing: detected drag")
+          val end = motionEvent(e, width, height)
+          this -> Some(InputEvent.DragContinued(start, tail :+ end))
         case LeaveNotify =>
-          logger.debug("Swipe: detected leaveNotify")
+          logger.warn("DragContinuing: detected leaveNotify")
           Blank -> Option.empty
         case ButtonPress =>
-          logger.warn("Swipe: detected unwanted button press - exiting swipe")
+          logger.warn("DragContinuing: detected button press")
           Blank -> Option.empty
         case other =>
-          logger.warn("Swipe: Unhandled event of type {}", other)
+          logger.warn("DragContinuing: Unhandled event of type {}", other)
           this -> Option.empty
-      }
-  }
-
-  case class Drag(head: InputEvent.Tap, tail: List[InputEvent.Tap]) 
-      extends EventRecogniser with LazyLogging {
-    def handle(e: XEvent)(width: Int,
-                          height: Int): (EventRecogniser, Option[InputEvent]) = 
-      e.`type` match {
-        case ButtonRelease =>
-          logger.debug("Drag: detected button release")
-          val end = buttonEvent(e, width, height)
-          Blank -> Some(InputEvent.DragFinished(head, tail :+ end))
-        case MotionNotify =>
-          logger.debug("Drag: detected motionNotify")
-          val tap = motionEvent(e, width, height)
-          val nextTail = tail :+ tap
-          //TODO: add in the DragContinuing events later
-          Drag(head, nextTail) -> Option.empty
-        case LeaveNotify =>
-          logger.debug("Drag: detected leaveNotify")
-          Blank -> Some(InputEvent.DragFinished(head, tail))
-        case ButtonPress =>
-          logger.warn("Drag: detected unwanted button press - exiting drag")
-          Blank -> Some(InputEvent.DragFinished(head, tail))
-        case other =>
-          logger.warn("Drag: unhandled event of type {}, exiting drag", other)
-          Blank -> Some(InputEvent.DragFinished(head, tail))
       }
   }
 }

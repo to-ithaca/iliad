@@ -21,7 +21,8 @@ case class Camera[A: Trig: Field: NRoot](position: Vec3[A],
                                          near: A,
                                          far: A,
                                          aspect: A,
-                                         fov: A) extends LazyLogging {
+                                         fov: A)
+    extends LazyLogging {
 
   lazy val direction: Vec3[A] = (pointAt - position).normalize
   lazy val radiusVector: Vec3[A] = position - pointAt
@@ -70,7 +71,7 @@ case class Camera[A: Trig: Field: NRoot](position: Vec3[A],
         $zero   $zero  $one    $zero
         $zero   $zero  $zero   $one"""
 
-  def matrix(implicit S: Mat4Algebra[A]): Mat4[A] = 
+  def matrix(implicit S: Mat4Algebra[A]): Mat4[A] =
     invertX.times(perspective.times(rotate.times(translate)))
 
   def peek(p: Vec3[A])(implicit MA: Mat4Algebra[A]): Vec3[A] = {
@@ -111,10 +112,9 @@ object Camera extends LazyLogging {
       c0 &|-> _position set f(t)
   }
 
-  def scrollAroundZ[A: Trig: Field: NRoot](
-      s0: A,
-      rotation: Rotation,
-      λ: A)(t0: Long, c0: Camera[A])(implicit MA: Mat4Algebra[A]): Long => Camera[A] = {
+  def scrollAroundZ[A: Trig: Field: NRoot](s0: A, rotation: Rotation, λ: A)(
+      t0: Long,
+      c0: Camera[A])(implicit MA: Mat4Algebra[A]): Long => Camera[A] = {
     val axis = VectorD.zAxis[A]
     val f = (t: Long) => {
       val dt = Field[A].fromInt((t - t0).toInt)
@@ -125,7 +125,8 @@ object Camera extends LazyLogging {
       c0 &|-> _position set f(t)
   }
 
-  def panToZBy[A : Trig : Fractional](speed: A, θ: A)(t0: Long, c0: Camera[A])(implicit MA: Mat4Algebra[A]): Long => Camera[A] = {
+  def panToZBy[A: Trig: Fractional](speed: A, θ: A)(t0: Long, c0: Camera[A])(
+      implicit MA: Mat4Algebra[A]): Long => Camera[A] = {
     val zAxis = VectorD.zAxis[A]
     val axis = (c0.radial cross zAxis).normalize
     val endPosition = AxisAngle(axis, θ).rotate(c0.radiusVector) + c0.pointAt
@@ -133,10 +134,11 @@ object Camera extends LazyLogging {
     val f = (t: Long) => {
       val dt = Field[A].fromInt((t - t0).toInt)
       val dθ = speed * dt * θ.sign
-      if(dθ.abs > θ.abs) endPosition 
+      if (dθ.abs > θ.abs) endPosition
       else AxisAngle(axis, dθ).rotate(c0.radiusVector) + c0.pointAt
     }
 
-    (t: Long) => c0 &|-> _position set f(t)
+    (t: Long) =>
+      c0 &|-> _position set f(t)
   }
 }

@@ -50,8 +50,8 @@ trait GLFunctions {
         liftS(eff.applyLens[GL.State](_current))
     }
 
-  def runner[F[_]: Monad](
-      f: OpenGL.Interpreter[OpenGL.Effect[F, ?]]): Interpreter[GLProgram.Cop, PRG[F, ?]] =
+  def runner[F[_]: Monad](f: OpenGL.Interpreter[OpenGL.Effect[F, ?]])
+    : Interpreter[GLProgram.Cop, PRG[F, ?]] =
     Load.parse(f).andThen(liftOpenGL) :&:
       CacheParser.andThen(liftCache[F]) :&:
         Draw.parse(f).andThen(liftOpenGL) :&:
@@ -88,7 +88,9 @@ trait GLFunctions {
       _ <- Current.set(u.buffer).freekF[GL]
     } yield ()
 
-  private def loadVertices(r: VertexData.Ref, d: VertexData.Data, pageSize: Int): DSL[Unit] =
+  private def loadVertices(r: VertexData.Ref,
+                           d: VertexData.Data,
+                           pageSize: Int): DSL[Unit] =
     Cache.get(r.buffer).freekF[GL] flatMap {
       case Some(prev) =>
         if (VertexBuffer.fits(prev, d.size))
@@ -108,10 +110,12 @@ trait GLFunctions {
         } yield ()
     }
 
-  def load(r: VertexData.Ref, d: VertexData.Data, pageSize: Int): DSL[VertexDataAlreadyLoaded Xor Unit] = 
+  def load(r: VertexData.Ref,
+           d: VertexData.Data,
+           pageSize: Int): DSL[VertexDataAlreadyLoaded Xor Unit] =
     Cache.get(r).freekF[GL] flatMap {
       case Some(_) => Free.pure(VertexDataAlreadyLoaded(r).left)
-      case None => loadVertices(r, d, pageSize).map(_.right) 
+      case None => loadVertices(r, d, pageSize).map(_.right)
     }
 
   private def add(u: ElementBuffer.Update): DSL[Unit] =
@@ -120,7 +124,9 @@ trait GLFunctions {
       _ <- Current.set(u.buffer).freekF[GL]
     } yield ()
 
-  private def loadElements(r: ElementData.Ref, d: ElementData.Data, pageSize: Int): DSL[Unit] =
+  private def loadElements(r: ElementData.Ref,
+                           d: ElementData.Data,
+                           pageSize: Int): DSL[Unit] =
     Cache.get(r.buffer).freekF[GL] flatMap {
       case Some(prev) =>
         if (ElementBuffer.fits(prev, d.size))
@@ -140,8 +146,9 @@ trait GLFunctions {
         } yield ()
     }
 
-  def load(r: ElementData.Ref, d: ElementData.Data, pageSize: Int): 
-      DSL[ElementDataAlreadyLoaded Xor Unit] =
+  def load(r: ElementData.Ref,
+           d: ElementData.Data,
+           pageSize: Int): DSL[ElementDataAlreadyLoaded Xor Unit] =
     Cache.get(r).freekF[GL] flatMap {
       case Some(_) => Free.pure(ElementDataAlreadyLoaded(r).left)
       case None => loadElements(r, d, pageSize).map(_.right)
@@ -194,6 +201,24 @@ trait GLFunctions {
   private def set(f: Framebuffer.Loaded): DSL[Unit] =
     ensure(Current.contains(f))(Draw.bind(f).freekF[GL] >>
           Current.set(f).freekF[GL])
+
+  private def setCapability(c: Capability, value: Boolean): DSL[Unit] =
+    if (value)
+      OpenGL.enable(c).freekF[GL] >> Current.enable(c).freekF[GL]
+    else
+      OpenGL.disable(c).freekF[GL] >> Current.disable(c).freekF[GL]
+
+  private def set(c: Capability, value: Boolean): DSL[Unit] =
+    ensure(Current.get(c).map(_.contains(value)))(setCapability(c, value))
+
+  private def set(cs: Map[Capability, Boolean]): DSL[Unit] =
+    cs.toList.traverseUnit {
+      case (c, value) => set(c, value)
+    }
+
+  private def set(m: ColorMask): DSL[Unit] =
+    ensure(Current.contains(m))(Draw.bind(m).freekF[GL] >>
+          Current.set(m).freekF[GL])
 
   private def flip(
       t: Texture.Constructor): DSL[TextureNotLoadedError Xor Unit] =
@@ -273,6 +298,8 @@ trait GLFunctions {
                Cache.get(draw.framebuffer),
                FramebufferNotLoadedError(draw.framebuffer)).leftWiden[GLError]
       _ <- xort(set(fl))
+      _ <- xort(set(draw.capabilities))
+      _ <- xort(set(draw.colorMask))
       p <- ensure(Cache.get(draw.program), ProgramNotLoadedError(draw.program))
             .leftWiden[GLError]
       _ <- xort(set(p))
