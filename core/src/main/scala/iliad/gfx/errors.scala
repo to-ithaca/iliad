@@ -5,9 +5,17 @@ import iliad.{gl => GL}
 
 sealed trait GraphicsError extends IliadError
 
-case class UnsetScopeError(s: UniformScope) extends GraphicsError {
+//TODO: label all errors
+
+case class UnsetScopeError(s: UniformScope, existing: Set[UniformScope]) extends GraphicsError {
   def message: String =
-    s"Scope $s has not been set"
+    s"""UnsetScopeError: Scope $s has not been set:
+
+Unset scope: $s
+
+Existing:
+$existing
+"""
 }
 
 case class UnsetUniformError(name: String, s: UniformScope)
@@ -16,13 +24,7 @@ case class UnsetUniformError(name: String, s: UniformScope)
     s"Uniform [$name] has not been set for scope [$s]"
 }
 
-case class DoubleUniformFoldError(s: UniformScope, name: String)
-    extends GraphicsError {
-  def message: String =
-    s"""Uniform [$name] has been folded over twice in a frame
-for scope [$s]"""
-}
-
+//FIXME: we never throw this
 case class UniformTypeMatchError(s: UniformScope,
                                  name: String,
                                  exception: Throwable)

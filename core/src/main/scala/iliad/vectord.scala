@@ -1,7 +1,6 @@
 package iliad
 
-import spire._
-import spire.math._
+import spire.{algebra => spa, math => spm}
 import spire.implicits._
 
 import cats._
@@ -13,7 +12,7 @@ import shapeless.ops.nat._
 import scala.reflect._
 
 //TODO: Really think we should parameterize this?
-final class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
+case class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
 
   import LTEq._
   import LT._
@@ -31,10 +30,25 @@ final class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
   //Define map2, since the applicative requires ToInt[N] for pure
   def map2[B, C](that: VectorD[N, B])(f: (A, B) => C): VectorD[N, C] =
     that ap (this map f.curried)
+
   def ap[B](ff: VectorD[N, A => B]): VectorD[N, B] =
     new VectorD(this.unsized.zip(ff.unsized).map { case (a, f) => f(a) })
+
   def combine(that: VectorD[N, A])(implicit s: Semigroup[A]): VectorD[N, A] =
     map2(that)(_ |+| _)
+
+  def update(i: Nat, a: A)(implicit ev: i.N < N, toInt: ToInt[i.N]): VectorD[N, A] = 
+    new VectorD(unsized.updated(toInt(), a))
+
+  def exists(f: A => Boolean): Boolean = unsized.exists(f)
+
+  def forall(f: A => Boolean): Boolean = unsized.forall(f)
+
+  def foldLeft[B](b: B)(f: (B, A) => B): B =
+    unsized.foldLeft(b)(f)
+
+  def foldRight[B](lb: Eval[B])(f: (A, Eval[B]) => Eval[B]): Eval[B] =
+    Foldable[Vector].foldRight(unsized, lb)(f)
 
   def n(implicit toInt: ToInt[N]): Int = toInt()
 
@@ -48,22 +62,22 @@ final class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
     unsized === that.unsized
 
   def +(that: VectorD[N, A])(
-      implicit G: algebra.AdditiveSemigroup[A]): VectorD[N, A] =
+      implicit G: spa.AdditiveSemigroup[A]): VectorD[N, A] =
     map2(that)(G.plus)
   def -(that: VectorD[N, A])(
-      implicit G: algebra.AdditiveGroup[A]): VectorD[N, A] =
+      implicit G: spa.AdditiveGroup[A]): VectorD[N, A] =
     map2(that)(G.minus)
-  def *:(a: A)(implicit G: algebra.MultiplicativeSemigroup[A]): VectorD[N, A] =
+  def *:(a: A)(implicit G: spa.MultiplicativeSemigroup[A]): VectorD[N, A] =
     map(a * _)
-  def -(a: A)(implicit G: algebra.AdditiveGroup[A]): VectorD[N, A] =
+  def -(a: A)(implicit G: spa.AdditiveGroup[A]): VectorD[N, A] =
     map(_ - a)
 
-  def ⋅(that: VectorD[N, A])(implicit G: algebra.Semiring[A]): A =
+  def ⋅(that: VectorD[N, A])(implicit G: spa.Semiring[A]): A =
     map2(that)(_ * _).unsized.foldLeft(G.zero)(_ + _)
-  def unary_-(implicit G: algebra.AdditiveGroup[A]): VectorD[N, A] = map(-_)
+  def unary_-(implicit G: spa.AdditiveGroup[A]): VectorD[N, A] = map(-_)
 
   def cross(that: VectorD[N, A])(implicit ev: N =:= nat._3,
-                                 G: algebra.Rng[A]): VectorD[nat._3, A] =
+                                 G: spa.Rng[A]): VectorD[nat._3, A] =
     (unsized, that.unsized) match {
       case (Vector(u1, u2, u3), Vector(v1, v2, v3)) =>
         VectorD.sized(
@@ -77,13 +91,13 @@ final class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
       toIntN: ToInt[n.N]): VectorD[n.N, A] =
     VectorD.sized(n, this.unsized ++ Vector.fill(toIntD())(a))
 
-  def padZero[D <: Nat](n: Nat)(implicit G: algebra.AdditiveMonoid[A],
+  def padZero[D <: Nat](n: Nat)(implicit G: spa.AdditiveMonoid[A],
                                 DD: Diff.Aux[n.N, N, D],
                                 toIntD: ToInt[D],
                                 toIntN: ToInt[n.N]): VectorD[n.N, A] =
     pad(n, G.zero)
 
-  def padOne[D <: Nat](n: Nat)(implicit G: algebra.Ring[A],
+  def padOne[D <: Nat](n: Nat)(implicit G: spa.Ring[A],
                                DD: Diff.Aux[n.N, N, D],
                                toIntD: ToInt[D],
                                toIntN: ToInt[n.N]): VectorD[n.N, A] =
@@ -96,18 +110,37 @@ final class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
   def matrix(implicit toInt: ToInt[N]): MatrixD[nat._1, N, A] =
     MatrixD.sized[nat._1, N, A](unsized)
 
-  override def toString: String = unsized.toString
+  def as[B: spm.ConvertableTo](implicit F: spm.ConvertableFrom[A]): VectorD[N, B] =
+    map(F.toType[B])
+
+  def rotateFrom(from: VectorD[N, A])(implicit ev: N =:= nat._3, T: spa.Trig[A], F: spa.Field[A], N: spa.NRoot[A], E: spa.Eq[A]): VectorD[nat._4, A] = {
+    val a = from cross this
+    val n = a.norm
+    if(n === F.zero) {
+      VectorD.sized(4, Vector(F.zero, F.zero, F.one, F.zero))
+    } else {
+      val axis = a :/ n
+      val angle = T.acos(from ⋅ this)
+      VectorD.sized(4, Vector(axis.x, axis.y, axis.z, angle))
+    }
+  }
+
+  override def toString: String = 
+    s"VectorD(${unsized.toString})"
 }
 
 object VectorD extends VectorDInstances {
 
-  def zero[N <: Nat, A](implicit G: algebra.AdditiveMonoid[A],
-                        toInt: ToInt[N]): VectorD[N, A] = fill(G.zero)
+  import LTEq._
+  import LT._
+
+  def zero[N <: Nat : ToInt, A](implicit G: spa.AdditiveMonoid[A]): VectorD[N, A] = 
+    fill(G.zero)
+
   def sized[N <: Nat, A](unsized: Vector[A])(
       implicit toInt: ToInt[N]): VectorD[N, A] =
     if (unsized.length < toInt())
-      throw new IllegalArgumentException(
-          s"vector $unsized is less than ${toInt()}")
+      throw new IllegalArgumentException(s"vector $unsized is less than ${toInt()}")
     else new VectorD(unsized)
 
   def sized[A](i: Nat, unsized: Vector[A])(
@@ -116,11 +149,18 @@ object VectorD extends VectorDInstances {
 
   def fill[A](i: Nat, a: A)(implicit toInt: ToInt[i.N]): VectorD[i.N, A] =
     fill[i.N, A](a)
+
   def fill[N <: Nat, A](a: A)(implicit toInt: ToInt[N]): VectorD[N, A] =
     new VectorD(Vector.fill(toInt())(a))
 
-  def zAxis[A](implicit R: algebra.Ring[A]): VectorD[nat._3, A] =
-    VectorD.sized(3, Vector(R.zero, R.zero, R.one))
+  private def axis[N <: Nat : ToInt, A](i: Nat)(implicit ev: i.N < N, 
+    toInt: ToInt[i.N],
+    R: spa.Ring[A]): VectorD[N, A] = 
+    fill[N, A](R.zero).update(i, R.one)
+
+  def xAxis[A: spa.Ring]: VectorD[nat._2, A] = axis[nat._2, A](0)
+  def yAxis[A: spa.Ring]: VectorD[nat._2, A] = axis[nat._2, A](1)
+  def zAxis[A: spa.Ring]: VectorD[nat._3, A] = axis[nat._3, A](2)
 }
 
 private[iliad] abstract class VectorDInstances extends VectorDInstances1 {
@@ -140,7 +180,7 @@ private[iliad] abstract class VectorDInstances extends VectorDInstances1 {
     new VectorDEq[N, A] { val EA = ea }
 
   implicit def vectorDSpireEq[N <: Nat, A](
-      implicit ea: spire.algebra.Eq[A]): spire.algebra.Eq[VectorD[N, A]] =
+      implicit ea: spa.Eq[A]): spa.Eq[VectorD[N, A]] =
     new VectorDSpireEq[N, A] { val EA = ea }
 
   implicit def vectorDSemigroup[N <: Nat, A](
@@ -150,27 +190,32 @@ private[iliad] abstract class VectorDInstances extends VectorDInstances1 {
 
 private[iliad] trait VectorDInstances1 {
 
-  implicit def vectorDIsApplicative[N <: Nat](
-      implicit toInt: ToInt[N]): Applicative[VectorD[N, ?]] =
-    new VectorDIsApplicative[N] {
+  implicit def vectorDCatsInstances[N <: Nat](
+      implicit toInt: ToInt[N]): Applicative[VectorD[N, ?]] with Foldable[VectorD[N, ?]] =
+    new VectorDCatsInstances[N] {
       val n: Int = toInt()
     }
 
   implicit def vectorDIsInnerProductSpace[N <: Nat, A](
-      implicit fa: algebra.Field[A],
-      toInt: ToInt[N]): algebra.InnerProductSpace[VectorD[N, A], A] =
+      implicit fa: spa.Field[A],
+      toInt: ToInt[N]): spa.InnerProductSpace[VectorD[N, A], A] =
     new VectorDIsInnerProductSpace[N, A] {
       val n = toInt()
-      def scalar: algebra.Field[A] = fa
+      def scalar: spa.Field[A] = fa
     }
 }
 
-private[iliad] sealed trait VectorDIsApplicative[N <: Nat]
-    extends Applicative[VectorD[N, ?]] {
+private[iliad] sealed trait VectorDCatsInstances[N <: Nat]
+    extends Applicative[VectorD[N, ?]] with Foldable[VectorD[N, ?]] {
   val n: Int
   def pure[A](a: A): VectorD[N, A] = new VectorD(Vector.fill(n)(a))
   def ap[A, B](ff: VectorD[N, A => B])(fa: VectorD[N, A]): VectorD[N, B] =
     fa ap ff
+
+  def foldLeft[A, B](fa: VectorD[N,A], b: B)(f: (B, A) => B): B =
+    fa.foldLeft(b)(f)
+
+  def foldRight[A, B](fa: VectorD[N,A], lb: Eval[B])(f: (A, Eval[B]) => Eval[B]): Eval[B] = fa.foldRight(lb)(f)
 }
 
 private[iliad] sealed trait VectorDEq[N <: Nat, A] extends Eq[VectorD[N, A]] {
@@ -179,8 +224,8 @@ private[iliad] sealed trait VectorDEq[N <: Nat, A] extends Eq[VectorD[N, A]] {
 }
 
 private[iliad] sealed trait VectorDSpireEq[N <: Nat, A]
-    extends spire.algebra.Eq[VectorD[N, A]] {
-  implicit val EA: spire.algebra.Eq[A]
+    extends spa.Eq[VectorD[N, A]] {
+  implicit val EA: spa.Eq[A]
   def eqv(x: VectorD[N, A], y: VectorD[N, A]): Boolean =
     x.unsized === y.unsized
 }
@@ -192,7 +237,7 @@ private[iliad] sealed trait VectorDSemigroup[N <: Nat, A]
 }
 
 private[iliad] sealed trait VectorDIsInnerProductSpace[N <: Nat, A]
-    extends algebra.InnerProductSpace[VectorD[N, A], A] {
+    extends spa.InnerProductSpace[VectorD[N, A], A] {
 
   def n: Int
   def dot(x: VectorD[N, A], y: VectorD[N, A]): A = x ⋅ y

@@ -22,8 +22,8 @@ case class Rect[A](x0y0: VectorD[nat._2, A], dx: A, dy: A) {
     v"${x0y0.x + dx} ${x0y0.y + dy}"
   def topLeft(implicit NA: Numeric[A]): VectorD[nat._2, A] =
     v"${x0y0.x} ${x0y0.y + dy}"
-  def width: A = dy
-  def height: A = dx
+  def width: A = dx
+  def height: A = dy
 
   def contains(xy: VectorD[nat._2, A])(implicit NA: Numeric[A]): Boolean = {
     val x0y0 = bottomLeft
@@ -38,6 +38,8 @@ case class Rect[A](x0y0: VectorD[nat._2, A], dx: A, dy: A) {
   }
   def ===(that: Rect[A])(implicit EQ: Eq[A]): Boolean =
     (x0y0 === that.x0y0) && (dx === that.dx) && (dy === that.dy)
+
+  def dimensions: VectorD[nat._2, A] = v"$width $height"
 }
 
 object Rect extends RectInstances
@@ -198,15 +200,15 @@ case class Line2[A: Fractional](p0: Vec2[A], direction: Vec2[A]) {
     else {
       val β =
         if (o.direction.x.abs <= Trig[A].sin(α))
-          o.p0.x - p0.x / direction.x
+          (o.p0.x - p0.x) / direction.x
         else if (o.direction.y.abs <= Trig[A].sin(α))
-          o.p0.y - p0.y / direction.y
+          (o.p0.y - p0.y) / direction.y
         else {
           val dp = p0 - o.p0
-          (o.direction.y * dp.x - o.direction.x * dp.y) /
-          (o.direction.x * direction.y - o.direction.y * direction.x)
+          (dp.y * o.direction.x - dp.x * o.direction.y) /
+          (direction.x * o.direction.y - direction.y * o.direction.x)
         }
-      Some(p0 + direction :* β)
+      Some(p0 + (direction :* β))
     }
   }
 
@@ -219,8 +221,14 @@ case class Line2[A: Fractional](p0: Vec2[A], direction: Vec2[A]) {
 
   def contains(p: Vec2[A], ds: A): Boolean = distance(p) < ds
 
-  def equivalent(that: Line2[A], ds: A)(implicit EA: Eq[A]): Boolean =
-    direction === that.direction && contains(that.p0, ds)
+  def parallel(d: Vec2[A], α: A)(implicit T: Trig[A]): Boolean =
+    (direction ⋅ d).abs >= T.cos(α)
+
+  def parallel(that: Line2[A], α: A)(implicit T: Trig[A]): Boolean = 
+    parallel(that.direction, α)
+
+  def equivalent(that: Line2[A], ds: A, α: A)(implicit T: Trig[A]): Boolean =
+    parallel(that, α) && contains(that.p0, ds)
 }
 
 object Line2 {
@@ -242,8 +250,14 @@ case class BoundedLine2[A](start: Vec2[A], end: Vec2[A]) {
   def line(implicit F: Fractional[A]): Line2[A] =
     Line2(start, (end - start).normalize)
 
+  def mapPoints[B](f: Vec2[A] => Vec2[B]): BoundedLine2[B] =
+    BoundedLine2(f(start), f(end))
+
   def map[B](f: A => B): BoundedLine2[B] =
     BoundedLine2(start.map(f), end.map(f))
+
+  def as[B: ConvertableTo](implicit F: ConvertableFrom[A]): BoundedLine2[B] =
+    map(F.toType[B])
 
   def length(implicit F: Fractional[A]): A = (end - start).norm
 
@@ -256,6 +270,9 @@ case class BoundedLine2[A](start: Vec2[A], end: Vec2[A]) {
     val l = (p - start) ⋅ direction
     l >= ds && l <= (length - ds)
   }
+
+  def parallel(d: Vec2[A], α: A)(implicit T: Trig[A], F: Fractional[A]): Boolean =
+    line.parallel(d, α)
 
   def intersection(o: BoundedLine2[A], θ: A, α: A, ds: A)(
       implicit F: Fractional[A],
@@ -275,10 +292,18 @@ case class BoundedLine2[A](start: Vec2[A], end: Vec2[A]) {
   def midpoint(implicit F: Fractional[A]): Vec2[A] =
     (end + start) :/ Field[A].fromInt(2)
 
-  def overlays(o: BoundedLine2[A], ds: A, β: A)(implicit F: Fractional[A],
-                                                EA: Eq[A]): Boolean =
-    line.equivalent(o.line, ds) &&
+  def overlays(o: BoundedLine2[A], ds: A, α: A, β: A)(implicit F: Fractional[A],
+                                                T: Trig[A]): Boolean =
+    line.equivalent(o.line, ds, α) &&
       (withinBounds(β)(o.start) || withinBounds(β)(o.end))
+
+  /** Axis angle rotation which rotates v to this direction */
+  def rotate(v: Vec2[A])(implicit F: Fractional[A], T: Trig[A]): Vec4[A] = {
+    val v3 = v.padZero(3)
+    val d3 = direction.padZero(3)
+    val θ = T.acos(v3 ⋅ d3).abs * (v3 cross d3).z.sign
+    v"${F.zero} ${F.zero} ${F.one} $θ"
+  }
 
   def ===[AA <: A](that: BoundedLine2[AA])(implicit ea: Eq[A]): Boolean =
     start === that.start && end === that.end

@@ -13,16 +13,21 @@ object Action {
 
   private[gfx] def apply(a: Action): Effect = a match {
     case Show(ns) => Instantiate(ns).transformF(_.leftMap(_.widen))
+    case Hide(ns) => HideInstantiate(ns).transformF(_.leftMap(_.widen))
   }
 }
 
 sealed trait Action
 private case class Show(ns: List[Node.Instance]) extends Action
+private case class Hide(ns: List[Node.Instance]) extends Action
 
 trait ActionFunctions {
   private def lift(a: Action): Graphics =
     shapeless.Coproduct[Graphics](a)
 
-  def show(ns: List[Node.Instance]): Graphics =
-    lift(Show(ns))
+  def show(ns: Node.Instance*): Graphics =
+    lift(Show(ns.toList))
+
+  def hide(ns: Node.Instance*): Graphics = 
+    lift(Hide(ns.toList))
 }

@@ -120,6 +120,7 @@ object Instantiate {
       else AttributeMissingError(a).invalidNel
     }
 
+  //FIXME: what do we do if we have a web like structure?
   private def links(
       ns: List[Node.Instance]): ReaderT[ValidatedNel[InstantiationError, ?],
                                         Graph.Instance,
@@ -130,12 +131,14 @@ object Instantiate {
       (sOpt, eOpt) match {
         case (Some(s), Some(e)) =>
           Some(Link.Instance(s, e).valid)
-        case (Some(s), None) =>
-          Some(EndNodeMissingError(l, s).invalidNel.widen[InstantiationError])
-        case (None, Some(e)) =>
-          Some(
-              StartNodeMissingError(l, e).invalidNel.widen[InstantiationError])
-        case _ => None
+        case _ =>
+          //Some(EndNodeMissingError(l, s).invalidNel.widen[InstantiationError])
+          Option.empty[ValidatedNel[InstantiationError, Link.Instance]]
+//        case (None, Some(e)) =>
+          //Some(
+            //StartNodeMissingError(l, e).invalidNel.widen[InstantiationError])
+  //        None
+    //    case _ => None
       }
     }.toList.sequence)
 
@@ -173,4 +176,14 @@ object Instantiate {
             .transformF[Xor[NonEmptyList[InstantiationError], ?], Unit](
                 _.value.right)
     } yield ()
+}
+
+object HideInstantiate {
+
+  //TODO: we need to check all the links before removing
+  def apply(ns: List[Node.Instance]):
+      StateT[Xor[NonEmptyList[InstantiationError], ?], Graph.Instance, Unit] =
+    State.modify[Graph.Instance](_.remove(ns))
+      .transformF[Xor[NonEmptyList[InstantiationError], ?], Unit](
+         _.value.right)
 }

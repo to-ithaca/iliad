@@ -40,7 +40,15 @@ object Graph {
 
     private[gfx] def put(ns: List[Node.Instance],
                          ls: List[Link.Instance]): Instance = {
-      val next = (addNodes(ns) >> addEdges(ls)).run(graph).value._1
+      val next = (addNodes(ns) >> addEdges(ls)).runS(graph).value
+      copy(graph = next)
+    }
+
+    private[gfx] def removeNodes(ns: List[Node.Instance]): State[QInstance, Unit] =
+      State.modify(_.removeNodes(ns.toSeq))
+
+    private[gfx] def remove(ns: List[Node.Instance]): Instance = {
+      val next = removeNodes(ns).runS(graph).value
       copy(graph = next)
     }
 
@@ -53,7 +61,7 @@ object Graph {
           d.uniformScopes.toList.traverse {
             case (name, scope) =>
               for {
-                us <- scopes.get(scope).toRightXor(UnsetScopeError(scope))
+                us <- scopes.get(scope).toRightXor(UnsetScopeError(scope, scopes.keySet))
                 v <- us.get(name).toRightXor(UnsetUniformError(name, scope))
               } yield v
           }.map(Draw.Drawable(d, _))
@@ -226,7 +234,9 @@ object Framebuffer {
 
 object Model {
   case class Constructor(name: String)
-  case class Instance(name: String, constructor: Constructor, model: GL.Model)
+  case class Instance(name: String, constructor: Constructor, model: GL.Model) {
+    def scope: UniformScope = UniformScope(s"model-$this")
+  }
 }
 
 case class UniformScope(name: String)

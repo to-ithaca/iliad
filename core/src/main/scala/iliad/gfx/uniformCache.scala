@@ -70,6 +70,7 @@ object UniformCache {
 
   private val root = Iso.id[State]
 
+
   private[gfx] def apply(a: UniformCache): Effect = a match {
     case UniformPut(scope, fs) =>
       StateTExtra.modify(s => (s + (scope -> fs)).right)
@@ -77,32 +78,26 @@ object UniformCache {
       StateTExtra.modify(
           s =>
             s.get(scope)
-              .toRightXor(UnsetScopeError(scope))
+              .toRightXor(UnsetScopeError(scope, s.keySet))
               .map(_ => (root ^|-? index(scope) ^|-> at(name) set Some(f))(s)))
     case UniformFold(scope, name, f) =>
       StateTExtra.modify { (fs: State) =>
         for {
-          us <- fs.get(scope).toRightXor(UnsetScopeError(scope))
+          us <- fs.get(scope).toRightXor(UnsetScopeError(scope, fs.keySet))
           u <- us.get(name).toRightXor(UnsetUniformError(name, scope))
-          cf <- u match {
-                 case _: CachedFunction.Fold[_] =>
-                   DoubleUniformFoldError(scope, name).left
-                 case prev: CachedFunction.UniformFunction[_] =>
-                   //nasty, but we need to get around type erasure somehow
-                   Xor
-                     .fromTry(Try {
-                       val cast =
-                         prev.asInstanceOf[CachedFunction.UniformFunction[Any]]
-                       //calling toString to throw a ClassCastException here as opposed to later
-                       cast.toString
-                       cast
-                     })
-                     .leftMap(e => UniformTypeMatchError(scope, name, e))
-                     .map(p => CachedFunction.Fold(p, f))
-               }
+          cf <- (foldOver(f)(u)).right
         } yield (root ^|-? index(scope) ^|-> at(name) set Some(cf))(fs)
       }
   }
+
+  private[iliad] def foldOver(f: (Long, Any) => CachedFunction.UniformFunction[Any])(u: CachedFunction):
+      CachedFunction.Fold[Any] = u match {
+    case prev: CachedFunction.Fold[_] =>
+      foldOver(f)(prev.prevf)
+    case prev: CachedFunction.UniformFunction[_] =>
+      val cast = prev.asInstanceOf[CachedFunction.UniformFunction[Any]]
+      CachedFunction.Fold(cast, f)
+}
 
   private[iliad] def uniformValues(at: Long)
     : CatsState[Map[String, CachedFunction], Map[String, GL.Uniform.Value]] =

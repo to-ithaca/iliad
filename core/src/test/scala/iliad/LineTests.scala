@@ -11,7 +11,8 @@ import cats._
 import cats.kernel.laws._
 import cats.implicits._
 
-import spire.algebra.{Field, Trig}
+import spire.algebra.{Field, Trig, PartialOrder}
+import spire.math.Fractional
 import spire.implicits._
 
 import arbitrary._
@@ -76,10 +77,14 @@ class BoundedLineTests extends FunSuite
   }
 }
 
-class Line2Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChecks with Discipline {
+class Line2Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChecks with Discipline with Inside {
 
-  val boundedFloat: Arbitrary[Float] = boundedArbitrary(0f, 1000f)
-
+  val boundedFloat: Arbitrary[Float] = boundedArbitrary(0f, 100f)
+  val boundedVector: Gen[Vec2f] = 
+    vectorDArbitrary[nat._2, Float](boundedFloat, ToInt[nat._2]).arbitrary
+  val boundedLine: Gen[Line2[Float]] = line2Arbitrary(
+    Fractional[Float], PartialOrder[Float], spire.algebra.Eq[Float],
+    boundedFloat).arbitrary
   val θ = 0.0872665f //5 degrees
   val α = 0.1f
 
@@ -96,15 +101,28 @@ class Line2Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChec
     checkAll("Line2[Float]", OrderLaws[Line2[Float]].eqv)
   }
 
-
   test("line does not intersect with parallel line") {
-    forAll(vectorDArbitrary[nat._2, Float](boundedFloat, ToInt[nat._2]).arbitrary,
-      vectorDArbitrary[nat._2, Float](boundedFloat, ToInt[nat._2]).arbitrary, 
-      normalArbitrary[nat._2, Float].arbitrary) { (p0, p1, d) =>
+    forAll(boundedVector, boundedVector, normalArbitrary[nat._2, Float].arbitrary) { 
+      (p0, p1, d) =>
       val l0 = Line2(p0, d)
       val l1 = Line2(p1, d)
 
       l0.intersection(l1, θ, α) should equal(None)
+    }
+  }
+
+  test("if l0 intersects with l1, l1 intersects with l0") {
+    forAll(boundedLine, boundedLine) { (l0, l1) =>
+      inside(l0.intersection(l1, θ, α)) {
+        case None => 
+          l1.intersection(l0, θ, α) shouldBe empty
+        case Some(p0) =>
+          inside(l1.intersection(l0, θ, α)) {
+            case Some(p1) => 
+              p0.x should equal (p1.x +- 0.01f)
+              p0.y should equal (p1.y +- 0.01f)
+          }
+      }
     }
   }
 
@@ -182,6 +200,6 @@ class BoundedLine2Tests extends FunSuite with Matchers with Discipline {
   test("bounded lines are overlaid if they are on top of each other") {
     val l0 = BoundedLine2(v"0f 1f", v"2f 1f")
     val l1 = BoundedLine2(v"1f 1f", v"3f 1f")
-    l0.overlays(l1, 0.1f, 0.1f) should equal(true)
+    l0.overlays(l1, 0.1f, 0.1f, θ) should equal(true)
   }
 }
