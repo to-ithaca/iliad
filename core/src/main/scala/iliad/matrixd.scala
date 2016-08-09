@@ -1,6 +1,7 @@
 package iliad
 
 import iliad.kernel.platform.MatrixLibrary
+import iliad.syntax.vectord._
 
 import shapeless._
 import shapeless.ops.nat._

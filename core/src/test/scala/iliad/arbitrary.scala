@@ -57,7 +57,7 @@ trait ArbitraryInstances {
       b <- arb.arbitrary
       c <- arb.arbitrary
       d <- arb.arbitrary
-    } yield Rect(v"$a $b", c.abs, d.abs)
+    } yield Rect(v"$a $b", v"${c.abs} ${d.abs}")
   }
 
   implicit def lineArbitrary[A: spa.Field : spa.NRoot : spa.PartialOrder : spa.Eq](implicit arb: Arbitrary[A]): Arbitrary[Line[A]] = Arbitrary {

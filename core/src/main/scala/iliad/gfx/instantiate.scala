@@ -12,20 +12,20 @@ import CatsExtra._
 
 trait InstantiateFunctions {
 
-  def vref(name: String, attributes: Attribute*): GL.VertexData.Ref = {
+  def vDataRef(name: String, attributes: Attribute*): GL.VertexData.Ref = {
     val vb = GL.VertexBuffer.Constructor(attributes.toList.map(_.attribute))
     GL.VertexData.Ref(name, vb)
   }
 
-  def vd(vr: GL.VertexData.Ref, range: (Int, Int)): GL.Model.VertexRef = {
+  def vModelRef(vr: GL.VertexData.Ref, range: (Int, Int)): GL.Model.VertexRef = {
     val (s, e) = range
     GL.Model.VertexRef(vr, GL.DataRange(s, e))
   }
 
-  def eref(name: String, bufferName: String): GL.ElementData.Ref =
+  def eDataRef(name: String, bufferName: String): GL.ElementData.Ref =
     GL.ElementData.Ref(name, GL.ElementBuffer.Constructor(bufferName))
 
-  def ed(er: GL.ElementData.Ref, range: (Int, Int)): GL.Model.ElementRef = {
+  def eModelRef(er: GL.ElementData.Ref, range: (Int, Int)): GL.Model.ElementRef = {
     val (s, e) = range
     GL.Model.ElementRef(er, GL.DataRange(s, e))
   }

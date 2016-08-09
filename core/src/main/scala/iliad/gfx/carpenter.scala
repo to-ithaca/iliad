@@ -14,7 +14,19 @@ object Carpenter {
   case class Vertex[A](index: Int, xSeg: Int, ySeg: Int, v: Vec2[A])
 
   def cuboid[A: spm.Fractional]: CuboidCarpenter[A] = new CuboidCarpenter[A]
+  def unitCube[A](implicit F: spm.Fractional[A]): Panel[(Vec3[A], CuboidSurface)] = 
+    cuboid.shape(F.one, 1, F.one, 1, F.one, 1)
+
   def plane[A: spm.Fractional]: PlaneCarpenter[A] = new PlaneCarpenter[A]
+  def unitPlane[A](implicit F: spm.Fractional[A]): Panel[Vec2[A]] = 
+    plane.shape(F.one, 1, F.one, 1)
+
+  def fromRect[A: spm.Fractional](r: Rect[A]): Panel[Vec2[A]] = 
+    plane.shape(r.width, 1, r.height, 1).map(_ + r.midpoint)
+
+  def prism[A: spm.Fractional]: PrismCarpenter[A] = new PrismCarpenter[A]
+  def unitPrism[A](implicit F: spm.Fractional[A]): Panel[(Vec3[A], PrismSurface)] =
+    prism.shape(F.one, 1, 1, F.one, 1)
 }
 
 class Carpenter[A: spm.Fractional] {
@@ -86,21 +98,14 @@ class Carpenter[A: spm.Fractional] {
 }
 
 case class Panel[A](vertices: List[A], elements: List[Int]) {
-
   def map[B](f: A => B): Panel[B] = Panel(vertices.map(f), elements)
-
-  /*def shape(implicit sizeOf: iliad.io.ByteSizeOf[A], put: iliad.io.BufferPut[A, ByteBuffer]): TriangleData = {
-    val vData = VertexData(IOBuffer(vertices: _*), vertices.size)
-    val eData = ElementData(IOBuffer[Int, IntBuffer](elements: _*), elements.size)
-    TriangleData(vData, eData)
-  }*/
 }
 
 object Panel {
-  implicit def panelFunctor: Functor[Panel] = new PanelFunctor {}
+  implicit def panelFunctor: Functor[Panel] = new PanelFunctor
 }
 
-private[gfx] trait PanelFunctor extends Functor[Panel] {
+private[gfx] final class PanelFunctor extends Functor[Panel] {
   def map[A, B](fa: Panel[A])(f: A => B): Panel[B] = fa.map(f)
 }
 
@@ -217,6 +222,82 @@ class PlaneCarpenter[A: spm.Fractional] {
       case Xor.Right(p) => p
       case Xor.Left(err) =>
         throw new Error(s"Plane carpenter is incorrect!  $err")
+    }
+  }
+}
+
+sealed trait PrismSurface
+object PrismSurface {
+  case object AlongX extends PrismSurface
+  case object AlongY extends PrismSurface
+  case object Hypotenuse extends PrismSurface
+  case object Front extends PrismSurface
+  case object Back extends PrismSurface
+}
+
+class PrismCarpenter[A: spm.Fractional] {
+  import PrismSurface._
+  private val carpenter = new Carpenter[A]
+
+  private case class Blueprint(x: A, xSegments: Int, lSegments: Int, z: A, zSegments: Int) {
+    val l: A =  x * spa.Field[A].fromDouble(Math.sqrt(2.0))
+    val dx: A = x / spa.Field[A].fromInt(xSegments)
+    val dl: A = l / spa.Field[A].fromInt(lSegments)
+    val dz: A = z / spa.Field[A].fromInt(zSegments)
+    val zOffset: A = z / spa.Field[A].fromInt(2)
+  }
+
+  private def fixX(b: Blueprint): MissingElementError Xor Panel[(Vec3[A], PrismSurface)] =
+    carpenter.panel(b.dx, b.xSegments, b.dz, b.zSegments)
+      .map(_.map { v =>
+        val y = v(0)
+        val z = v(1)
+        (v"${spa.Field[A].zero} $y ${z - b.zOffset}", AlongY)
+      })
+
+  private def fixY(b: Blueprint): MissingElementError Xor Panel[(Vec3[A], PrismSurface)] =
+    carpenter
+      .panel(b.dx, b.xSegments, b.dz, b.zSegments)
+      .map(_.map { v =>
+        val x = v(0)
+        val z = v(1)
+        (v"$x ${spa.Field[A].zero} ${z - b.zOffset}", AlongX)
+      })
+
+  private def fixL(b: Blueprint): MissingElementError Xor Panel[(Vec3[A], PrismSurface)] = {
+    val factor = spm.Fractional[A].fromDouble(Math.cos(Math.PI / 4.0))
+    carpenter
+      .panel(b.dl, b.lSegments, b.dz, b.zSegments)
+      .map(_.map { v =>
+        val l = v(0)
+        val z = v(1)
+        val y = l * factor
+        val x = b.x - y
+        (v"$x $y ${z - b.zOffset}", Hypotenuse)
+      })
+  }
+
+  private def triangle(b: Blueprint, z: A, s: PrismSurface) = Panel[Vec3[A]](List(
+    v"${spa.Field[A].zero} ${spa.Field[A].zero} $z", 
+    v"${b.x}               ${spa.Field[A].zero} $z",
+    v"${spa.Field[A].zero} ${b.x}               $z"),
+    List(0, 1, 2)).map(_ -> s)
+
+  def shape(x: A, xSegments: Int, lSegments: Int, z: A, zSegments: Int): 
+      Panel[(Vec3[A], PrismSurface)] = {
+    val b: Blueprint = Blueprint(x, xSegments, lSegments, z, zSegments)
+
+    val px = for {
+      alongY <- fixX(b)
+      alongX <- fixY(b)
+      hypotenuse <- fixL(b)
+      front <- triangle(b, b.zOffset, Front).right
+      back <- triangle(b, -b.zOffset, Back).right
+    } yield carpenter.join(List(alongY, alongX, hypotenuse, front, back))
+    px match {
+      case Xor.Right(p) => p
+      case Xor.Left(err) =>
+        throw new Error(s"Prism carpenter is incorrect!  $err")
     }
   }
 }

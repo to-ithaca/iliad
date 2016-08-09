@@ -56,3 +56,23 @@ object TextureFormat {
                                   GL.GL_UNSIGNED_SHORT,
                                   2)
 }
+
+case class DataRefs(
+  constructorName: String,
+  attributes: List[Attribute],
+  elementBuffer: String,
+  vertexDataName: String,
+  vertexSize: Int,
+  elementDataName: String,
+  elementSize: Int
+) {
+
+  val vertexDataRef: GL.VertexData.Ref = gfx.vDataRef(vertexDataName, attributes:_*)
+  private val vModel: GL.Model.VertexRef = gfx.vModelRef(vertexDataRef, 0 -> vertexSize)
+
+  val elementDataRef: GL.ElementData.Ref = gfx.eDataRef(elementDataName, elementBuffer)
+  private val eModel: GL.Model.ElementRef = gfx.eModelRef(elementDataRef, 0 -> elementSize)
+
+  def model(name: String): Model.Instance =
+    gfx.model(name, constructorName, vModel, eModel)
+}

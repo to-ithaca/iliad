@@ -34,6 +34,11 @@ case class AxisAngle[A: Trig: Ring](axis: Vec3[A], θ: A) {
     matrix.rotate(v)
 }
 
+object AxisAngle {
+  def apply[A: Trig: Ring](v: Vec4[A]): AxisAngle[A] = 
+    AxisAngle(v.dropUntil(3), v.w)
+}
+
 case class RotationMatrix[A: AdditiveMonoid](matrix: Mat4[A]) {
   def rotate(v: Vec3[A])(implicit MA: MatrixAlgebra[nat._4, A]): Vec3[A] =
     matrix.times(v.padZero(4)).dropUntil(3)

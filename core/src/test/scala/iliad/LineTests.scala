@@ -113,12 +113,12 @@ class Line2Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChec
 
   test("if l0 intersects with l1, l1 intersects with l0") {
     forAll(boundedLine, boundedLine) { (l0, l1) =>
-      inside(l0.intersection(l1, θ, α)) {
-        case None => 
-          l1.intersection(l0, θ, α) shouldBe empty
+      inside(l0.intersection(l1, 0f, 0f)) {
+        case None =>
+          l1.intersection(l0, 0f, 0f) shouldBe empty
         case Some(p0) =>
-          inside(l1.intersection(l0, θ, α)) {
-            case Some(p1) => 
+          inside(l1.intersection(l0, 0f, 0f)) {
+            case Some(p1) =>
               p0.x should equal (p1.x +- 0.01f)
               p0.y should equal (p1.y +- 0.01f)
           }
@@ -200,6 +200,43 @@ class BoundedLine2Tests extends FunSuite with Matchers with Discipline {
   test("bounded lines are overlaid if they are on top of each other") {
     val l0 = BoundedLine2(v"0f 1f", v"2f 1f")
     val l1 = BoundedLine2(v"1f 1f", v"3f 1f")
-    l0.overlays(l1, 0.1f, 0.1f, θ) should equal(true)
+    l0.overlays(l1, 0.1f, θ) should equal(true)
+    l1.overlays(l0, 0.1f, θ) should equal(true)
   }
+
+  test("bounded lines are overlaid if they are equal to each other") {
+    val l0 = BoundedLine2(v"3f 1f", v"3f 2f")
+    val l1 = BoundedLine2(v"3f 1f", v"3f 2f")
+    l0.overlays(l1, 0.1f, θ) should equal(true)
+    l1.overlays(l0, 0.1f, θ) should equal(true)
+  }
+
+  test("bounded lines are overlaid if they are opposite to each other") {
+    val l0 = BoundedLine2(v"3f 1f", v"3f 2f")
+    val l1 = BoundedLine2(v"3f 2f", v"3f 1f")
+    l0.overlays(l1, 0.1f, θ) should equal(true)
+    l1.overlays(l0, 0.1f, θ) should equal(true)
+  }
+
+  test("bounded lines are overlaid if they overlap each other") {
+    val l0 = BoundedLine2(v"3f 1f", v"3f 2f")
+    val l1 = BoundedLine2(v"3f -3f", v"3f 5f")
+    l0.overlays(l1, 0.1f, θ) should equal(true)
+    l1.overlays(l0, 0.1f, θ) should equal(true)
+  }
+
+  test("bounded lines are not overlaid if they are consecutive") {
+    val l0 = BoundedLine2(v"3f 1f", v"3f 2f")
+    val l1 = BoundedLine2(v"3f 2f", v"3f 5f")
+    l0.overlays(l1, 0.1f, θ) should equal(false)
+    l1.overlays(l0, 0.1f, θ) should equal(false)
+  }
+
+  test("bounded lines are not overlaid if they are apart") {
+    val l0 = BoundedLine2(v"3f 1f", v"3f 2f")
+    val l1 = BoundedLine2(v"3f 3f", v"3f 5f")
+    l0.overlays(l1, 0.1f, θ) should equal(false)
+    l1.overlays(l0, 0.1f, θ) should equal(false)
+  }
+
 }

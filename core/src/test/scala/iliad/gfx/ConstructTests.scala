@@ -18,14 +18,14 @@ class ConstructTests extends FunSuite with Matchers {
       case Xor.Right(_) => 
     }
 
-  private val exampleVertexShader: GL.VertexShader.Source = vsh(
+  private val exampleVertexShader: GL.VertexShader.Source = vertexShader(
       "some text here",
         Attribute[Vec3f]("position"),
         Attribute[Vec3f]("normal"),
         Attribute[Int]("index")
     )
 
-  private val exampleFragmentShader: GL.FragmentShader.Source = fsh(
+  private val exampleFragmentShader: GL.FragmentShader.Source = fragmentShader(
     "some text here",
     Sampler.image("image")
   )
@@ -63,13 +63,13 @@ class ConstructTests extends FunSuite with Matchers {
   }
 
   test("can draw offscreen") {
-    val fixedViewportVertexShader: GL.VertexShader.Source = vsh(
+    val fixedViewportVertexShader: GL.VertexShader.Source = vertexShader(
       "some text here",
         Attribute[Vec3f]("position"),
         Attribute[Vec3f]("normal")
     )
 
-    val fixedViewportFragmentShader: GL.FragmentShader.Source = fsh("some text here")
+    val fixedViewportFragmentShader: GL.FragmentShader.Source = fragmentShader("some text here")
 
     val viewport = v"256 256"
     val fixedViewportTexture = txt("fixed-viewport",
@@ -89,11 +89,11 @@ class ConstructTests extends FunSuite with Matchers {
       GL.GL_COLOR_ATTACHMENT0 -> fixedViewportTexture
     )
 
-    val screenVertexShader: GL.VertexShader.Source = vsh(
+    val screenVertexShader: GL.VertexShader.Source = vertexShader(
       "some text here",
         Attribute[Vec3f]("position"))
 
-    val screenFragmentShader: GL.FragmentShader.Source = fsh(
+    val screenFragmentShader: GL.FragmentShader.Source = fragmentShader(
       "some text here",
       Sampler.image("unscaledImage")
     )

@@ -52,7 +52,6 @@ case class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
 
   def n(implicit toInt: ToInt[N]): Int = toInt()
 
-  //TODO: We really want the idea of basis as well?
   def x(implicit ev: nat._1 <= N): A = unsized(0)
   def y(implicit ev: nat._2 <= N): A = unsized(1)
   def z(implicit ev: nat._3 <= N): A = unsized(2)
@@ -85,6 +84,8 @@ case class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
             Vector(u2 * v3 - u3 * v2, u3 * v1 - u1 * v3, u1 * v2 - u2 * v1))
     }
 
+  def scale(that: VectorD[N, A])(implicit G: spa.MultiplicativeSemigroup[A]): VectorD[N, A] = map2(that)(_ * _)
+
   private def pad[D <: Nat](n: Nat, a: A)(
       implicit DD: Diff.Aux[n.N, N, D],
       toIntD: ToInt[D],
@@ -113,16 +114,14 @@ case class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
   def as[B: spm.ConvertableTo](implicit F: spm.ConvertableFrom[A]): VectorD[N, B] =
     map(F.toType[B])
 
-  def rotateFrom(from: VectorD[N, A])(implicit ev: N =:= nat._3, T: spa.Trig[A], F: spa.Field[A], N: spa.NRoot[A], E: spa.Eq[A]): VectorD[nat._4, A] = {
-    val a = from cross this
+  def rotate[D <: Nat](to: VectorD[N, A])(implicit ev: N <= nat._3, 
+    D: Diff.Aux[nat._3, N, D], toIntD: ToInt[D], 
+T: spa.Trig[A], F: spa.Field[A], N: spa.NRoot[A], E: spa.Eq[A]): VectorD[nat._4, A] = {
+    val a = padZero(3) cross to.padZero(3)
     val n = a.norm
-    if(n === F.zero) {
-      VectorD.sized(4, Vector(F.zero, F.zero, F.one, F.zero))
-    } else {
-      val axis = a :/ n
-      val angle = T.acos(from ⋅ this)
-      VectorD.sized(4, Vector(axis.x, axis.y, axis.z, angle))
-    }
+    val axis = if(n === F.zero) VectorD.zAxis else a :/ n
+    val θ = T.acos(this ⋅ to)
+    VectorD.sized(4, Vector(axis.x, axis.y, axis.z, θ))
   }
 
   override def toString: String = 

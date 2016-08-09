@@ -65,12 +65,4 @@ class RectTests extends FunSuite with Discipline with GeneratorDrivenPropertyChe
   test("Rect should not contain any external points") {
     forAll(externalPointGen) { case (r, p) => !r.contains(p)}
   }
-
-  test("Rect width should be dx") {
-    forAll( (r: Rect[Int]) => assert(r.width == r.dx))
-  }
-
-  test("Rect height should be dy") {
-    forAll((r: Rect[Int]) => assert(r.height == r.dy))
-  }
 }

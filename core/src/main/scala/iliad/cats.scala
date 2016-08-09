@@ -22,6 +22,8 @@ object CatsExtra {
     new ValidatedNelOps(v)
   implicit def oneAndOps[F[_], A](o: OneAnd[F, A]): OneAndOps[F, A] =
     new OneAndOps(o)
+  implicit def monadReaderOps[F[_], R](M: MonadReader[F, R]): MonadReaderOps[F, R] =
+    new MonadReaderOps(M)
 }
 
 final class FreeOps[F[_], A](f: Free[F, A]) {
@@ -81,4 +83,8 @@ final class ValidatedNelOps[E, A](v: ValidatedNel[E, A]) {
 
 final class OneAndOps[F[_], A](o: OneAnd[F, A]) {
   def widen[AA >: A](implicit FF: Functor[F]): OneAnd[F, AA] = o.map(identity)
+}
+
+final class MonadReaderOps[F[_], R](M: MonadReader[F, R]) {
+  def reader[A](f: R => A): F[A] = M.map(M.ask)(f)
 }

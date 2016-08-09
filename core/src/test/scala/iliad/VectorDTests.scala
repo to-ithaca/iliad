@@ -127,24 +127,33 @@ class VectorDTests extends FunSuite with Discipline with GeneratorDrivenProperty
     }
   }
 
-  test("VectorD#rotateFrom handles angles greater than PI / 2") {
-    val from = v"0.0 1.0 0.0"
-    val to = v"1.0 -1.0 0.0".normalize
+  test("VectorD#rotate handles angles greater than PI / 2") {
+    val from = v"0.0 1.0"
+    val to = v"1.0 -1.0".normalize
 
-    val aa = to.rotateFrom(from)
+    val aa = from.rotate(to)
     val axis = aa.dropUntil(3)
     assert(axis === v"0.0 0.0 -1.0")
     assert(aa.w == 3.0 * Math.PI/4.0)
   }
 
-  test("VectorD#rotateFrom handles a zero angle") {
-    val from = v"0.0 1.0 0.0"
-    val to = v"0.0 1.0 0.0"
-    val aa = to.rotateFrom(from)
+  test("VectorD#rotate handles a zero angle") {
+    val from = v"0.0 1.0"
+    val to = v"0.0 1.0"
+    val aa = from.rotate(to)
     val axis = aa.dropUntil(3)
-    println(from cross to)
     assert(axis === v"0.0 0.0 1.0")
     assert(aa.w == 0.0)
+  }
+
+  test("VectorD#rotate handles an angle of PI") {
+    val from = v"0.0 1.0"
+    val to = v"0.0 -1.0"
+    val aa = from.rotate(to)
+    val axis = aa.dropUntil(3)
+    assert(axis === v"0.0 0.0 1.0")
+    assert(aa.w == Math.PI)
+  
   }
 
 }
