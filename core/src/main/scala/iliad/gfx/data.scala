@@ -13,7 +13,9 @@ import cats.implicits._
 import quiver.{LNode, LEdge, Decomp}
 import QuiverExtra._
 
-object Graph {
+import com.typesafe.scalalogging._
+
+object Graph extends LazyLogging {
   type Constructor = quiver.Graph[Node.Constructor, String, Link]
   type QInstance = quiver.Graph[Node.Instance, String, Unit]
 
@@ -44,7 +46,8 @@ object Graph {
       copy(graph = next)
     }
 
-    private[gfx] def removeNodes(ns: List[Node.Instance]): State[QInstance, Unit] =
+    private[gfx] def removeNodes(
+        ns: List[Node.Instance]): State[QInstance, Unit] =
       State.modify(_.removeNodes(ns.toSeq))
 
     private[gfx] def remove(ns: List[Node.Instance]): Instance = {
@@ -54,18 +57,22 @@ object Graph {
 
     private[gfx] def nodes(scopes: UniformCache.Values)
       : Reader[GraphTraversal, GraphicsError Xor Vector[Node.Drawable]] =
-      Reader[GraphTraversal, GraphicsError Xor Vector[Node.Drawable]](
-          _.apply(graph).traverse {
-        case c: Clear.Instance => c.right
-        case d: Draw.Instance =>
-          d.uniformScopes.toList.traverse {
-            case (name, scope) =>
-              for {
-                us <- scopes.get(scope).toRightXor(UnsetScopeError(scope, scopes.keySet))
-                v <- us.get(name).toRightXor(UnsetUniformError(name, scope))
-              } yield v
-          }.map(Draw.Drawable(d, _))
-      })
+      Reader[GraphTraversal, GraphicsError Xor Vector[Node.Drawable]] { f =>
+        val ops = f(graph)
+        ops.traverse {
+          case c: Clear.Instance => c.right
+          case d: Draw.Instance =>
+            d.uniformScopes.toList.traverse {
+              case (name, scope) =>
+                for {
+                  us <- scopes
+                         .get(scope)
+                         .toRightXor(UnsetScopeError(scope, scopes.keySet))
+                  v <- us.get(name).toRightXor(UnsetUniformError(name, scope))
+                } yield v
+            }.map(Draw.Drawable(d, _))
+        }
+      }
   }
 }
 

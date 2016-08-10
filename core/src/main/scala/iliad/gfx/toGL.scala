@@ -40,9 +40,9 @@ object ToGL {
 
   private def apply(ts: Map[String, Texture.Uniform])
     : DSL[Map[String, GL.Texture.Constructor]] =
-    ts.mapValues {
-      case t: Texture.Instance => apply(t)
-      case i: Texture.Image => ToGLImage(i).free
+    ts.map {
+      case (k, t: Texture.Instance) => k -> apply(t)
+      case (k, i: Texture.Image) => k -> ToGLImage(i).free
     }.sequence
 
   private def apply(n: Draw.Drawable): DSL[GL.DrawOp] =

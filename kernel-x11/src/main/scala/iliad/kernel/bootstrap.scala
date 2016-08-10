@@ -39,7 +39,6 @@ trait X11Bootstrap
     with X11GLDependencies
     with LazyLogging {
 
-  implicit val SS = Strategy.fromFixedDaemonPool(1, "vsync-thread")
   implicit val S = Scheduler.fromFixedDaemonPool(4)
 
   def width: Int
@@ -52,24 +51,16 @@ trait X11Bootstrap
   override val lockDisplay = Some(x.XLockDisplay _)
   override val unlockDisplay = Some(x.XUnlockDisplay _)
 
-  private def vsync(s: Signal[Task, Long]): Unit = {
-    (for {
-      t <- s.get
-      _ <- {
-        s.set(System.currentTimeMillis).schedule(0.01666 seconds)
-      }
-    } yield vsync(s)).unsafeRunAsync(_.toXor match {
-      case Xor.Left(err) => logger.error(s"Error during vsync: $err")
-      case Xor.Right(_) =>
-    })
-  }
-
-  def vsync: Stream[Task, Long] =
-    Stream.eval(async.signalOf[Task, Long](System.currentTimeMillis)).flatMap {
-      s =>
-        vsync(s)
-        s.discrete
+  def vsync: Stream[Task, Long] = {
+    implicit val SS: Strategy = Strategy.fromFixedDaemonPool(1, "vsync-thread")
+    val start = System.currentTimeMillis
+    time.awakeEvery[Task]((1.0 / 30.0) seconds).map { t =>
+      val tt = t.toMillis + start
+      logger.info(
+          s"generated vsync pulse at ${System.currentTimeMillis} for $tt")
+      tt
     }
+  }
 
   private def initThreads(): Error Xor Unit = {
     val code = x.XInitThreads()

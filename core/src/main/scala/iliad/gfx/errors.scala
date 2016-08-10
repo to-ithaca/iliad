@@ -7,7 +7,8 @@ sealed trait GraphicsError extends IliadError
 
 //TODO: label all errors
 
-case class UnsetScopeError(s: UniformScope, existing: Set[UniformScope]) extends GraphicsError {
+case class UnsetScopeError(s: UniformScope, existing: Set[UniformScope])
+    extends GraphicsError {
   def message: String =
     s"""UnsetScopeError: Scope $s has not been set:
 

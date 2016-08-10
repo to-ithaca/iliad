@@ -28,13 +28,14 @@ case class Rect[A](x0y0: Vec2[A], dimensions: Vec2[A]) {
   def midpoint(implicit F: spm.Fractional[A]): Vec2[A] =
     (topRight + bottomLeft) :/ F.fromInt(2)
 
-  def contains(xy: Vec2[A])(implicit F: spa.AdditiveMonoid[A], 
-    G: spa.PartialOrder[A]): Boolean = {
+  def contains(xy: Vec2[A])(implicit F: spa.AdditiveMonoid[A],
+                            G: spa.PartialOrder[A]): Boolean = {
     val x0y0 = bottomLeft
     val x1y1 = topRight
     xy.x > x0y0.x && xy.x < x1y1.x && xy.y > x0y0.y && xy.y < x1y1.y
   }
-  def combine(that: Rect[A])(implicit F: spa.AdditiveGroup[A], G: spa.Order[A]): Rect[A] = {
+  def combine(that: Rect[A])(implicit F: spa.AdditiveGroup[A],
+                             G: spa.Order[A]): Rect[A] = {
     val cx0y0 = (this.bottomLeft map2 that.bottomLeft)(_ min _)
     val cx1y1 = (this.topRight map2 that.topRight)(_ max _)
     val dxdy = cx1y1 - cx0y0
@@ -53,8 +54,9 @@ object Rect extends RectInstances {
 }
 
 private[iliad] abstract class RectInstances {
-  implicit def rectSemigroup[A](implicit f: spa.AdditiveGroup[A], g: spa.Order[A]): Semigroup[Rect[A]] =
-    new RectSemigroup[A] { 
+  implicit def rectSemigroup[A](implicit f: spa.AdditiveGroup[A],
+                                g: spa.Order[A]): Semigroup[Rect[A]] =
+    new RectSemigroup[A] {
       val F = f
       val G = g
     }
@@ -95,9 +97,9 @@ private[iliad] sealed trait LineEq[A] extends Eq[Line[A]] {
   def eqv(x: Line[A], y: Line[A]): Boolean = x === y
 }
 
-case class BoundedLine[A](start: Vec3[A],
-                                                      end: Vec3[A]) {
-  def line(implicit F: spm.Fractional[A]): Line[A] = Line(start, (end - start).normalize)
+case class BoundedLine[A](start: Vec3[A], end: Vec3[A]) {
+  def line(implicit F: spm.Fractional[A]): Line[A] =
+    Line(start, (end - start).normalize)
   def length(implicit F: spm.Fractional[A]): A = (end - start).norm
   def contains(p: Vec3[A])(implicit F: spm.Fractional[A]): Boolean =
     line.contains(p) && withinBounds(p)
@@ -109,7 +111,8 @@ case class BoundedLine[A](start: Vec3[A],
 
   def direction(implicit F: spm.Fractional[A]): Vec3[A] = line.direction
   def distance(implicit F: spm.Fractional[A]): A = (end - start).norm
-  def midpoint(implicit F: spm.Fractional[A]): Vec3[A] = (end + start) :/ F.fromInt(2)
+  def midpoint(implicit F: spm.Fractional[A]): Vec3[A] =
+    (end + start) :/ F.fromInt(2)
 
   def ===[AA <: A](that: BoundedLine[AA])(implicit ea: Eq[A]): Boolean =
     start === that.start && end === that.end
@@ -159,8 +162,8 @@ private[iliad] sealed trait PlaneEq[A] extends Eq[Plane[A]] {
 }
 
 case class BoundedPlane[A: spm.Fractional: spa.Trig](x0y0: Vec3[A],
-                                             x0y1: Vec3[A],
-                                             x1y0: Vec3[A]) {
+                                                     x0y1: Vec3[A],
+                                                     x1y0: Vec3[A]) {
   lazy val xAxis: BoundedLine[A] = BoundedLine(x0y0, x1y0)
   lazy val yAxis: BoundedLine[A] = BoundedLine(x0y0, x0y1)
   lazy val normal: Vec3[A] = xAxis.direction cross yAxis.direction
@@ -236,21 +239,22 @@ case class Line2[A: spm.Fractional](p0: Vec2[A], direction: Vec2[A]) {
   def parallel(d: Vec2[A], α: A)(implicit T: spa.Trig[A]): Boolean =
     (direction ⋅ d).abs >= T.cos(α)
 
-  def parallel(that: Line2[A], α: A)(implicit T: spa.Trig[A]): Boolean = 
+  def parallel(that: Line2[A], α: A)(implicit T: spa.Trig[A]): Boolean =
     parallel(that.direction, α)
 
-  def equivalent(that: Line2[A], ds: A, α: A)(implicit T: spa.Trig[A]): Boolean =
+  def equivalent(that: Line2[A], ds: A, α: A)(
+      implicit T: spa.Trig[A]): Boolean =
     parallel(that, α) && contains(that.p0, ds)
 
   def equation: String = {
-    if(direction.x === spa.Field[A].zero) s"[x = ${p0.x}]"
+    if (direction.x === spa.Field[A].zero) s"[x = ${p0.x}]"
     else {
       val m = direction.y / direction.x
       val c = p0.y - p0.x * m
       s"[y = $m x + $c]"
     }
   }
- 
+
   override def toString: String =
     s"Line2(p0 = $p0, direction = $direction, equation = $equation"
 }
@@ -280,7 +284,8 @@ case class BoundedLine2[A](start: Vec2[A], end: Vec2[A]) {
   def map[B](f: A => B): BoundedLine2[B] =
     BoundedLine2(start.map(f), end.map(f))
 
-  def as[B: spm.ConvertableTo](implicit F: spm.ConvertableFrom[A]): BoundedLine2[B] =
+  def as[B: spm.ConvertableTo](
+      implicit F: spm.ConvertableFrom[A]): BoundedLine2[B] =
     map(F.toType[B])
 
   def length(implicit F: spm.Fractional[A]): A = (end - start).norm
@@ -295,7 +300,8 @@ case class BoundedLine2[A](start: Vec2[A], end: Vec2[A]) {
     l >= ds && l <= (length - ds)
   }
 
-  def parallel(d: Vec2[A], α: A)(implicit T: spa.Trig[A], F: spm.Fractional[A]): Boolean =
+  def parallel(d: Vec2[A], α: A)(implicit T: spa.Trig[A],
+                                 F: spm.Fractional[A]): Boolean =
     line.parallel(d, α)
 
   def intersection(o: BoundedLine2[A], θ: A, α: A, ds: A)(
@@ -317,18 +323,21 @@ case class BoundedLine2[A](start: Vec2[A], end: Vec2[A]) {
     (end + start) :/ F.fromInt(2)
 
   def overlays(o: BoundedLine2[A], ds: A, α: A)(implicit F: spm.Fractional[A],
-                                                T: spa.Trig[A], EA: cats.Eq[A]): Boolean = {
-    if(line.equivalent(o.line, ds, α)) {
-      val l = if(o.direction ⋅ direction > F.zero) o else BoundedLine2(o.end, o.start)
-      if( (l.start - start).norm < ds || (l.end - end).norm < ds) {
+                                                T: spa.Trig[A],
+                                                EA: cats.Eq[A]): Boolean = {
+    if (line.equivalent(o.line, ds, α)) {
+      val l =
+        if (o.direction ⋅ direction > F.zero) o
+        else BoundedLine2(o.end, o.start)
+      if ((l.start - start).norm < ds || (l.end - end).norm < ds) {
         println(s"points are within ds ${l}")
         true
       } else {
         val signs = Set(
-          ((o.start - end) ⋅ direction).sign, 
-          ((o.end - end) ⋅ direction).sign, 
-          ((o.start - start) ⋅ direction).sign, 
-          ((o.end - start) ⋅ direction).sign
+            ((o.start - end) ⋅ direction).sign,
+            ((o.end - end) ⋅ direction).sign,
+            ((o.start - start) ⋅ direction).sign,
+            ((o.end - start) ⋅ direction).sign
         ).filter(_ != spa.Sign.Zero)
         signs.size != 1
       }
@@ -336,7 +345,8 @@ case class BoundedLine2[A](start: Vec2[A], end: Vec2[A]) {
   }
 
   /** Axis angle rotation which rotates v to this direction */
-  def rotate(v: Vec2[A])(implicit F: spm.Fractional[A], T: spa.Trig[A]): Vec4[A] = {
+  def rotate(v: Vec2[A])(implicit F: spm.Fractional[A],
+                         T: spa.Trig[A]): Vec4[A] = {
     val v3 = v.padZero(3)
     val d3 = direction.padZero(3)
     val θ = T.acos(v3 ⋅ d3).abs * (v3 cross d3).z.sign
@@ -346,7 +356,8 @@ case class BoundedLine2[A](start: Vec2[A], end: Vec2[A]) {
   def ===[AA <: A](that: BoundedLine2[AA])(implicit ea: Eq[A]): Boolean =
     start === that.start && end === that.end
 
-  def equivalent[AA <: A](that: BoundedLine2[AA])(implicit ea: Eq[A]): Boolean =
+  def equivalent[AA <: A](that: BoundedLine2[AA])(
+      implicit ea: Eq[A]): Boolean =
     ===(that) || (start === that.end && end === that.start)
 }
 

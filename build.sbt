@@ -31,7 +31,7 @@ lazy val compilerOptions = Seq(
 )
 
 lazy val monocleVersion = "1.2.2"
-lazy val catsVersion = "0.6.0"
+lazy val catsVersion = "0.7.0-SNAPSHOT"
 
 lazy val commonSettings = Seq(
   resolvers ++= Seq(
@@ -42,7 +42,7 @@ lazy val commonSettings = Seq(
   libraryDependencies ++= Seq(
     "org.spire-math" %% "imp" % "0.2.0" % "provided",
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4",
-    "co.fs2" %% "fs2-core" % "0.9.0-M3",
+    "co.fs2" %% "fs2-core" % "0.9.0-M6",
     "com.chuusai" %% "shapeless" % "2.2.5",
     "org.spire-math" %% "spire" % "0.11.0",
     "org.typelevel" %% "cats-core" % catsVersion,
@@ -52,7 +52,7 @@ lazy val commonSettings = Seq(
     "org.typelevel" %% "cats-laws" % catsVersion % "test",
     "com.github.julien-truffaut" %% "monocle-core" % monocleVersion,
     "com.github.julien-truffaut"  %%  "monocle-macro" % monocleVersion,
-    "com.projectseptember" %% "freek" % "0.5.0" 
+    "com.projectseptember" %% "freek" % "0.5.1-SNAPSHOT" 
       exclude("org.typelevel", "cats_2.11")
     exclude("org.typelevel", "cats-laws_2.11"),
     "oncue.quiver" %% "core" % "5.3.57",
@@ -184,3 +184,4 @@ lazy val root = (project in file(".")).settings(
   compilerOptions,
   moduleName := "iliad"
 ).aggregate(macros, core, kernel, win32Kernel, x11Kernel)
+

@@ -51,26 +51,26 @@ private case class PutFramebuffer(f: Framebuffer.Instance) extends Load
 
 trait LoadFunctions {
 
-  private def lift(l: Load): Graphics =
-    shapeless.Coproduct[Graphics](l)
+  private def lift(l: Load): GFX =
+    shapeless.Coproduct[GFX](l)
 
-  def load(vf: (VertexShader.Source, FragmentShader.Source)): Graphics = {
+  def load(vf: (VertexShader.Source, FragmentShader.Source)): GFX = {
     val (v, f) = vf
     lift(PutProgram(Program.Unlinked(v, f)))
   }
 
-  def load(r: VertexData.Ref, d: VertexData.Data): Graphics =
+  def load(r: VertexData.Ref, d: VertexData.Data): GFX =
     lift(PutVertices(r, d))
 
-  def load(r: ElementData.Ref, d: ElementData.Data): Graphics =
+  def load(r: ElementData.Ref, d: ElementData.Data): GFX =
     lift(PutElements(r, d))
 
-  def load(t: Texture.Instance, d: gl.Texture.Data): Graphics =
+  def load(t: Texture.Instance, d: gl.Texture.Data): GFX =
     lift(PutTexture(t, d))
 
-  def load(r: Renderbuffer.Instance): Graphics =
+  def load(r: Renderbuffer.Instance): GFX =
     lift(PutRenderbuffer(r))
 
-  def load(f: Framebuffer.Instance): Graphics =
+  def load(f: Framebuffer.Instance): GFX =
     lift(PutFramebuffer(f))
 }

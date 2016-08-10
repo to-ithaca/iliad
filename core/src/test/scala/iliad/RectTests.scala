@@ -26,7 +26,7 @@ class RectTests extends FunSuite with Discipline with GeneratorDrivenPropertyChe
     spire.math.Numeric[Int]
     
     // Int has an Eq
-    implicit val intEq = cats.kernel.std.int.intOrder
+    implicit val intEq = cats.instances.int.catsKernelStdOrderForInt
 
     Semigroup[Rect[Int]]
    
@@ -35,7 +35,7 @@ class RectTests extends FunSuite with Discipline with GeneratorDrivenPropertyChe
 
   {
     // Int has an Eq
-    implicit val intEq = cats.kernel.std.int.intOrder
+    implicit val intEq = cats.instances.int.catsKernelStdOrderForInt
     
     Eq[Rect[Int]]
 

@@ -11,6 +11,8 @@ import CatsExtra._
 
 import java.nio.IntBuffer
 
+import com.typesafe.scalalogging._
+
 object GLInterpreter extends (OpenGL.Interpreter[OpenGL.NoEffect]) {
 
   private def genObject(r: Reader[GLES30Library, (Int, IntBuffer) => Unit],
@@ -238,7 +240,30 @@ final class GLLogInterpreter[F[_]: Monad](
   }
 }
 
-final class GLDebugInterpreter[F[_]: Monad](
+final class GLEffectfulLogInterpreter[F[_]: Monad](
+    interpret: OpenGL.Interpreter[OpenGL.Effect[F, ?]])
+    extends (OpenGL.Interpreter[OpenGL.Effect[F, ?]])
+    with LazyLogging {
+
+  private val logAfter: F ~> OpenGL.Logger[F, ?] =
+    new (F ~> OpenGL.Logger[F, ?]) {
+      def apply[A](fa: F[A]): OpenGL.Logger[F, A] =
+        WriterT(fa.map(v => (List(s"returned $v"), v)))
+    }
+
+  def logBefore(s: String): OpenGL.LogEffect[F, Unit] =
+    ReaderT(_ => WriterT.tell[F, List[String]](List(s)))
+
+  def apply[A](gl: OpenGL[A]): OpenGL.Effect[F, A] = {
+    logger.debug(s"calling $gl")
+    interpret(gl).map { v =>
+      logger.debug(s"returned $v")
+      v
+    }
+  }
+}
+
+final class GLDebugInterpreter[F[_]: MonadRec](
     interpret: OpenGL.Interpreter[OpenGL.Effect[F, ?]])
     extends (OpenGL.Interpreter[OpenGL.DebugEffect[F, ?]]) {
 
@@ -271,14 +296,14 @@ final class GLDebugInterpreter[F[_]: Monad](
   private def onLinkError(log: Option[String]): ProgramLinkError Xor Unit =
     log.map(l => ProgramLinkError(l)).toLeftXor(())
 
-  private def shaderLog(shader: Int) =
+  private def shaderLog(shader: Int): OpenGL.DebugEffect[F, Unit] =
     OpenGL
       .getCompileError(shader)
       .foldMap(interpret)
       .transform(lift)
       .mapF(_.subflatMap(onCompileError))
 
-  private def programLog(program: Int) =
+  private def programLog(program: Int): OpenGL.DebugEffect[F, Unit] =
     OpenGL
       .getLinkError(program)
       .foldMap(interpret)

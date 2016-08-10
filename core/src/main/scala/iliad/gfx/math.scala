@@ -35,7 +35,7 @@ case class AxisAngle[A: Trig: Ring](axis: Vec3[A], θ: A) {
 }
 
 object AxisAngle {
-  def apply[A: Trig: Ring](v: Vec4[A]): AxisAngle[A] = 
+  def apply[A: Trig: Ring](v: Vec4[A]): AxisAngle[A] =
     AxisAngle(v.dropUntil(3), v.w)
 }
 

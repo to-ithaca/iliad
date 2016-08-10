@@ -28,7 +28,7 @@ class PlaneTests extends FunSuite
 
   {
     //Float has an Eq
-    implicit val floatEq = cats.std.float.floatOrder
+    implicit val floatEq = cats.instances.float.catsKernelStdOrderForFloat
    
     Eq[Plane[Float]]
 
@@ -39,7 +39,7 @@ class PlaneTests extends FunSuite
   }
 
   test("line intersects with plane within acceptance angle") {
-    implicit val floatEq = cats.std.float.floatOrder
+    implicit val floatEq = cats.instances.float.catsKernelStdOrderForFloat
 
     val p = Plane(v"0f 0f 0f", v"0f 0f 1f")
     val l = Line(v"0f 0f 0f", v"0f 1f 1f".normalize)
@@ -56,7 +56,7 @@ class PlaneTests extends FunSuite
   }
 
   test("bounded line intersects with plane if start and end points are on opposite sides") {
-    implicit val floatEq = cats.std.float.floatOrder
+    implicit val floatEq = cats.instances.float.catsKernelStdOrderForFloat
     val p = Plane(v"0f 0f 0f", v"0f 0f 1f")
     val l = BoundedLine(v"0f 0f 1f", v"0f 0f -1f")
     val i = p.intersection(l, Math.PI.toFloat/4f)
@@ -65,7 +65,7 @@ class PlaneTests extends FunSuite
   }
 
 test("bounded line does not intersect with plane if start and end points are on same side") {
-    implicit val floatEq = cats.std.float.floatOrder
+    implicit val floatEq = cats.instances.float.catsKernelStdOrderForFloat
     val p = Plane(v"0f 0f 0f", v"0f 0f 1f")
     val l = BoundedLine(v"0f 0f 2f", v"0f 0f 1f")
     val i = p.intersection(l, Math.PI.toFloat/4f)
@@ -83,7 +83,7 @@ class BoundedPlaneTests extends FunSuite
 
   {
     //Float has an Eq
-    implicit val floatEq = cats.std.float.floatOrder
+    implicit val floatEq = cats.instances.float.catsKernelStdOrderForFloat
    
     Eq[BoundedPlane[Float]]
 
@@ -94,13 +94,13 @@ class BoundedPlaneTests extends FunSuite
   }
 
   test("plane normal is calculated by x cross y") {
-    implicit val floatEq = cats.std.float.floatOrder
+    implicit val floatEq = cats.instances.float.catsKernelStdOrderForFloat
     val p = BoundedPlane(v"0f 0f 0f", v"0f 1f 0f", v"1f 0f 0f")
     p.normal === v"0f 0f 1f"
   }
 
   test("line intersects with plane within acceptance angle") {
-    implicit val floatEq = cats.std.float.floatOrder
+    implicit val floatEq = cats.instances.float.catsKernelStdOrderForFloat
 
     val p = BoundedPlane(v"0f 0f 0f", v"0f 1f 0f", v"1f 0f 0f")
     val l = Line(v"0.5f 0.5f 0f", v"0f 1f 1f".normalize)
@@ -126,7 +126,7 @@ class BoundedPlaneTests extends FunSuite
 
 
   test("bounded line intersects with plane if start and end points are on opposite sides") {
-    implicit val floatEq = cats.std.float.floatOrder
+    implicit val floatEq = cats.instances.float.catsKernelStdOrderForFloat
     val p = BoundedPlane(v"0f 0f 0f", v"0f 1f 0f", v"1f 0f 0f")
     val l = BoundedLine(v"0.5f 0.5f 1f", v"0.5f 0.5f -1f")
     val i = p.intersection(l, Math.PI.toFloat/4f)
@@ -135,7 +135,7 @@ class BoundedPlaneTests extends FunSuite
   }
 
   test("bounded line does not intersect with plane if start and end points are on same side") {
-    implicit val floatEq = cats.std.float.floatOrder
+    implicit val floatEq = cats.instances.float.catsKernelStdOrderForFloat
     val p = BoundedPlane(v"0f 0f 0f", v"0f 1f 0f", v"1f 0f 0f")
     val l = BoundedLine(v"0.5f 0.5f 2f", v"0.5f 0.5f 1f")
     val i = p.intersection(l, Math.PI.toFloat/4f)

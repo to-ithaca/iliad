@@ -13,10 +13,10 @@ import com.typesafe.scalalogging._
 
 trait EventStream extends EventHandler with LazyLogging {
 
-  private implicit val S: Strategy = Strategy.fromFixedDaemonPool(8, "worker")
+  private implicit val S: Strategy =
+    Strategy.fromFixedDaemonPool(1, "event-thread")
 
-  private def baseStream[A](register: (A => Unit) => Unit)(
-      implicit R: Async.Run[Task]): Stream[Task, A] =
+  private def baseStream[A](register: (A => Unit) => Unit): Stream[Task, A] =
     Stream.eval(async.unboundedQueue[Task, A]).flatMap { q =>
       register { (a: A) =>
         q.enqueue1(a)

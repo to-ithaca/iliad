@@ -30,7 +30,8 @@ trait ConstructFunctions {
     State.modify(_.addEdge(p.lEdge))
   }
 
-  def vertexShader(source: String, params: VshParameter*): GL.VertexShader.Source = {
+  def vertexShader(source: String,
+                   params: VshParameter*): GL.VertexShader.Source = {
     val ps = params.toList
     val as = ps.filterClass[Attribute].map(_.attribute)
     val ts = ps.filterClass[Sampler].map(s => (s.name, s.constructor))
@@ -38,7 +39,8 @@ trait ConstructFunctions {
     GL.VertexShader.Source(source, as, ts, us)
   }
 
-  def fragmentShader(source: String, params: FshParameter*): GL.FragmentShader.Source = {
+  def fragmentShader(source: String,
+                     params: FshParameter*): GL.FragmentShader.Source = {
     val ps = params.toList
     val ts = ps.filterClass[Sampler].map(s => (s.name, s.constructor))
     val us = ps.filterClass[Uniform].map(_.uniform)

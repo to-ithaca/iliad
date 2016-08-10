@@ -3,7 +3,7 @@ package kernel
 
 import scala.reflect._
 
-import fs2.util._
+import fs2._
 
 trait IliadApp {
   def run(): Unit

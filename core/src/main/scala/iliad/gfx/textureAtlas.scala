@@ -25,7 +25,7 @@ object TextureAtlas extends LoadFunctions {
   def add(rect: Rect[Int], image: LoadedImage): State[TextureAtlas, Unit] =
     State.modify(_ &|-> _textures ^|-> at(rect) set Some(image))
 
-  def load(t: Texture.Instance, atlas: TextureAtlas): Graphics = {
+  def load(t: Texture.Instance, atlas: TextureAtlas): GFX = {
     val data = gl.Texture.GroupData(atlas.textures.mapValues(i =>
               gl.Texture.SingleData(i.data, i.size)))
     load(t, data)

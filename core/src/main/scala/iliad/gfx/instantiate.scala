@@ -25,7 +25,8 @@ trait InstantiateFunctions {
   def eDataRef(name: String, bufferName: String): GL.ElementData.Ref =
     GL.ElementData.Ref(name, GL.ElementBuffer.Constructor(bufferName))
 
-  def eModelRef(er: GL.ElementData.Ref, range: (Int, Int)): GL.Model.ElementRef = {
+  def eModelRef(er: GL.ElementData.Ref,
+                range: (Int, Int)): GL.Model.ElementRef = {
     val (s, e) = range
     GL.Model.ElementRef(er, GL.DataRange(s, e))
   }
@@ -135,10 +136,10 @@ object Instantiate {
           //Some(EndNodeMissingError(l, s).invalidNel.widen[InstantiationError])
           Option.empty[ValidatedNel[InstantiationError, Link.Instance]]
 //        case (None, Some(e)) =>
-          //Some(
-            //StartNodeMissingError(l, e).invalidNel.widen[InstantiationError])
-  //        None
-    //    case _ => None
+        //Some(
+        //StartNodeMissingError(l, e).invalidNel.widen[InstantiationError])
+        //        None
+        //    case _ => None
       }
     }.toList.sequence)
 
@@ -155,7 +156,7 @@ object Instantiate {
 
   private def lift(v: ValidatedNel[InstantiationError, Unit])
     : ReaderT[ValidatedNel[InstantiationError, ?], Graph.Instance, Unit] =
-    KleisliExtra.lift(v)
+    Kleisli.lift(v)
 
   private def checks(ns: List[Node.Instance])
     : ReaderT[Xor[NonEmptyList[InstantiationError], ?],
@@ -170,7 +171,7 @@ object Instantiate {
   def apply(ns: List[Node.Instance])
     : StateT[Xor[NonEmptyList[InstantiationError], ?], Graph.Instance, Unit] =
     for {
-      ls <- StateTExtra.inspect(checks(ns).run)
+      ls <- StateT.inspectF(checks(ns).run)
       _ <- State
             .modify[Graph.Instance](_.put(ns, ls))
             .transformF[Xor[NonEmptyList[InstantiationError], ?], Unit](
@@ -181,9 +182,10 @@ object Instantiate {
 object HideInstantiate {
 
   //TODO: we need to check all the links before removing
-  def apply(ns: List[Node.Instance]):
-      StateT[Xor[NonEmptyList[InstantiationError], ?], Graph.Instance, Unit] =
-    State.modify[Graph.Instance](_.remove(ns))
+  def apply(ns: List[Node.Instance])
+    : StateT[Xor[NonEmptyList[InstantiationError], ?], Graph.Instance, Unit] =
+    State
+      .modify[Graph.Instance](_.remove(ns))
       .transformF[Xor[NonEmptyList[InstantiationError], ?], Unit](
-         _.value.right)
+          _.value.right)
 }

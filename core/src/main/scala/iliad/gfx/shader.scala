@@ -11,8 +11,8 @@ trait ShaderFunctions {
     *     o.w is the angle in radians
     *     o.xyz is the normalized axis
     */
-  val axisAngleMatrix = ShaderFunction("axisAngleMatrix",
-    s"""mat4 axisAngleMatrix(vec4 o){
+  val axisAngleMatrix =
+    ShaderFunction("axisAngleMatrix", s"""mat4 axisAngleMatrix(vec4 o){
              float c0 = cos(o.w);
              float c1 = 1.0 - c0;
              float c2 = sin(o.w);
@@ -25,8 +25,8 @@ trait ShaderFunctions {
              );
           }""")
 
-  val quaternionMatrix = ShaderFunction("quaternionMatrix",
-    s"""mat4 quaternionMatrix(vec4 q) {
+  val quaternionMatrix =
+    ShaderFunction("quaternionMatrix", s"""mat4 quaternionMatrix(vec4 q) {
       vec3 v = q.xyz;
         float x2 = 2.0 * v.x * v.x;
         float y2 = 2.0 * v.y * v.y;
@@ -49,8 +49,7 @@ trait ShaderFunctions {
     * #o - the axis angle orientation
     * #x - the vector to rotate
     */
-  val rotate = ShaderFunction("rotate",
-    s"""vec3 rotate(vec4 o, vec3 x) {
+  val rotate = ShaderFunction("rotate", s"""vec3 rotate(vec4 o, vec3 x) {
                mat4 rotation = ${axisAngleMatrix.n}(o);
                vec4 target = vec4(x, 1.0);
                return (rotation * target).xyz;

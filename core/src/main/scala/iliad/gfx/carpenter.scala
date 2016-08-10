@@ -14,18 +14,20 @@ object Carpenter {
   case class Vertex[A](index: Int, xSeg: Int, ySeg: Int, v: Vec2[A])
 
   def cuboid[A: spm.Fractional]: CuboidCarpenter[A] = new CuboidCarpenter[A]
-  def unitCube[A](implicit F: spm.Fractional[A]): Panel[(Vec3[A], CuboidSurface)] = 
+  def unitCube[A](
+      implicit F: spm.Fractional[A]): Panel[(Vec3[A], CuboidSurface)] =
     cuboid.shape(F.one, 1, F.one, 1, F.one, 1)
 
   def plane[A: spm.Fractional]: PlaneCarpenter[A] = new PlaneCarpenter[A]
-  def unitPlane[A](implicit F: spm.Fractional[A]): Panel[Vec2[A]] = 
+  def unitPlane[A](implicit F: spm.Fractional[A]): Panel[Vec2[A]] =
     plane.shape(F.one, 1, F.one, 1)
 
-  def fromRect[A: spm.Fractional](r: Rect[A]): Panel[Vec2[A]] = 
+  def fromRect[A: spm.Fractional](r: Rect[A]): Panel[Vec2[A]] =
     plane.shape(r.width, 1, r.height, 1).map(_ + r.midpoint)
 
   def prism[A: spm.Fractional]: PrismCarpenter[A] = new PrismCarpenter[A]
-  def unitPrism[A](implicit F: spm.Fractional[A]): Panel[(Vec3[A], PrismSurface)] =
+  def unitPrism[A](
+      implicit F: spm.Fractional[A]): Panel[(Vec3[A], PrismSurface)] =
     prism.shape(F.one, 1, 1, F.one, 1)
 }
 
@@ -239,23 +241,30 @@ class PrismCarpenter[A: spm.Fractional] {
   import PrismSurface._
   private val carpenter = new Carpenter[A]
 
-  private case class Blueprint(x: A, xSegments: Int, lSegments: Int, z: A, zSegments: Int) {
-    val l: A =  x * spa.Field[A].fromDouble(Math.sqrt(2.0))
+  private case class Blueprint(x: A,
+                               xSegments: Int,
+                               lSegments: Int,
+                               z: A,
+                               zSegments: Int) {
+    val l: A = x * spa.Field[A].fromDouble(Math.sqrt(2.0))
     val dx: A = x / spa.Field[A].fromInt(xSegments)
     val dl: A = l / spa.Field[A].fromInt(lSegments)
     val dz: A = z / spa.Field[A].fromInt(zSegments)
     val zOffset: A = z / spa.Field[A].fromInt(2)
   }
 
-  private def fixX(b: Blueprint): MissingElementError Xor Panel[(Vec3[A], PrismSurface)] =
-    carpenter.panel(b.dx, b.xSegments, b.dz, b.zSegments)
+  private def fixX(
+      b: Blueprint): MissingElementError Xor Panel[(Vec3[A], PrismSurface)] =
+    carpenter
+      .panel(b.dx, b.xSegments, b.dz, b.zSegments)
       .map(_.map { v =>
         val y = v(0)
         val z = v(1)
         (v"${spa.Field[A].zero} $y ${z - b.zOffset}", AlongY)
       })
 
-  private def fixY(b: Blueprint): MissingElementError Xor Panel[(Vec3[A], PrismSurface)] =
+  private def fixY(
+      b: Blueprint): MissingElementError Xor Panel[(Vec3[A], PrismSurface)] =
     carpenter
       .panel(b.dx, b.xSegments, b.dz, b.zSegments)
       .map(_.map { v =>
@@ -264,7 +273,8 @@ class PrismCarpenter[A: spm.Fractional] {
         (v"$x ${spa.Field[A].zero} ${z - b.zOffset}", AlongX)
       })
 
-  private def fixL(b: Blueprint): MissingElementError Xor Panel[(Vec3[A], PrismSurface)] = {
+  private def fixL(
+      b: Blueprint): MissingElementError Xor Panel[(Vec3[A], PrismSurface)] = {
     val factor = spm.Fractional[A].fromDouble(Math.cos(Math.PI / 4.0))
     carpenter
       .panel(b.dl, b.lSegments, b.dz, b.zSegments)
@@ -277,14 +287,17 @@ class PrismCarpenter[A: spm.Fractional] {
       })
   }
 
-  private def triangle(b: Blueprint, z: A, s: PrismSurface) = Panel[Vec3[A]](List(
-    v"${spa.Field[A].zero} ${spa.Field[A].zero} $z", 
-    v"${b.x}               ${spa.Field[A].zero} $z",
-    v"${spa.Field[A].zero} ${b.x}               $z"),
-    List(0, 1, 2)).map(_ -> s)
+  private def triangle(b: Blueprint, z: A, s: PrismSurface) =
+    Panel[Vec3[A]](List(v"${spa.Field[A].zero} ${spa.Field[A].zero} $z",
+                        v"${b.x}               ${spa.Field[A].zero} $z",
+                        v"${spa.Field[A].zero} ${b.x}               $z"),
+                   List(0, 1, 2)).map(_ -> s)
 
-  def shape(x: A, xSegments: Int, lSegments: Int, z: A, zSegments: Int): 
-      Panel[(Vec3[A], PrismSurface)] = {
+  def shape(x: A,
+            xSegments: Int,
+            lSegments: Int,
+            z: A,
+            zSegments: Int): Panel[(Vec3[A], PrismSurface)] = {
     val b: Blueprint = Blueprint(x, xSegments, lSegments, z, zSegments)
 
     val px = for {

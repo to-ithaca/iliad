@@ -70,18 +70,17 @@ object UniformCache {
 
   private val root = Iso.id[State]
 
-
   private[gfx] def apply(a: UniformCache): Effect = a match {
     case UniformPut(scope, fs) =>
-      StateTExtra.modify(s => (s + (scope -> fs)).right)
+      StateT.modifyF(s => (s + (scope -> fs)).right)
     case UniformUpdate(scope, name, f) =>
-      StateTExtra.modify(
+      StateT.modifyF(
           s =>
             s.get(scope)
               .toRightXor(UnsetScopeError(scope, s.keySet))
               .map(_ => (root ^|-? index(scope) ^|-> at(name) set Some(f))(s)))
     case UniformFold(scope, name, f) =>
-      StateTExtra.modify { (fs: State) =>
+      StateT.modifyF { (fs: State) =>
         for {
           us <- fs.get(scope).toRightXor(UnsetScopeError(scope, fs.keySet))
           u <- us.get(name).toRightXor(UnsetUniformError(name, scope))
@@ -90,14 +89,15 @@ object UniformCache {
       }
   }
 
-  private[iliad] def foldOver(f: (Long, Any) => CachedFunction.UniformFunction[Any])(u: CachedFunction):
-      CachedFunction.Fold[Any] = u match {
+  private[iliad] def foldOver(f: (Long,
+                                  Any) => CachedFunction.UniformFunction[Any])(
+      u: CachedFunction): CachedFunction.Fold[Any] = u match {
     case prev: CachedFunction.Fold[_] =>
       foldOver(f)(prev.prevf)
     case prev: CachedFunction.UniformFunction[_] =>
       val cast = prev.asInstanceOf[CachedFunction.UniformFunction[Any]]
       CachedFunction.Fold(cast, f)
-}
+  }
 
   private[iliad] def uniformValues(at: Long)
     : CatsState[Map[String, CachedFunction], Map[String, GL.Uniform.Value]] =
@@ -109,18 +109,19 @@ object UniformCache {
           val uf = f(at)
           name -> (uf(at, name), uf)
       }.toMap
-      val next = both.mapValues { case (_, f) => f }
-      val out = both.mapValues { case (value, _) => value }
+      val next = both.map { case (k, (_, f)) => k -> f }
+      val out = both.map { case (k, (value, _)) => k -> value }
       (next, out)
     }
 
   private[iliad] def values(at: Long): CatsState[State, Values] =
     CatsState { state =>
-      val both = state.mapValues { fs =>
-        uniformValues(at).run(fs).value
+      val both = state.map {
+        case (k, fs) =>
+          k -> uniformValues(at).run(fs).value
       }
-      val next = both.mapValues { case (fs, _) => fs }
-      val out = both.mapValues { case (_, vs) => vs }
+      val next = both.map { case (k, (fs, _)) => k -> fs }
+      val out = both.map { case (k, (_, vs)) => k -> vs }
       (next, out)
     }
 }
@@ -142,20 +143,17 @@ private case class UniformUpdate(s: UniformScope,
 
 trait UniformCacheFunctions {
 
-  private def lift(a: UniformCache): Graphics =
-    shapeless.Coproduct[Graphics](a)
+  private def lift(a: UniformCache): GFX =
+    shapeless.Coproduct[GFX](a)
 
-  def putScope(s: UniformScope, fs: (String, CachedFunction)*): Graphics =
+  def putScope(s: UniformScope, fs: (String, CachedFunction)*): GFX =
     lift(UniformPut(s, fs.toMap))
 
   def foldUniform[A](s: UniformScope,
                      name: String,
-                     f: (Long,
-                         A) => CachedFunction.UniformFunction[A]): Graphics =
+                     f: (Long, A) => CachedFunction.UniformFunction[A]): GFX =
     lift(UniformFold(s, name, f))
 
-  def updateUniform(s: UniformScope,
-                    name: String,
-                    f: CachedFunction): Graphics =
+  def updateUniform(s: UniformScope, name: String, f: CachedFunction): GFX =
     lift(UniformUpdate(s, name, f))
 }

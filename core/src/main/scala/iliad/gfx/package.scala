@@ -17,16 +17,5 @@ package object gfx
 
   type GraphTraversal = Graph.QInstance => Vector[Node.Instance]
 
-  type Graphics = UniformCache :+: Load :+: Action :+: CNil
-  object Graphics extends GraphicsFunctions {
-    case class Config(pageSize: Int,
-                      graph: Graph.Constructed,
-                      graphTraversal: GraphTraversal)
-
-    case class State(uniformCache: UniformCache.State, graph: Graph.Instance)
-
-    type PRG = ReaderT[StateT[Xor[NonEmptyList[GraphicsError], ?], State, ?],
-                       Config,
-                       XorT[GL.GL.DSL, GL.GLError, Unit]]
-  }
+  type GFX = UniformCache :+: Load :+: Action :+: CNil
 }

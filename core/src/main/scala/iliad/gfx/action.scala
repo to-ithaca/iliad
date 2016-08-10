@@ -22,12 +22,12 @@ private case class Show(ns: List[Node.Instance]) extends Action
 private case class Hide(ns: List[Node.Instance]) extends Action
 
 trait ActionFunctions {
-  private def lift(a: Action): Graphics =
-    shapeless.Coproduct[Graphics](a)
+  private def lift(a: Action): GFX =
+    shapeless.Coproduct[GFX](a)
 
-  def show(ns: Node.Instance*): Graphics =
+  def show(ns: Node.Instance*): GFX =
     lift(Show(ns.toList))
 
-  def hide(ns: Node.Instance*): Graphics = 
+  def hide(ns: Node.Instance*): GFX =
     lift(Hide(ns.toList))
 }
