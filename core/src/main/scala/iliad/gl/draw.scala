@@ -2,6 +2,7 @@ package iliad
 package gl
 
 import iliad.CatsExtra._
+import iliad.syntax.vectord._
 
 import cats._
 import cats.free._
@@ -17,6 +18,8 @@ object Draw {
     BindFramebuffer(f).free
   def bind(m: ColorMask): DSL[Unit] =
     BindColorMask(m).free
+  def bindClearColour(c: Vec4f): DSL[Unit] =
+    BindClearColour(c).free
   def clear(m: ChannelBitMask): DSL[Unit] = ClearFrame(m).free
   def use(p: Program.Linked): DSL[Unit] = UseProgram(p).free
   def bind(unit: TextureUnit,
@@ -37,6 +40,7 @@ sealed trait Draw[A]
 
 case class BindFramebuffer(f: Framebuffer.Loaded) extends Draw[Unit]
 case class BindColorMask(c: ColorMask) extends Draw[Unit]
+case class BindClearColour(c: Vec4f) extends Draw[Unit] 
 case class Enable(c: Capability) extends Draw[Unit]
 case class Disable(c: Capability) extends Draw[Unit]
 case class ClearFrame(bitMask: ChannelBitMask) extends Draw[Unit]
@@ -78,6 +82,8 @@ object DrawParser extends (Draw ~> OpenGL.DSL) {
       OpenGL.bindFramebuffer(f.frontId)
     case BindColorMask(m) =>
       OpenGL.colorMask(m.r, m.g, m.b, m.a)
+    case BindClearColour(c) =>
+      OpenGL.clearColor(c.x, c.y, c.z, c.w)
     case Enable(c) =>
       OpenGL.enable(c)
     case Disable(c) =>

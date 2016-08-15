@@ -48,13 +48,13 @@ trait AndroidVSync extends LazyLogging {
 
   private val _choreographer = Choreographer.getInstance
 
-  private def vsync(s: Signal[Task, Long]): Unit =
+  private def _vsync(s: Signal[Task, Long]): Unit =
     _choreographer.postFrameCallback {
       new Choreographer.FrameCallback() {
         def doFrame(frameTimeNanos: Long): Unit = {
           val millis = frameTimeNanos / 1000000L + 
           System.currentTimeMillis - SystemClock.uptimeMillis
-          s.set(millis).unsafeAttemptRun.toXor match {
+          s.set(System.currentTimeMillis).unsafeAttemptRun.toXor match {
             case Xor.Right(_) =>
             case Xor.Left(err) =>
               throw new Error(
@@ -66,9 +66,9 @@ trait AndroidVSync extends LazyLogging {
       }
     }
 
-  def vsync: Stream[Task, Long] =
+  def vsync: fs2.Stream[Task, Long] =
     Stream.eval(async.signalOf[Task, Long](0L)).flatMap { s =>
-      vsync(s)
+      _vsync(s)
       s.discrete
     }
 }

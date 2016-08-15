@@ -52,5 +52,5 @@ trait DragContinuedInstances {
 }
 
 final class DragContinuedOps(d: InputEvent.DragContinued) {
-  def distance: Float = (d.tail.last.position - d.start.position).norm
+  def distance: Float = (d.end.position - d.start.position).norm
 }

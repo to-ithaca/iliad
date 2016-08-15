@@ -142,6 +142,7 @@ object Clear {
   case class Constructor(
       name: String,
       mask: GL.ChannelBitMask,
+      colour: Vec4f,
       framebuffer: Framebuffer.Constructor
   ) extends Node.Constructor
 

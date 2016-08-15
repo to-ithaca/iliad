@@ -128,7 +128,7 @@ trait ArbitraryInstances {
       e <- pointArbitrary.arbitrary.filter { e => 
         (e.x != s.x || e.y != s.y) && e.at > s.at
       }
-    } yield InputEvent.DragBecameSwipe(s, t :+ e)
+    } yield InputEvent.DragBecameSwipe(e :: NonEmptyList(s, t))
   }
 
   def cuboidPanelArbitrary[A : spire.math.Fractional](

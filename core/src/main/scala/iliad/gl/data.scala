@@ -360,4 +360,5 @@ case class DrawOp(model: Model,
 }
 
 case class ClearOp(bitMask: ChannelBitMask,
+                   colour: Vec4f,
                    framebuffer: Framebuffer.Constructor)

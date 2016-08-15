@@ -63,7 +63,7 @@ object ToGL {
   private def apply(c: Clear.Instance): DSL[GL.ClearOp] =
     for {
       f <- apply(c.framebuffer)
-    } yield GL.ClearOp(c.constructor.mask, f)
+    } yield GL.ClearOp(c.constructor.mask, c.constructor.colour, f)
 
   def apply(
       ns: List[Node.Drawable]): DSL[List[XorT[GL.GL.DSL, GL.GLError, Unit]]] =

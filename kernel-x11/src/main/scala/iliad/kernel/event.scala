@@ -8,6 +8,8 @@ import org.slf4j._
 
 import com.typesafe.scalalogging._
 
+import cats.data._
+
 import EventHandler._
 
 trait X11EventHandler extends EventHandler {
@@ -116,7 +118,7 @@ object EventRecogniser {
         case MotionNotify =>
           logger.info("MouseDown: detected motionNotify")
           val current = motionEvent(e, width, height)
-          DragContinuing(point, List(current)) -> Some(
+          DragContinuing(current :: NonEmptyList(point, Nil)) -> Some(
               InputEvent.DragStarted(point, current))
         case LeaveNotify =>
           logger.warn("MouseDown: detected leaveNotity")
@@ -127,10 +129,12 @@ object EventRecogniser {
       }
   }
 
-  case class DragContinuing(start: InputEvent.Point,
-                            tail: List[InputEvent.Point])
+  case class DragContinuing(points: NonEmptyList[InputEvent.Point])
       extends EventRecogniser
       with LazyLogging {
+
+    def start: InputEvent.Point = points.toList.last
+
     def handle(e: XEvent)(width: Int,
                           height: Int): (EventRecogniser, Option[InputEvent]) =
       e.`type` match {
@@ -141,15 +145,15 @@ object EventRecogniser {
             Blank -> Some(InputEvent.Tap(start))
           } else if (end.at - start.at < 1000L) {
             logger.info("DragContinuing: detected swipe")
-            Blank -> Some(InputEvent.DragBecameSwipe(start, tail :+ end))
+            Blank -> Some(InputEvent.DragBecameSwipe(end :: points))
           } else {
             logger.info(s"DragContinuing: detected drag finish")
-            Blank -> Some(InputEvent.DragFinished(start, tail :+ end))
+            Blank -> Some(InputEvent.DragFinished(end :: points))
           }
         case MotionNotify =>
           logger.debug("DragContinuing: detected drag")
           val end = motionEvent(e, width, height)
-          this -> Some(InputEvent.DragContinued(start, tail :+ end))
+          DragContinuing(end :: points) -> Some(InputEvent.DragContinued(end :: points))
         case LeaveNotify =>
           logger.warn("DragContinuing: detected leaveNotify")
           Blank -> Option.empty

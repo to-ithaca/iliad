@@ -39,7 +39,7 @@ class ConstructTests extends FunSuite with Matchers {
       Dimension._3D
     )
 
-  private val exampleClear: Clear.Constructor = clear("screen-clear")
+  private val exampleClear: Clear.Constructor = clear("screen-clear", v"0f 0f 0f 0f")
 
   test("can construct a basic graph") {
     val graph: State[Graph.Constructor, Unit] = put(exampleDraw)
@@ -85,7 +85,7 @@ class ConstructTests extends FunSuite with Matchers {
         GL.GL_COLOR_ATTACHMENT0 -> fixedViewportTexture
     )
     
-    val fixedViewportClear = offScreenClear("fixed-viewport-clear",
+    val fixedViewportClear = offScreenClear("fixed-viewport-clear", v"0f 0f 0f 0f",
       GL.GL_COLOR_ATTACHMENT0 -> fixedViewportTexture
     )
 

@@ -2,6 +2,7 @@ package iliad
 package gl
 
 import iliad.kernel.platform.GLES30Library
+import iliad.syntax.vectord._
 
 import cats._
 import cats.data.{State => CatsState, ReaderT, StateT, Xor, XorT}
@@ -219,6 +220,10 @@ object GL {
     ensure(Current.contains(m))(Draw.bind(m).expand[AST] >>
           Current.set(m).expand[AST])
 
+  private def setClearColour(c: Vec4f): DSL[Unit] =
+    ensure(Current.containsClearColour(c))(Draw.bindClearColour(c).expand[AST] >>
+         Current.setClearColour(c).expand[AST])
+
   private def flip(
       t: Texture.Constructor): DSL[TextureNotLoadedError Xor Unit] =
     (for {
@@ -329,6 +334,7 @@ object GL {
       fl <- ensure(Cache.get(c.framebuffer),
                    FramebufferNotLoadedError(c.framebuffer)).leftWiden[GLError]
       _ <- xort[Unit, GLError](set(fl))
+      _ <- xort(setClearColour(c.colour))
       _ <- xort[Unit, GLError](Draw.clear(c.bitMask).expand[AST])
     } yield ()).value
 }

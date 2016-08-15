@@ -14,6 +14,8 @@ import monocle.syntax.all._
 
 import com.typesafe.scalalogging._
 
+
+/** Perspective camera */
 /** Perspective camera */
 case class Camera[A: Trig: Field: NRoot](position: Vec3[A],
                                          pointAt: Vec3[A],
@@ -93,52 +95,79 @@ case class Camera[A: Trig: Field: NRoot](position: Vec3[A],
   }
 }
 
+case class CameraFunction[A](dt: Option[A], _apply: (A, Camera[A]) => Camera[A]) {
+  def apply(at: A, c: Camera[A]): Camera[A] = _apply(at, c)
+}
+
+object CameraFunction {
+
+  def unbounded[A: Fractional](f: (A, Camera[A]) => Camera[A]): CameraFunction[A] =
+    CameraFunction(None, f)
+}
+
 object Camera extends LazyLogging {
 
-  private def _position[A: Trig: Field: NRoot]: Lens[Camera[A], Vec3[A]] =
-    GenLens[Camera[A]](_.position)
+  private def _position[A: Trig : Fractional]: Lens[Camera[A], Vec3[A]] = GenLens[Camera[A]](_.position)
+  private def _near[A: Trig: Fractional]: Lens[Camera[A], A] = GenLens[Camera[A]](_.near)
+  private def _far[A: Trig: Fractional]: Lens[Camera[A], A] = GenLens[Camera[A]](_.far)
+  private def _fov[A: Trig: Fractional]: Lens[Camera[A], A] = GenLens[Camera[A]](_.fov)
 
-  def panAroundZ[A: Trig: Field: NRoot](speed: A, rotation: Rotation)(
-      t0: Long,
-      c0: Camera[A])(implicit MA: Mat4Algebra[A]): Long => Camera[A] = {
-    val axis = VectorD.zAxis[A]
-    val r = c0.position - c0.pointAt
-    val f = (t: Long) => {
-      val dt = Field[A].fromInt((t - t0).toInt)
-      val dθ = speed * dt * rotation.sign
+  def start[A : Fractional](t0: Long, initial: Camera[A], cf: CameraFunction[A]): Long => Camera[A] =
+    (t: Long) => 
+  if(t <= t0) initial
+  else {
+    val at = ConvertableTo[A].fromLong(t - t0)
+    cf(cf.dt.filter(_ < at).getOrElse(at), initial)
+  }
+
+  def from[A : Fractional](prev: Long => Camera[A], at: Long, cf: CameraFunction[A]):
+      Long => Camera[A] = {
+    val initial = prev(at)
+    start(at, initial, cf)
+  }
+
+  def panAroundZ[A: Trig: Fractional](speed: A, rotation: Rotation)
+    (implicit MA: Mat4Algebra[A]): CameraFunction[A] =
+    CameraFunction.unbounded((t: A, c0: Camera[A]) => {
+      val axis = VectorD.zAxis[A]
+      val r = c0.position - c0.pointAt
+      val dθ = speed * t * rotation.sign
       AxisAngle(axis, dθ).rotate(r) + c0.pointAt
-    }
-    (t: Long) =>
-      c0 &|-> _position set f(t)
-  }
+      val p = AxisAngle(axis, dθ).rotate(r) + c0.pointAt
+      c0 &|-> _position set p
+    })
 
-  def scrollAroundZ[A: Trig: Field: NRoot](s0: A, rotation: Rotation, λ: A)(
-      t0: Long,
-      c0: Camera[A])(implicit MA: Mat4Algebra[A]): Long => Camera[A] = {
-    val axis = VectorD.zAxis[A]
-    val f = (t: Long) => {
-      val dt = Field[A].fromInt((t - t0).toInt)
-      val dθ = s0 / λ * (Field[A].one - (-λ * dt).exp) * rotation.sign
-      AxisAngle(axis, dθ).rotate(c0.radiusVector) + c0.pointAt
-    }
-    (t: Long) =>
-      c0 &|-> _position set f(t)
-  }
+  def scrollAroundZ[A: Trig: Fractional](s0: A, rotation: Rotation, λ: A)
+    (implicit MA: Mat4Algebra[A]): CameraFunction[A] =
+    CameraFunction.unbounded((t: A, c0: Camera[A]) => {
+      val axis = VectorD.zAxis[A]
+      val dθ = s0 / λ * (Field[A].one - (-λ * t).exp) * rotation.sign
+      val p = AxisAngle(axis, dθ).rotate(c0.radiusVector) + c0.pointAt
+      c0 &|-> _position set p
+    })
 
-  def panToZBy[A: Trig: Fractional](speed: A, θ: A)(t0: Long, c0: Camera[A])(
-      implicit MA: Mat4Algebra[A]): Long => Camera[A] = {
-    val zAxis = VectorD.zAxis[A]
-    val axis = (c0.radial cross zAxis).normalize
-    val endPosition = AxisAngle(axis, θ).rotate(c0.radiusVector) + c0.pointAt
+  def panToZBy[A: Trig: Fractional](speed: A, θ: A)
+    (implicit MA: Mat4Algebra[A]): CameraFunction[A] = 
+    CameraFunction(Some(θ.abs / speed), (t: A, c0: Camera[A]) => {
+      val zAxis = VectorD.zAxis[A]
+      val axis = (c0.radial cross zAxis).normalize
+      val dθ = speed * t * θ.sign
+      val p = AxisAngle(axis, dθ).rotate(c0.radiusVector) + c0.pointAt
+      c0 &|-> _position set p
+    })
 
-    val f = (t: Long) => {
-      val dt = Field[A].fromInt((t - t0).toInt)
-      val dθ = speed * dt * θ.sign
-      if (dθ.abs > θ.abs) endPosition
-      else AxisAngle(axis, dθ).rotate(c0.radiusVector) + c0.pointAt
-    }
-
-    (t: Long) =>
-      c0 &|-> _position set f(t)
-  }
+  def toOrtho[A: Trig: Fractional](dt: A, yMax: A, zConst: A)
+    (implicit MA: Mat4Algebra[A]): CameraFunction[A] =
+    CameraFunction(Some(dt), (t: A, c: Camera[A]) => {
+        val dy = yMax * t / dt
+        val near = c.near + dy
+        val far = c.far + dy
+        val p = c.position + (c.direction :* (-dy))
+        val tanFov = Trig[A].tan(c.fov) * zConst / (zConst + dy) 
+        val fov = Trig[A].atan(tanFov)
+        ((_position[A] set p) compose
+          (_near[A] set near) compose
+          (_far[A] set far) compose
+          (_fov[A] set fov))(c)
+      })
 }

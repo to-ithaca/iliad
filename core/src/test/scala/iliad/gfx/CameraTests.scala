@@ -12,6 +12,7 @@ import cats.implicits._
 
 import org.scalatest._
 import org.scalatest.prop._
+import org.scalacheck._
 
 class CameraTests extends FunSuite with GeneratorDrivenPropertyChecks with Matchers {
 
@@ -187,8 +188,21 @@ class CameraFunctionTests extends FunSuite with GeneratorDrivenPropertyChecks wi
   val speed = 2f * Math.PI.toFloat
   val t0 = 100L
   val λ = 1f / 3000f
+  val θ = Math.PI.toFloat / 6f
+
+  test("camera functions with duration are guaranteed to receive values within that duration") {
+    forAll(Gen.choose(0f, 10f), Gen.choose(100L, 1000L), Gen.choose(0L, 20L)) { (dt, t0, t) =>
+      val f = CameraFunction(Some(dt), (t: Float, c: Camera[Float]) => {
+        t should (be >= 0f and be <= 10f)
+        c
+      })
+      val ff = Camera.start(t0, camera, f)
+      ff(t0 + t)
+    }
+  }
+  
   test("camera should pan around z with a constant radius") {
-    val f = Camera.panAroundZ(speed, Rotation.Anticlockwise)(t0, camera)
+    val f = Camera.start(t0, camera, Camera.panAroundZ(speed, Rotation.Anticlockwise))
     val expectedR = radius(camera)
     forAll(boundedArbitrary(t0, t0 + 10000L).arbitrary) { t => 
       radius(f(t)) should equal (expectedR +- 0.1f)
@@ -196,28 +210,28 @@ class CameraFunctionTests extends FunSuite with GeneratorDrivenPropertyChecks wi
   }
 
   test("camera should pan around z with a constant z") {
-    val f = Camera.panAroundZ(speed, Rotation.Anticlockwise)(t0, camera)
+    val f = Camera.start(t0, camera, Camera.panAroundZ(speed, Rotation.Anticlockwise))
     forAll(boundedArbitrary(t0, t0 + 10000L).arbitrary) { t =>
       f(t).position.z should equal (camera.position.z+- 0.1f)
     }
   }
 
   test("camera should pan around z with the same starting position") {
-    val f = Camera.panAroundZ(speed, Rotation.Anticlockwise)(t0, camera)
+    val f = Camera.start(t0, camera, Camera.panAroundZ(speed, Rotation.Anticlockwise))
     assert(f(t0).position === camera.position)
   }
 
   test("camera should pan around z with the correct rotation") {
     val dt = 100L
     val speed = (Math.PI.toFloat / 2f) / dt.toFloat
-    val f = Camera.panAroundZ(speed, Rotation.Anticlockwise)(t0, camera)
+    val f = Camera.start(t0, camera, Camera.panAroundZ(speed, Rotation.Anticlockwise))
     val p = f(t0 + dt).position
     p.x should equal (1f +- 0.0001f)
     p.y should equal (0f +- 0.0001f)
   }
 
   test("camera should scroll around z with a constant radius") {
-    val f = Camera.scrollAroundZ(speed, Rotation.Anticlockwise, λ)(t0, camera)
+    val f = Camera.start(t0, camera, Camera.scrollAroundZ(speed, Rotation.Anticlockwise, λ))
     val expectedR = radius(camera)
     forAll(boundedArbitrary(t0, t0 + 10000L).arbitrary) { t => 
       radius(f(t)) should equal (expectedR +- 0.1f)
@@ -225,35 +239,33 @@ class CameraFunctionTests extends FunSuite with GeneratorDrivenPropertyChecks wi
   }
   
   test("camera should scroll around z with a constant z") {
-    val f = Camera.scrollAroundZ(speed, Rotation.Anticlockwise, λ)(t0, camera)
+    val f = Camera.start(t0, camera, Camera.scrollAroundZ(speed, Rotation.Anticlockwise, λ))
     forAll(boundedArbitrary(t0, t0 + 10000L).arbitrary) { t =>
       f(t).position.z should equal (camera.position.z+- 0.1f)
     }
   }
 
   test("camera should scroll around z with the same start position") {
-    val f = Camera.scrollAroundZ(speed, Rotation.Anticlockwise, λ)(t0, camera)
+    val f = Camera.start(t0, camera, Camera.scrollAroundZ(speed, Rotation.Anticlockwise, λ))
     assert(f(t0).position === camera.position)
   }
 
   test("camera should pan to point with the same starting position") {
-    val f = Camera.panToZBy(speed, Math.PI.toFloat / 6f)(t0, camera)
+    val f = Camera.start(t0, camera, Camera.panToZBy(speed, θ))
     assert(f(t0).position === camera.position)
   }
 
   test("camera panTo should stop at the end point") {
-    val θ = Math.PI.toFloat / 6f
     val dt = 100L
     val speed = θ / dt.toFloat
-    val f = Camera.panToZBy(speed, θ)(t0, camera)
+    val f = Camera.start(t0, camera, Camera.panToZBy(speed, θ))
     assert(f(t0 + 2L * dt).position === f(t0 + 3L * dt).position)
   }
 
   test("camera panTo should pan with the same radius as the initial radius") {
-    val θ = Math.PI.toFloat / 6f
     val dt = 100L
     val speed = θ / dt.toFloat
-    val f = Camera.panToZBy(speed, θ)(t0, camera)
+    val f = Camera.start(t0, camera, Camera.panToZBy(speed, θ))
     forAll(boundedArbitrary(t0, t0 + dt).arbitrary) { t =>
       f(t).radius should equal (camera.radius +- 0.00001f)
     }
@@ -263,7 +275,7 @@ class CameraFunctionTests extends FunSuite with GeneratorDrivenPropertyChecks wi
     val θ = Math.PI.toFloat / 4f
     val dt = 100L
     val speed = θ / dt.toFloat
-    val f = Camera.panToZBy(speed, θ)(t0, camera)
+    val f = Camera.start(t0, camera, Camera.panToZBy(speed, θ))
     assert(f(t0 + 2L * dt).position === v"0f -1f 1f".normalize)
   }
 
@@ -271,8 +283,47 @@ class CameraFunctionTests extends FunSuite with GeneratorDrivenPropertyChecks wi
     val θ = - Math.PI.toFloat / 4f
     val dt = 100L
     val speed = θ / dt.toFloat
-    val f = Camera.panToZBy(speed, θ)(t0, camera)
+    val f = Camera.start(t0, camera, Camera.panToZBy(speed, θ))
     assert(f(t0 + 2L * dt).position === v"0f -1f -1f".normalize)
   }
-}
 
+/**
+
+  val camera = Camera(
+    position = v"0f -1f 0f",
+    pointAt = v"0f 0f 0f",
+    up = v"0f 0f 1f",
+    near = 0.01f, 
+    far = 10f,
+    aspect = 1f, 
+    fov = Math.PI.toFloat / 3f)
+
+
+*/
+  test("camera toOrtho should keep the world near and far coords the same") {
+    val dt = 100f
+    val yMax = 100f
+    val zConst = 3f
+    val pNear = v"0f -0.99f 0f"
+    val f = Camera.start(t0, camera, Camera.toOrtho(dt, yMax, zConst))
+
+    forAll(Gen.choose(t0, t0 + 100L)) { t => 
+      f(t).peek(pNear).z should equal (-1f +- 0.01f)
+    }
+  }
+
+  test("camera toOrtho should keep the plane at zConst constant throughout the transformation") {
+    val dt = 100f
+    val yMax = 100f
+    val zConst = 3f
+    val x = 3f
+    val point = camera.position + (camera.direction :* zConst) + x *: camera.xAxis
+    val xp = camera.peek(point).x
+
+    val f = Camera.start(t0, camera, Camera.toOrtho(dt, yMax, zConst))
+
+    forAll(Gen.choose(t0, t0 + 100L)) { t => 
+      f(t).peek(point).x should equal (xp +- 0.01f)
+    }
+  }
+}

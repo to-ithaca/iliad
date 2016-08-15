@@ -89,21 +89,24 @@ trait ConstructFunctions {
         Framebuffer.OffScreenConstructor(outputs.toList)
     )
 
-  def clear(name: String): Clear.Constructor =
+  def clear(name: String, colour: Vec4f): Clear.Constructor =
     Clear.Constructor(
         name,
         GL.ChannelBitMask.BitMask(
             Set(GL.GL_COLOR_BUFFER_BIT, GL.GL_DEPTH_BUFFER_BIT)),
+        colour,
         Framebuffer.OnScreen
     )
 
   def offScreenClear(
       name: String,
+      colour: Vec4f,
       outputs: (GL.FramebufferAttachment, Framebuffer.OutputConstructor)*)
     : Clear.Constructor = Clear.Constructor(
       name,
       GL.ChannelBitMask.BitMask(
           Set(GL.GL_COLOR_BUFFER_BIT, GL.GL_DEPTH_BUFFER_BIT)),
+      colour,
       Framebuffer.OffScreenConstructor(outputs.toList)
   )
 }

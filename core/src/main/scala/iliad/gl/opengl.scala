@@ -342,6 +342,8 @@ object OpenGL {
                 alpha: Boolean): DSL[Unit] =
     GLColorMask(red, green, blue, alpha).free
   def clear(mask: ChannelBitMask): DSL[Unit] = GLClear(mask).free
+  def clearColor(red: Float, green: Float, blue: Float, alpha: Float): DSL[Unit] =
+    GLClearColor(red, green, blue, alpha).free
   def useProgram(program: Int): DSL[Unit] = GLUseProgram(program).free
   def bindVertexBuffer(buffer: Int): DSL[Unit] =
     GLBindBuffer(GL_ARRAY_BUFFER, buffer).free
@@ -555,3 +557,4 @@ case class GLDrawElements(mode: PrimitiveType,
                           offset: Int)
     extends OpenGL[Unit]
 case class GLClear(bitmask: ChannelBitMask) extends OpenGL[Unit]
+case class GLClearColor(r: Float, g: Float, b: Float, a: Float) extends OpenGL[Unit]

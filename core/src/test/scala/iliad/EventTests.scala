@@ -6,6 +6,7 @@ import iliad.syntax.all._
 import org.scalatest._
 import org.scalatest.prop._
 
+import cats.data._
 import cats.implicits._
 
 import arbitrary._
@@ -37,14 +38,14 @@ class EventTests extends FunSuite with Matchers with GeneratorDrivenPropertyChec
   test("a vertical swipe up is a swipe up") {
     val start = InputEvent.Point(0L, 0.5f, 0f)
     val end = InputEvent.Point(10L, 0.5f, 1f)
-    val s = InputEvent.DragBecameSwipe(start, end :: Nil)
+    val s = InputEvent.DragBecameSwipe(end :: NonEmptyList(start, Nil))
     assert(s.isUp(0.9f))
   }
 
   test("a horizontal swipe right is a swipe right") {
     val start = InputEvent.Point(0L, 0f, 0.5f)
     val end = InputEvent.Point(10L, 1f, 0.5f)
-    val s = InputEvent.DragBecameSwipe(start, end :: Nil)
+    val s = InputEvent.DragBecameSwipe(end :: NonEmptyList(start, Nil))
     assert(s.isRight(0.9f))
   }
 }

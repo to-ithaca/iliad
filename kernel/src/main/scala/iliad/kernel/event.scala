@@ -1,6 +1,9 @@
 package iliad
 package kernel
 
+import cats._
+import cats.data._
+
 //TODO: Parameterize on at
 //TODO: drags should have NELs
 sealed trait InputEvent
@@ -12,13 +15,15 @@ object InputEvent {
     lazy val at: Long = point.at
   }
   case class DragStarted(start: Point, current: Point) extends InputEvent
-  case class DragContinued(start: Point, tail: List[Point])
+  case class DragContinued(points: NonEmptyList[InputEvent.Point])
       extends InputEvent {
-    def end: Point = tail.last
+    def start: Point = points.toList.last
+    def end: Point = points.head
   }
-  case class DragBecameSwipe(start: Point, tail: List[Point])
+  case class DragBecameSwipe(points: NonEmptyList[InputEvent.Point])
       extends InputEvent {
-    lazy val end: Point = tail.last
+    lazy val start: Point = points.toList.last
+    lazy val end: Point = points.head
     lazy val distance: Float = {
       val dx = (end.x - start.x).toDouble
       val dy = (end.y - start.y).toDouble
@@ -26,7 +31,7 @@ object InputEvent {
     }
   }
 
-  case class DragFinished(start: Point, tail: List[Point]) extends InputEvent
+  case class DragFinished(points: NonEmptyList[InputEvent.Point]) extends InputEvent
 
   def distance(s: Point, e: Point): Float = {
     val dx = (e.x - s.x).toDouble

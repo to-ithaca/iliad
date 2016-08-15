@@ -33,7 +33,7 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
     Construct
       .validate(graph)
       .map(Graphics.Config(pageSize, _, graphTraversal))
-      .leftMap(_.toList.mkString("\n"))
+      .leftMap(_.toList.mkString(System.lineSeparator))
       .task
 
   private val EGLP: EGLPRG[NativeDisplay,

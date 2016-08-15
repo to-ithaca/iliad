@@ -54,12 +54,7 @@ trait X11Bootstrap
   def vsync: Stream[Task, Long] = {
     implicit val SS: Strategy = Strategy.fromFixedDaemonPool(1, "vsync-thread")
     val start = System.currentTimeMillis
-    time.awakeEvery[Task]((1.0 / 30.0) seconds).map { t =>
-      val tt = t.toMillis + start
-      logger.info(
-          s"generated vsync pulse at ${System.currentTimeMillis} for $tt")
-      tt
-    }
+    time.awakeEvery[Task]((1.0 / 30.0) seconds).map(_.toMillis + start)
   }
 
   private def initThreads(): Error Xor Unit = {

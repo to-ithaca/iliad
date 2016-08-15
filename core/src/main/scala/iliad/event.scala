@@ -16,8 +16,10 @@ trait EventStream extends EventHandler with LazyLogging {
   private implicit val S: Strategy =
     Strategy.fromFixedDaemonPool(1, "event-thread")
 
+  val maxEvents = 10
+
   private def baseStream[A](register: (A => Unit) => Unit): Stream[Task, A] =
-    Stream.eval(async.unboundedQueue[Task, A]).flatMap { q =>
+    Stream.eval(async.boundedQueue[Task, A](10)).flatMap { q =>
       register { (a: A) =>
         q.enqueue1(a)
           .unsafeRunAsync(_.toXor match {
