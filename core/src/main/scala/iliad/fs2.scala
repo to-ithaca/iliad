@@ -10,11 +10,11 @@ object Fs2Extra {
     new StreamOps(s)
 }
 
-final class NestedStreamOps[F[_], A](s: Stream[F, F[A]]) {
+final class NestedStreamOps[F[_], A](val s: Stream[F, F[A]]) extends AnyVal {
   def eval: Stream[F, A] = s.evalMap(identity)
 }
 
-final class StreamOps[F[_], A](s: Stream[F, A]) {
+final class StreamOps[F[_], A](val s: Stream[F, A]) extends AnyVal {
   def mapAccumulate2[B, O](b: B)(f: (B, A) => (B, O)): Stream[F, O] =
     s.mapAccumulate(b)(f).map(_._2)
   def withFilter(p: A => Boolean): WithFilter[F, A] = new WithFilter(s, p)
