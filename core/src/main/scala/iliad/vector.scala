@@ -11,7 +11,7 @@ import shapeless._
 import shapeless.ops.nat._
 
 //TODO: Really think we should parameterize this?
-final class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
+final class VectorD[N <: Nat, A] private[iliad] (val _unsized: Vector[A]) extends AnyVal {
 
   import LTEq._
 
