@@ -113,7 +113,8 @@ lazy val androidSettings = Seq(
 lazy val desktopSettings = Seq(
   libraryDependencies ++= Seq(
     "net.java.dev.jna" % "jna-platform" % jnaVersion,
-    "ch.qos.logback" % "logback-classic" % "1.1.3"
+    "ch.qos.logback" % "logback-classic" % "1.1.3",
+    "org.scalanlp" %% "breeze" % "0.12"
   )
 )
 
@@ -165,17 +166,21 @@ lazy val iosKernel = (project in file("kernel-ios")).settings(
   paradiseSettings
 ).dependsOn(kernel)
 
-lazy val x11Kernel = (project in file("kernel-x11")).settings(
+lazy val x11 = (project in file("modules/x11")).settings(
   buildSettings,
-  moduleName := "iliad-kernel-x11",
-  commonSettings,
+  moduleName := "iliad-x11",
   paradiseSettings,
-  desktopSettings
-).dependsOn(kernel)
+  commonSettings,
+  desktopSettings,
+  directiveSettings,
+  (javaSource in Directive) := (javaSource in core in Compile).value,
+  (scalaSource in Directive) := (scalaSource in core in Compile).value,
+  preprocessors += preprocess.identity("x11")
+).dependsOn(macros)
 
 lazy val root = (project in file(".")).settings(
   buildSettings,
   paradiseSettings,
   compilerOptions,
   moduleName := "iliad"
-).aggregate(macros, core, kernel, win32Kernel, x11Kernel)
+).aggregate(macros, core, kernel, win32Kernel, x11)

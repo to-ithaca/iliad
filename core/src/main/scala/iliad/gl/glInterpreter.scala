@@ -11,8 +11,8 @@ import java.nio.IntBuffer
 
 object GLInterpreter extends (OpenGL.Interpreter[OpenGL.NoEffect]) {
 
-  private def genObject(r: Reader[GLES30Library, (Int, IntBuffer) => Unit],
-                        num: Int): Reader[GLES30Library, Set[Int]] = r map {
+  private def genObject(r: Reader[GLES30.type, (Int, IntBuffer) => Unit],
+                        num: Int): Reader[GLES30.type, Set[Int]] = r map {
     f =>
       val ptr = Buffer.capacity[Int](num)
       f(num, ptr)
@@ -21,7 +21,7 @@ object GLInterpreter extends (OpenGL.Interpreter[OpenGL.NoEffect]) {
       arr.toSet
   }
 
-  def apply[A](gl: OpenGL[A]): Reader[GLES30Library, A] = gl match {
+  def apply[A](gl: OpenGL[A]): Reader[GLES30.type, A] = gl match {
 
     case GLGetError => Reader(_.glGetError())
 
@@ -107,7 +107,23 @@ object GLInterpreter extends (OpenGL.Interpreter[OpenGL.NoEffect]) {
                          format.value,
                          pixelType.value,
                          data))
-
+    case GLTexSubImage2D(xOffset,
+                         yOffset,
+                         width,
+                         height,
+                         format,
+                         pixelType,
+                         data) =>
+      Reader(
+          _.glTexSubImage2D(GL_TEXTURE_2D.value,
+                            0,
+                            xOffset,
+                            yOffset,
+                            width,
+                            height,
+                            format.value,
+                            pixelType.value,
+                            data))
     case GLGenRenderbuffers(number) =>
       genObject(Reader(_.glGenRenderbuffers), number)
     case GLBindRenderbuffer(renderbuffer) =>
@@ -175,11 +191,18 @@ object GLInterpreter extends (OpenGL.Interpreter[OpenGL.NoEffect]) {
     case GLUniform3i(location, value) =>
       Reader(_.glUniform3i(location, value(0), value(1), value(2)))
     case GLUniform3f(location, value) =>
-      Reader(_.glUniform3f(location, value(0), value(1), value(3)))
+      Reader(_.glUniform3f(location, value(0), value(1), value(2)))
     case GLUniform4i(location, value) =>
-      Reader(_.glUniform4i(location, value(0), value(1), value(3), value(4)))
+      Reader(_.glUniform4i(location, value(0), value(1), value(2), value(3)))
     case GLUniform4f(location, value) =>
-      Reader(_.glUniform4f(location, value(0), value(1), value(3), value(4)))
+      Reader(_.glUniform4f(location, value(0), value(1), value(2), value(3)))
+
+    case GLUniformMatrix2f(location, value) =>
+      Reader(_.glUniformMatrix2fv(location, 1, true, value.toArray))
+    case GLUniformMatrix3f(location, value) =>
+      Reader(_.glUniformMatrix3fv(location, 1, true, value.toArray))
+    case GLUniformMatrix4f(location, value) =>
+      Reader(_.glUniformMatrix4fv(location, 1, true, value.toArray))
 
     case GLDrawElements(mode, count, t, offset) =>
       Reader(_.glDrawElements(mode.value, count, t.value, offset))

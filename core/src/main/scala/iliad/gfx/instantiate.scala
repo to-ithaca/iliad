@@ -12,20 +12,21 @@ import CatsExtra._
 
 trait InstantiateFunctions {
 
-  def vref(name: String, attributes: Attribute*): GL.VertexData.Ref = {
+  def vDataRef(name: String, attributes: Attribute*): GL.VertexData.Ref = {
     val vb = GL.VertexBuffer.Constructor(attributes.toList.map(_.attribute))
     GL.VertexData.Ref(name, vb)
   }
 
-  def vd(vr: GL.VertexData.Ref, range: (Int, Int)): GL.Model.VertexRef = {
+  def vModelRef(vr: GL.VertexData.Ref, range: (Int, Int)): GL.Model.VertexRef = {
     val (s, e) = range
     GL.Model.VertexRef(vr, GL.DataRange(s, e))
   }
 
-  def eref(name: String, bufferName: String): GL.ElementData.Ref =
+  def eDataRef(name: String, bufferName: String): GL.ElementData.Ref =
     GL.ElementData.Ref(name, GL.ElementBuffer.Constructor(bufferName))
 
-  def ed(er: GL.ElementData.Ref, range: (Int, Int)): GL.Model.ElementRef = {
+  def eModelRef(er: GL.ElementData.Ref,
+                range: (Int, Int)): GL.Model.ElementRef = {
     val (s, e) = range
     GL.Model.ElementRef(er, GL.DataRange(s, e))
   }
@@ -41,10 +42,17 @@ trait InstantiateFunctions {
   def png(name: String, size: Vec2i): Texture.Image =
     Texture.Image(name, TextureFormat.rgba, size)
 
-  def drawInstance(model: Model.Instance,
-                   cons: Draw.Constructor,
-                   uniforms: (String, Texture.Uniform)*): Draw.Instance =
-    Draw.Instance(cons, uniforms.toMap, model, Framebuffer.OnScreen, 1)
+  def drawInstance(
+      model: Model.Instance,
+      cons: Draw.Constructor,
+      uniforms: Map[String, UniformScope],
+      textureUniforms: (String, Texture.Uniform)*): Draw.Instance =
+    Draw.Instance(cons,
+                  textureUniforms.toMap,
+                  uniforms,
+                  model,
+                  Framebuffer.OnScreen,
+                  1)
 
   def clearScreen(c: Clear.Constructor): Clear.Instance =
     Clear.Instance(c, Framebuffer.OnScreen)
@@ -100,7 +108,7 @@ object Instantiate {
   private def textures(
       n: Draw.Instance): ValidatedNel[TextureUniformMissingError, Unit] =
     n.constructor.program.textureNames.traverseUnit { name =>
-      n.uniforms.get(name) match {
+      n.textureUniforms.get(name) match {
         case Some(_) => ().valid
         case None => TextureUniformMissingError(name).invalidNel
       }
@@ -113,6 +121,7 @@ object Instantiate {
       else AttributeMissingError(a).invalidNel
     }
 
+  //FIXME: what do we do if we have a web like structure?
   private def links(
       ns: List[Node.Instance]): ReaderT[ValidatedNel[InstantiationError, ?],
                                         Graph.Instance,
@@ -123,14 +132,18 @@ object Instantiate {
       (sOpt, eOpt) match {
         case (Some(s), Some(e)) =>
           Some(Link.Instance(s, e).valid)
-        case (Some(s), None) =>
-          Some(EndNodeMissingError(l, s).invalidNel.widen[InstantiationError])
-        case (None, Some(e)) =>
-          Some(
-              StartNodeMissingError(l, e).invalidNel.widen[InstantiationError])
-        case _ => None
+        case _ =>
+          //Some(EndNodeMissingError(l, s).invalidNel.widen[InstantiationError])
+          Option.empty[ValidatedNel[InstantiationError, Link.Instance]]
+//        case (None, Some(e)) =>
+        //Some(
+        //StartNodeMissingError(l, e).invalidNel.widen[InstantiationError])
+        //        None
+        //    case _ => None
       }
     }.toList.sequence)
+
+  //TODO: validate that all uniform scopes are set
 
   private def validate(
       d: Draw.Instance): ValidatedNel[InstantiationError, Unit] = {
@@ -158,10 +171,21 @@ object Instantiate {
   def apply(ns: List[Node.Instance])
     : StateT[Xor[NonEmptyList[InstantiationError], ?], Graph.Instance, Unit] =
     for {
-      ls <- StateTExtra.inspect(checks(ns).run)
+      ls <- StateTExtra.inspectF(checks(ns).run)
       _ <- State
             .modify[Graph.Instance](_.put(ns, ls))
             .transformF[Xor[NonEmptyList[InstantiationError], ?], Unit](
                 _.value.right)
     } yield ()
+}
+
+object HideInstantiate {
+
+  //TODO: we need to check all the links before removing
+  def apply(ns: List[Node.Instance])
+    : StateT[Xor[NonEmptyList[InstantiationError], ?], Graph.Instance, Unit] =
+    State
+      .modify[Graph.Instance](_.remove(ns))
+      .transformF[Xor[NonEmptyList[InstantiationError], ?], Unit](
+          _.value.right)
 }

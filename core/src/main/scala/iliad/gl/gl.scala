@@ -21,7 +21,7 @@ object GL {
   type GL[A] =
     (Load :|: Cache :|: Draw :|: Current :|: OpenGL :|: FXNil)#Cop[A]
   type DSL[A] = Free[GL, A]
-  type PRG[F[_], A] = ReaderT[StateT[F, State, ?], GLES30Library, A]
+  type PRG[F[_], A] = ReaderT[StateT[F, State, ?], GLES30.type, A]
 
   def empty: State = State(Cache.State.empty, Current.State.empty)
 
@@ -30,7 +30,7 @@ object GL {
 
   private def liftOpenGL[F[_]: Monad]: OpenGL.Effect[F, ?] ~> PRG[F, ?] =
     new (OpenGL.Effect[F, ?] ~> PRG[F, ?]) {
-      def apply[A](eff: ReaderT[F, GLES30Library, A]): PRG[F, A] =
+      def apply[A](eff: ReaderT[F, GLES30.type, A]): PRG[F, A] =
         eff.mapF(_.liftT[StateT[?[_], State, ?]])
     }
 
@@ -61,99 +61,119 @@ object GL {
     f.flatMap(_.map(Free.pure[GL, A]).getOrElse(g))
 
   private def load(s: VertexShader.Source): DSL[VertexShader.Compiled] =
-    getOrElse(Cache.get(s).freekF[GL])(for {
-      v <- Load(s).freekF[GL]
-      _ <- Cache.put(v).freekF[GL]
+    getOrElse(Cache.get(s).expand[GL])(for {
+      v <- Load(s).expand[GL]
+      _ <- Cache.put(v).expand[GL]
     } yield v)
 
   private def load(s: FragmentShader.Source): DSL[FragmentShader.Compiled] =
-    getOrElse(Cache.get(s).freekF[GL])(for {
-      v <- Load(s).freekF[GL]
-      _ <- Cache.put(v).freekF[GL]
+    getOrElse(Cache.get(s).expand[GL])(for {
+      v <- Load(s).expand[GL]
+      _ <- Cache.put(v).expand[GL]
     } yield v)
 
   def load(p: Program.Unlinked): DSL[Program.Linked] =
-    getOrElse(Cache.get(p).freekF[GL])(for {
+    getOrElse(Cache.get(p).expand[GL])(for {
       v <- load(p.vertex)
       f <- load(p.fragment)
-      pl <- Load(v, f).freekF[GL]
-      _ <- Cache.put(pl).freekF[GL]
-      _ <- Current.set(pl).freekF[GL]
+      pl <- Load(v, f).expand[GL]
+      _ <- Cache.put(pl).expand[GL]
+      _ <- Current.set(pl).expand[GL]
     } yield pl)
 
   private def add(u: VertexBuffer.Update): DSL[Unit] =
     for {
-      _ <- Cache.put(u).freekF[GL]
-      _ <- Current.set(u.buffer).freekF[GL]
+      _ <- Cache.put(u).expand[GL]
+      _ <- Current.set(u.buffer).expand[GL]
     } yield ()
 
-  def load(r: VertexData.Ref, d: VertexData.Data, pageSize: Int): DSL[Unit] =
-    Cache.get(r.buffer).freekF[GL] flatMap {
+  private def loadVertices(r: VertexData.Ref,
+                           d: VertexData.Data,
+                           pageSize: Int): DSL[Unit] =
+    Cache.get(r.buffer).expand[GL] flatMap {
       case Some(prev) =>
         if (VertexBuffer.fits(prev, d.size))
           for {
-            next <- Load.insert(r, d, pageSize, prev).freekF[GL]
+            next <- Load.insert(r, d, pageSize, prev).expand[GL]
             _ <- add(next)
           } yield ()
         else
           for {
-            next <- Load.copy(r, d, pageSize, prev).freekF[GL]
+            next <- Load.copy(r, d, pageSize, prev).expand[GL]
             _ <- add(next)
           } yield ()
       case None =>
         for {
-          b <- Load.create(r, d, pageSize, r.buffer).freekF[GL]
+          b <- Load.create(r, d, pageSize, r.buffer).expand[GL]
           _ <- add(b)
         } yield ()
+    }
+
+  def load(r: VertexData.Ref,
+           d: VertexData.Data,
+           pageSize: Int): DSL[VertexDataAlreadyLoaded Xor Unit] =
+    Cache.get(r).expand[GL] flatMap {
+      case Some(_) => Free.pure(VertexDataAlreadyLoaded(r).left)
+      case None => loadVertices(r, d, pageSize).map(_.right)
     }
 
   private def add(u: ElementBuffer.Update): DSL[Unit] =
     for {
-      _ <- Cache.put(u).freekF[GL]
-      _ <- Current.set(u.buffer).freekF[GL]
+      _ <- Cache.put(u).expand[GL]
+      _ <- Current.set(u.buffer).expand[GL]
     } yield ()
 
-  def load(r: ElementData.Ref, d: ElementData.Data, pageSize: Int): DSL[Unit] =
-    Cache.get(r.buffer).freekF[GL] flatMap {
+  private def loadElements(r: ElementData.Ref,
+                           d: ElementData.Data,
+                           pageSize: Int): DSL[Unit] =
+    Cache.get(r.buffer).expand[GL] flatMap {
       case Some(prev) =>
         if (ElementBuffer.fits(prev, d.size))
           for {
-            next <- Load.insert(r, d, pageSize, prev).freekF[GL]
+            next <- Load.insert(r, d, pageSize, prev).expand[GL]
             _ <- add(next)
           } yield ()
         else
           for {
-            next <- Load.copy(r, d, pageSize, prev).freekF[GL]
+            next <- Load.copy(r, d, pageSize, prev).expand[GL]
             _ <- add(next)
           } yield ()
       case None =>
         for {
-          b <- Load.create(r, d, pageSize, r.buffer).freekF[GL]
+          b <- Load.create(r, d, pageSize, r.buffer).expand[GL]
           _ <- add(b)
         } yield ()
     }
 
+  def load(r: ElementData.Ref,
+           d: ElementData.Data,
+           pageSize: Int): DSL[ElementDataAlreadyLoaded Xor Unit] =
+    Cache.get(r).expand[GL] flatMap {
+      case Some(_) => Free.pure(ElementDataAlreadyLoaded(r).left)
+      case None => loadElements(r, d, pageSize).map(_.right)
+    }
+
   def load(t: Texture.Constructor,
-           d: Option[Texture.Data]): DSL[Texture.Loaded] =
-    getOrElse(Cache.get(t).freekF[GL])(for {
-      tl <- Load(t, d).freekF[GL]
-      _ <- Cache.put(tl).freekF[GL]
+           d: Texture.Data): DSL[Texture.Loaded] =
+    getOrElse(Cache.get(t).expand[GL])(for {
+      tl <- Load(t, d).expand[GL]
+      _ <- Cache.put(tl).expand[GL]
     } yield tl)
 
   def load(r: Renderbuffer.Constructor): DSL[Renderbuffer.Loaded] =
-    getOrElse(Cache.get(r).freekF[GL])(for {
-      rl <- Load(r).freekF[GL]
-      _ <- Cache.put(rl).freekF[GL]
+    getOrElse(Cache.get(r).expand[GL])(for {
+      rl <- Load(r).expand[GL]
+      _ <- Cache.put(rl).expand[GL]
     } yield rl)
 
   private def attachment(a: Framebuffer.AttachmentConstructor)
     : DSL[GLError Xor Framebuffer.AttachmentLoaded] = a match {
     case t: Texture.Constructor =>
-      Cache.ensure(Cache.get(t), TextureNotLoadedError(t)).freekF[GL].widen
+      Cache.ensure(Cache.get(t), TextureNotLoadedError(t)).expand[GL].widen
     case r: Renderbuffer.Constructor =>
       Cache
         .ensure(Cache.get(r), RenderbufferNotLoadedError(r))
-        .freekF[GL]
+        .expand[GL]
         .widen
   }
 
@@ -165,22 +185,22 @@ object GL {
     }.map(_.sequence)
 
   def load(f: Framebuffer.Constructor): DSL[GLError Xor Unit] =
-    Cache.get(f).freekF[GL] flatMap {
+    Cache.get(f).expand[GL] flatMap {
       case Some(fl) => Free.pure(().right)
       case None =>
         (for {
           as <- XorT(attachments(f))
-          fl <- xort[Framebuffer.Loaded, GLError](Load(f, as).freekF[GL])
-          _ <- xort[Unit, GLError](Cache.put(fl).freekF[GL])
+          fl <- xort[Framebuffer.Loaded, GLError](Load(f, as).expand[GL])
+          _ <- xort[Unit, GLError](Cache.put(fl).expand[GL])
         } yield ()).value
     }
 
   private def ensure(f: Current.DSL[Boolean])(g: => DSL[Unit]): DSL[Unit] =
-    f.freekF[GL] flatMap (b => if (b) Free.pure(()) else g)
+    f.expand[GL] flatMap (b => if (b) Free.pure(()) else g)
 
   private def set(f: Framebuffer.Loaded): DSL[Unit] =
-    ensure(Current.contains(f))(Draw.bind(f).freekF[GL] >>
-          Current.set(f).freekF[GL])
+    ensure(Current.contains(f))(Draw.bind(f).expand[GL] >>
+          Current.set(f).expand[GL])
 
   private def flip(
       t: Texture.Constructor): DSL[TextureNotLoadedError Xor Unit] =
@@ -188,7 +208,7 @@ object GL {
       tl <- ensure(Cache.get(t), TextureNotLoadedError(t))
       _ <- tl match {
             case d: Texture.DoubleLoaded =>
-              xort[Unit, TextureNotLoadedError](Cache.put(d.flip).freekF[GL])
+              xort[Unit, TextureNotLoadedError](Cache.put(d.flip).expand[GL])
             case _ => XorT.pure[DSL, TextureNotLoadedError, Unit](())
           }
     } yield ()).value
@@ -196,7 +216,7 @@ object GL {
   private def flipDouble(
       f: Framebuffer.DoubleLoaded): DSL[TextureNotLoadedError Xor Unit] =
     (for {
-      _ <- xort(Cache.put(f.flip).freekF[GL])
+      _ <- xort(Cache.put(f.flip).expand[GL])
       _ <- XorT(f.constructor.textures.traverse(flip).map(_.sequenceUnit))
     } yield ()).value
 
@@ -208,7 +228,7 @@ object GL {
     }
 
   private def set(p: Program.Linked): DSL[Unit] = ensure(Current.contains(p))(
-      Draw.use(p).freekF[GL] >> Current.set(p).freekF[GL]
+      Draw.use(p).expand[GL] >> Current.set(p).expand[GL]
   )
 
   private def set(u: Program.TextureUniform): DSL[GLError Xor Unit] =
@@ -216,12 +236,12 @@ object GL {
       t <- XorT(
               Cache
                 .ensure(Cache.get(u.texture), TextureNotLoadedError(u.texture))
-                .freekF[GL]).leftWiden[GLError]
+                .expand[GL]).leftWiden[GLError]
       s <- XorT(
               Cache
                 .ensure(Cache.get(u.sampler), SamplerNotLoadedError(u.sampler))
-                .freekF[GL]).leftWiden[GLError]
-      _ <- xort[Unit, GLError](Draw.bind(u.unit, u.location, t, s).freekF[GL])
+                .expand[GL]).leftWiden[GLError]
+      _ <- xort[Unit, GLError](Draw.bind(u.unit, u.location, t, s).expand[GL])
     } yield ()).value
 
   private def set(
@@ -234,16 +254,16 @@ object GL {
 
   private def set(vb: VertexBuffer.Loaded): DSL[Unit] =
     ensure(Current.contains(vb))(
-        Draw.bind(vb).freekF[GL] >> Current.set(vb).freekF[GL]
+        Draw.bind(vb).expand[GL] >> Current.set(vb).expand[GL]
     )
 
   private def set(eb: ElementBuffer.Loaded): DSL[Unit] =
     ensure(Current.contains(eb))(
-        Draw.bind(eb).freekF[GL] >> Current.set(eb).freekF[GL]
+        Draw.bind(eb).expand[GL] >> Current.set(eb).expand[GL]
     )
 
   private def ensure[A, E](c: Cache.DSL[Option[A]], e: E): XorT[DSL, E, A] =
-    XorT(Cache.ensure(c, e).freekF[GL])
+    XorT(Cache.ensure(c, e).expand[GL])
 
   private def xort[A, E](dsl: DSL[A]): XorT[DSL, E, A] = XorT.right(dsl)
 
@@ -272,8 +292,8 @@ object GL {
                Cache.get(draw.elementData),
                ElementDataNotLoadedError(draw.elementData)).leftWiden[GLError]
       as <- XorT.fromXor[DSL](p.loaded(draw.attributes)).leftWiden[GLError]
-      _ <- xort(Draw.enable(as, vd.offset(draw.vertexModel)).freekF[GL])
-      _ <- xort(Draw(ed.offset(draw.elementModel)).freekF[GL])
+      _ <- xort(Draw.enable(as, vd.offset(draw.vertexModel)).expand[GL])
+      _ <- xort(Draw(ed.offset(draw.elementModel)).expand[GL])
       _ <- XorT(flip(fl)).leftWiden[GLError]
     } yield ()).value
 
@@ -282,6 +302,6 @@ object GL {
       fl <- ensure(Cache.get(c.framebuffer),
                    FramebufferNotLoadedError(c.framebuffer)).leftWiden[GLError]
       _ <- xort[Unit, GLError](set(fl))
-      _ <- xort[Unit, GLError](Draw.clear(c.bitMask).freekF[GL])
+      _ <- xort[Unit, GLError](Draw.clear(c.bitMask).expand[GL])
     } yield ()).value
 }

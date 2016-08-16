@@ -1,6 +1,7 @@
 package iliad
 package gl
 
+import cats._
 import cats.implicits._
 import cats.free._
 import cats.data._
@@ -34,39 +35,42 @@ object Attributes {
 
 import CatsExtra._
 
-final class EGLPRG[NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
+object EGL {
 
-  type DSL[A] = Free[EGL[NDisp, NWin, Disp, Cfg, Sfc, Ctx, ?], A]
+  type DSL[A] = Free[EGL, A]
 
-  private def fix[A](egl: EGL[NDisp, NWin, Disp, Cfg, Sfc, Ctx, A]): DSL[A] =
-    egl.free
+  def logInterpreter: EGL ~> ReaderT[Xor[EGLError, ?], EGL14.type, ?] =
+    new EGLDebugInterpreter(
+      EGLInterpreter.compose(new EffectfulLogBefore[EGL](_.toString))
+        .andThen(new EffectfulLogAfter))
+
   private def ensure[A, E](dsl: DSL[A])(p: A => Boolean,
                                         err: => E): XorT[DSL, E, A] =
     XorT(dsl.map(a => if (p(a)) a.right[E] else err.left[A]))
 
-  val getError: DSL[Int] = fix(EGLGetError)
+  val getError: DSL[Int] = EGLGetError.free
 
-  def configAttrib(dpy: Disp, cfg: Cfg, attr: IntConfigAttrib): DSL[Int] =
-    fix(EGLGetConfigAttrib(dpy, cfg, attr))
+  def configAttrib(dpy: EGL14.EGLDisplay, cfg: EGL14.EGLConfig, attr: IntConfigAttrib): DSL[Int] =
+    EGLGetConfigAttrib(dpy, cfg, attr).free
 
   private def configAttrib(
-      dpy: Disp,
-      cfg: Cfg,
+      dpy: EGL14.EGLDisplay,
+      cfg: EGL14.EGLConfig,
       attr: EnumConfigAttrib,
-      values: Set[ConfigAttribValue]): DSL[Int Xor ConfigAttribValue] = {
-    fix[Int](EGLGetConfigAttrib(dpy, cfg, attr)).map { c =>
+      values: Set[ConfigAttribValue]): DSL[Int Xor ConfigAttribValue] =
+    EGLGetConfigAttrib(dpy, cfg, attr).free.map { c =>
       Xor.fromOption(values.find(_.value == c), c)
     }
-  }
+  
 
-  def configAttrib(dpy: Disp,
-                   cfg: Cfg,
+  def configAttrib(dpy: EGL14.EGLDisplay,
+                   cfg: EGL14.EGLConfig,
                    attr: EnumConfigAttrib): DSL[Int Xor ConfigAttribValue] =
     configAttrib(dpy, cfg, attr, SealedEnum.values[ConfigAttribValue])
 
   def configAttribs(
-      dpy: Disp,
-      cfg: Cfg): DSL[Attributes[ConfigAttrib, ConfigAttribValue]] = {
+      dpy: EGL14.EGLDisplay,
+      cfg: EGL14.EGLConfig): DSL[Attributes[ConfigAttrib, ConfigAttribValue]] = {
     val is = SealedEnum
       .values[IntConfigAttrib]
       .toList
@@ -84,130 +88,102 @@ final class EGLPRG[NDisp, NWin, Disp, Cfg, Sfc, Ctx] {
   }
 
   def config(
-      dpy: Disp,
-      attrs: Attributes[ConfigAttrib, ConfigAttribValue]): DSL[Option[Cfg]] = {
-    fix(EGLChooseConfig(dpy, attrs, 1)).map(_.headOption)
+      dpy: EGL14.EGLDisplay,
+      attrs: Attributes[ConfigAttrib, ConfigAttribValue]): DSL[Option[EGL14.EGLConfig]] = {
+    EGLChooseConfig(dpy, attrs, 1).free.map(_.headOption)
   }
 
-  def property(dpy: Disp, property: DisplayProperty): DSL[String] =
-    fix(EGLQueryString(dpy, property))
+  def property(dpy: EGL14.EGLDisplay, property: DisplayProperty): DSL[String] =
+    EGLQueryString(dpy, property).free
 
-  def properties(dpy: Disp): DSL[Map[DisplayProperty, String]] = {
+  def properties(dpy: EGL14.EGLDisplay): DSL[Map[DisplayProperty, String]] = {
     val ps = SealedEnum.values[DisplayProperty].toList
     ps.map(p => property(dpy, p).map(p -> _)).sequence.map(_.toMap)
   }
 
-  val noContext: DSL[Ctx] = fix(EGL_NO_CONTEXT())
-  val noDisplay: DSL[Disp] = fix(EGL_NO_DISPLAY())
-  val noSurface: DSL[Sfc] = fix(EGL_NO_SURFACE())
-  val defaultDisplay: DSL[NDisp] = fix(EGL_DEFAULT_DISPLAY())
+  def display(nDisp: EGL14.EGLNativeDisplayType): DSL[EGLGetDisplayError.type Xor EGL14.EGLDisplay] =
+    (ensure(EGLGetDisplay(nDisp).free)(dd =>
+                dd != null && dd != EGL14.EGL_NO_DISPLAY, EGLGetDisplayError)
+    ).value
 
-  def display(nDisp: NDisp): DSL[EGLGetDisplayError.type Xor Disp] =
-    (for {
-      nd <- XorT.right(fix[Disp](EGL_NO_DISPLAY()))
-      d <- ensure(fix[Disp](EGLGetDisplay(nDisp)))(dd =>
-                dd != null && dd != nd, EGLGetDisplayError)
-    } yield d).value
-
-  def context(dpy: Disp,
-              cfg: Cfg,
+  def context(dpy: EGL14.EGLDisplay,
+              cfg: EGL14.EGLConfig,
               attrs: Attributes[ContextAttrib, ContextAttribValue])
-    : DSL[EGLCreateContextError Xor Ctx] =
-    (for {
-      nc <- XorT.right(noContext)
-      ctx <- ensure(fix(EGLCreateContext(dpy, cfg, nc, attrs)))(c =>
-                  c != null && c != nc, EGLCreateContextError(attrs))
-    } yield ctx).value
-  def windowSurface(dpy: Disp,
-                    cfg: Cfg,
-                    nw: NWin,
+    : DSL[EGLCreateContextError Xor EGL14.EGLContext] =
+    (ensure(EGLCreateContext(dpy, cfg, EGL14.EGL_NO_CONTEXT, attrs).free)(c =>
+                  c != null && c != EGL14.EGL_NO_CONTEXT, EGLCreateContextError(attrs))
+    ).value
+  def windowSurface(dpy: EGL14.EGLDisplay,
+                    cfg: EGL14.EGLConfig,
+                    nw: EGL14.EGLNativeWindowType,
                     attribs: Attributes[WindowAttrib, WindowAttribValue])
-    : DSL[EGLCreateSurfaceError Xor Sfc] =
-    (for {
-      ns <- XorT.right(noSurface)
-      sfc <- ensure(fix[Sfc](EGLCreateWindowSurface(dpy, cfg, nw, attribs)))(
-                s => s != null && s != ns,
+    : DSL[EGLCreateSurfaceError Xor EGL14.EGLSurface] =
+    (ensure(EGLCreateWindowSurface(dpy, cfg, nw, attribs).free)(
+                s => s != null && s != EGL14.EGL_NO_SURFACE,
                 EGLCreateSurfaceError(attribs))
-    } yield sfc).value
+    ).value
 
-  def swapBuffers(dpy: Disp,
-                  sfc: Sfc): DSL[EGLSwapBuffersError.type Xor Boolean] =
-    ensure(fix(EGLSwapBuffers(dpy, sfc)))(identity, EGLSwapBuffersError).value
-  def makeCurrent(dpy: Disp,
-                  draw: Sfc,
-                  read: Sfc,
-                  ctx: Ctx): DSL[EGLMakeCurrentError.type Xor Boolean] =
-    ensure(fix(EGLMakeCurrent(dpy, draw, read, ctx)))(
+  def swapBuffers(dpy: EGL14.EGLDisplay,
+                  sfc: EGL14.EGLSurface): DSL[EGLSwapBuffersError.type Xor Boolean] =
+    ensure(EGLSwapBuffers(dpy, sfc).free)(identity, EGLSwapBuffersError).value
+  def makeCurrent(dpy: EGL14.EGLDisplay,
+                  draw: EGL14.EGLSurface,
+                  read: EGL14.EGLSurface,
+                  ctx: EGL14.EGLContext): DSL[EGLMakeCurrentError.type Xor Boolean] =
+    ensure(EGLMakeCurrent(dpy, draw, read, ctx).free)(
         identity,
         EGLMakeCurrentError).value
 
-  def initialise(ndpy: NDisp): DSL[EGLError Xor Disp] =
+  def initialise(ndpy: EGL14.EGLNativeDisplayType): DSL[EGLError Xor EGL14.EGLDisplay] =
     (for {
-      nod <- XorT.right(noDisplay)
       dpy <- XorT(display(ndpy)).leftWiden[EGLError]
-      _ <- XorT.right[DSL, EGLError, (Int, Int)](fix(EGLInitialize(dpy)))
-      _ <- ensure(fix[Boolean](EGLBindAPI(EGL_OPENGL_ES_API)))(
+      _ <- XorT.right[DSL, EGLError, (Int, Int)](EGLInitialize(dpy).free)
+      _ <- ensure(EGLBindAPI(EGL_OPENGL_ES_API).free)(
               identity,
               EGLBindAPIError).leftWiden[EGLError]
     } yield dpy).value
 
-  def swapInterval(dpy: Disp,
+  def swapInterval(dpy: EGL14.EGLDisplay,
                    interval: Int): DSL[EGLSwapIntervalError Xor Boolean] =
-    ensure(fix(EGLSwapInterval(dpy, interval)))(
+    ensure(EGLSwapInterval(dpy, interval).free)(
         identity,
         EGLSwapIntervalError(interval)).value
 }
 
-trait EGL[+NDisp, +NWin, +Disp, +Cfg, +Sfc, +Ctx, A]
+trait EGL[A]
 
-case class EGLChooseConfig[Disp, Cfg](
-    dpy: Disp,
+case class EGLChooseConfig(
+    dpy: EGL14.EGLDisplay,
     attrs: Attributes[ConfigAttrib, ConfigAttribValue],
     count: Int)
-    extends EGL[Nothing, Nothing, Disp, Cfg, Nothing, Nothing, List[Cfg]]
-case class EGLQueryString[Disp](dpy: Disp, name: DisplayProperty)
-    extends EGL[Nothing, Nothing, Disp, Nothing, Nothing, Nothing, String]
-case class EGLCreateContext[Disp, Cfg, Ctx](
-    dpy: Disp,
-    cfg: Cfg,
-    ctx: Ctx,
+    extends EGL[List[EGL14.EGLConfig]]
+case class EGLQueryString(dpy: EGL14.EGLDisplay, name: DisplayProperty) extends EGL[String]
+case class EGLCreateContext(
+    dpy: EGL14.EGLDisplay,
+    cfg: EGL14.EGLConfig,
+    ctx: EGL14.EGLContext,
     attrs: Attributes[ContextAttrib, ContextAttribValue])
-    extends EGL[Nothing, Nothing, Disp, Cfg, Nothing, Ctx, Ctx]
-case class EGLGetDisplay[NDisp, Disp](nDisp: NDisp)
-    extends EGL[NDisp, Nothing, Disp, Nothing, Nothing, Nothing, Disp]
-case class EGLInitialize[Disp](disp: Disp)
-    extends EGL[Nothing, Nothing, Disp, Nothing, Nothing, Nothing, (Int, Int)]
-case class EGLCreateWindowSurface[NWin, Disp, Cfg, Sfc](
-    dpy: Disp,
-    cfg: Cfg,
-    win: NWin,
+    extends EGL[EGL14.EGLContext]
+case class EGLGetDisplay(nDisp: EGL14.EGLNativeDisplayType)
+    extends EGL[EGL14.EGLDisplay]
+case class EGLInitialize(disp: EGL14.EGLDisplay)
+    extends EGL[(Int, Int)]
+case class EGLCreateWindowSurface(
+    dpy: EGL14.EGLDisplay,
+    cfg: EGL14.EGLConfig,
+    win: EGL14.EGLNativeWindowType,
     attribs: Attributes[WindowAttrib, WindowAttribValue])
-    extends EGL[Nothing, NWin, Disp, Cfg, Sfc, Nothing, Sfc]
-case class EGLSwapBuffers[Disp, Sfc](dpy: Disp, sfc: Sfc)
-    extends EGL[Nothing, Nothing, Disp, Nothing, Sfc, Nothing, Boolean]
-case class EGLBindAPI(api: EGLAPI)
-    extends EGL[Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Boolean]
-case class EGLGetConfigAttrib[Disp, Cfg](disp: Disp,
-                                         config: Cfg,
+    extends EGL[EGL14.EGLSurface]
+case class EGLSwapBuffers(dpy: EGL14.EGLDisplay, sfc: EGL14.EGLSurface)
+    extends EGL[Boolean]
+case class EGLBindAPI(api: EGLAPI) extends EGL[Boolean]
+case class EGLGetConfigAttrib(disp: EGL14.EGLDisplay,
+                                         config: EGL14.EGLConfig,
                                          attrib: ConfigAttrib)
-    extends EGL[Nothing, Nothing, Disp, Cfg, Nothing, Nothing, Int]
-
-case class EGLMakeCurrent[Disp, Sfc, Ctx](dpy: Disp,
-                                          draw: Sfc,
-                                          read: Sfc,
-                                          ctx: Ctx)
-    extends EGL[Nothing, Nothing, Disp, Nothing, Sfc, Ctx, Boolean]
-case object EGLGetError
-    extends EGL[Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Int]
-
-case class EGLSwapInterval[Disp](dpy: Disp, interval: Int)
-    extends EGL[Nothing, Nothing, Disp, Nothing, Nothing, Nothing, Boolean]
-
-case class EGL_NO_CONTEXT[Ctx]()
-    extends EGL[Nothing, Nothing, Nothing, Nothing, Nothing, Ctx, Ctx]
-case class EGL_NO_DISPLAY[Disp]()
-    extends EGL[Nothing, Nothing, Disp, Nothing, Nothing, Nothing, Disp]
-case class EGL_DEFAULT_DISPLAY[NDisp]()
-    extends EGL[NDisp, Nothing, Nothing, Nothing, Nothing, Nothing, NDisp]
-case class EGL_NO_SURFACE[Sfc]()
-    extends EGL[Nothing, Nothing, Nothing, Nothing, Sfc, Nothing, Sfc]
+    extends EGL[Int]
+case class EGLMakeCurrent(dpy: EGL14.EGLDisplay,
+                                          draw: EGL14.EGLSurface,
+                                          read: EGL14.EGLSurface,
+                                          ctx: EGL14.EGLContext) extends EGL[Boolean]
+case object EGLGetError extends EGL[Int]
+case class EGLSwapInterval(dpy: EGL14.EGLDisplay, interval: Int) extends EGL[Boolean]

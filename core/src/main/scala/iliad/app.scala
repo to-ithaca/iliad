@@ -26,126 +26,67 @@ import scala.reflect._
 
 import fs2.util._
 
-trait IliadApp {
-  def run(): Unit
-}
-
-trait ScreenDependencies {
-  type NativeWindow
-  type NativeDisplay
-  type NativePixmap
-
-  val session: BlockingPromise[(NativeWindow, NativeDisplay)] =
-    new BlockingPromise[(NativeWindow, NativeDisplay)]
-
-  def lockDisplay: Option[NativeDisplay => Unit] = None
-  def unlockDisplay: Option[NativeDisplay => Unit] = None
-
-  def vsync: fs2.Stream[Task, Long]
-}
-
-trait GLDependencies extends ScreenDependencies {
-
-  type EGLDisplay
-  type EGLSurface
-  type EGLContext
-  type EGLConfig
-
-  implicit def configClassTag: ClassTag[EGLConfig]
-
-  val EGL14: EGL14Library.Aux[
-      NativeDisplay,
-      NativeWindow,
-      EGLDisplay,
-      EGLConfig,
-      EGLSurface,
-      EGLContext
-  ]
-
-  val GLES30: GLES30Library
-
-  val pageSize: Int
-}
-
-//Ideally our only implementation inside here would be the EGL14Library
+case class Config(
+  graph: State[Graph.Constructor, Unit],
+  graphTraversal: GraphTraversal
+)
 
 
+trait GLBootstrap extends LazyLogging {
 
-trait GLBootstrap extends GLDependencies with LazyLogging {
-
-  def graph: State[Graph.Constructor, Unit]
-
-  def graphTraversal: GraphTraversal
+  def config: Config
 
   private def graphicsConfig: Task[Graphics.Config] =
     Construct
-      .validate(graph)
-      .map(Graphics.Config(pageSize, _, graphTraversal))
+      .validate(config.graph)
+      .map(Graphics.Config(Session.pageSize, _, config.graphTraversal))
       .leftMap(_.unwrap.mkString("\n"))
       .bimap(s => Task.fail(new Error(s)), Task.now).merge[Task[Graphics.Config]]
 
-  private val EGLP: EGLPRG[NativeDisplay,
-                           NativeWindow,
-                           EGLDisplay,
-                           EGLConfig,
-                           EGLSurface,
-                           EGLContext] = new EGLPRG
-
   /*This needs to be lazy to defer the creation of the classTag until after the $init
    of the subclass is called */
-  private lazy val LogEGLInterpreter: EGL[
-      NativeDisplay,
-      NativeWindow,
-      EGLDisplay,
-      EGLConfig,
-      EGLSurface,
-      EGLContext,
-      ?
-  ] ~> ReaderT[Xor[EGLError, ?],
-               EGL14Library.Aux[NativeDisplay,
-                                NativeWindow,
-                                EGLDisplay,
-                                EGLConfig,
-                                EGLSurface,
-                                EGLContext],
-               ?] = EGLInterpreter.logInterpreter
+  private lazy val LogEGLInterpreter: EGL ~> ReaderT[Xor[EGLError, ?], EGL14.type, ?] = 
+    EGL.logInterpreter
 
-  private def EGLTask(window: NativeWindow, display: NativeDisplay)(
+  private def EGLTask(window: EGL14.EGLNativeWindowType, display: EGL14.EGLNativeDisplayType)(
       cattrs: Attributes[ConfigAttrib, ConfigAttribValue],
       wattrs: Attributes[WindowAttrib, WindowAttribValue],
       cxattrs: Attributes[ContextAttrib, ContextAttribValue])(
-      implicit S: Strategy): Task[(EGLDisplay, EGLSurface, EGLContext)] = {
+      implicit S: Strategy): Task[(EGL14.EGLDisplay, EGL14.EGLSurface, EGL14.EGLContext)] = {
     val prg = (for {
-      dpy <- XorT(EGLP.initialise(display))
-      _ <- XorT.right(EGLP.properties(dpy))
+      dpy <- XorT(EGL.initialise(display))
+      _ <- XorT.right(EGL.properties(dpy))
       cfg <- XorT(
-                EGLP
-                  .config(dpy, cattrs)
+                EGL.config(dpy, cattrs)
                   .map(_.toRightXor(EGLConfigError(cattrs))))
               .leftWiden[EGLError]
-      _ <- XorT.right(EGLP.configAttribs(dpy, cfg))
-      sfc <- XorT(EGLP.windowSurface(dpy, cfg, window, wattrs))
+      _ <- XorT.right(EGL.configAttribs(dpy, cfg))
+      sfc <- XorT(EGL.windowSurface(dpy, cfg, window, wattrs))
               .leftWiden[EGLError]
-      ctx <- XorT(EGLP.context(dpy, cfg, cxattrs)).leftWiden[EGLError]
-      _ <- XorT(EGLP.makeCurrent(dpy, sfc, sfc, ctx)).leftWiden[EGLError]
+      ctx <- XorT(EGL.context(dpy, cfg, cxattrs)).leftWiden[EGLError]
+      _ <- XorT(EGL.makeCurrent(dpy, sfc, sfc, ctx)).leftWiden[EGLError]
     } yield (dpy, sfc, ctx)).value
     eglExecute(display, prg)
   }
 
-  private def eglExecute[A](d: NativeDisplay,
-                            dsl: EGLP.DSL[EGLError Xor A]): Task[A] = {
-    lockDisplay.foreach(_ (d))
+  private def eglExecute[A](d: EGL14.EGLNativeDisplayType,
+                            dsl: EGL.DSL[EGLError Xor A]): Task[A] = {
+#+x11
+    Session.lockDisplay(d)
+#-x11
     val t = dsl.foldMap(LogEGLInterpreter).run(EGL14).flatMap(identity)
       .bimap(Task.fail, Task.now).merge[Task[A]]
-    unlockDisplay.foreach(_ (d))
+#+x11
+    Session.unlockDisplay(d)
+#-x11
     t
   }
 
   val EGLStrategy = Strategy.fromFixedDaemonPool(1, "egl-thread")
 
-  private def EGL(
-      w: NativeWindow,
-      d: NativeDisplay): Task[(EGLDisplay, EGLSurface, EGLContext)] =
+  private def egl(
+      w: EGL14.EGLNativeWindowType,
+      d: EGL14.EGLNativeDisplayType): Task[(EGL14.EGLDisplay, EGL14.EGLSurface, EGL14.EGLContext)] =
     EGLTask(w, d)(
         Attributes(
             ConfigAttrib(EGL_LEVEL, 0),
@@ -164,10 +105,10 @@ trait GLBootstrap extends GLDependencies with LazyLogging {
             ContextAttrib(EGL_CONTEXT_CLIENT_VERSION, 3)
         ))(EGLStrategy)
 
-  private def swapBuffers(nd: NativeDisplay,
-                          d: EGLDisplay,
-                          s: EGLSurface): Task[Boolean] =
-    eglExecute(nd, XorT(EGLP.swapBuffers(d, s)).leftWiden[EGLError].value)
+  private def swapBuffers(nd: EGL14.EGLNativeDisplayType,
+                          d: EGL14.EGLDisplay,
+                          s: EGL14.EGLSurface): Task[Boolean] =
+    eglExecute(nd, XorT(EGL.swapBuffers(d, s)).leftWiden[EGLError].value)
 
   private def aggregateRight[F[_]: Async, A, B]: Pipe2[F, A, B, (A, List[B])] =
     (fa, fb) =>
@@ -182,13 +123,13 @@ trait GLBootstrap extends GLDependencies with LazyLogging {
         .map(_.get)
 
   private def aggregate(implicit S: Strategy)
-    : Pipe[Task, List[Graphics.Graphics], (Long, List[Graphics.Graphics])] =
+    : Pipe[Task, List[GFX], (Long, List[GFX])] =
     q =>
-      (vsync through2 q)(aggregateRight).map {
+      (Session.vsync through2 q)(aggregateRight).map {
         case (at, cmds) => (at, cmds.flatten.toList)
     }
 
-  private def run(cfg: Graphics.Config, gs: List[Graphics.Graphics])(
+  private def run(cfg: Graphics.Config, gs: List[GFX])(
       s: Graphics.State)
     : Error Xor (Graphics.State, XorT[GL.DSL, GLError, Unit]) =
     Graphics(gs).run(cfg).run(s).leftMap(s => new Error(s.toString))
@@ -210,14 +151,15 @@ trait GLBootstrap extends GLDependencies with LazyLogging {
                   gs: Graphics.State): Xor[Error, GL.State] =
     run(Graphics.draws(gs, us).run(cfg).value, gls)
 
-  private def run(at: Long, us: UniformCache.State): UniformCache.Values = {
-    us.map(UniformCache.values(at))
-  }
+  private def run(
+    at: Long,
+    us: UniformCache.State): (UniformCache.State, UniformCache.Values) =
+    UniformCache.values(at).run(us).value
 
-  val GLPipe: Pipe[Task, List[Graphics.Graphics], Unit] = graphics =>
+  val GLPipe: Pipe[Task, List[GFX], Unit] = graphics =>
     for {
-      (nw, nd) <- Stream.eval(session.task(EGLStrategy))
-      (d, sfc, ctx) <- Stream.eval(EGL(nw, nd))
+      (nw, nd) <- Stream.eval(Session.session.task(EGLStrategy))
+      (d, sfc, ctx) <- Stream.eval(egl(nw, nd))
       cfg <- Stream.eval(graphicsConfig)
       _ <- (graphics through aggregate(EGLStrategy))
             .mapAccumulate2(
@@ -230,8 +172,9 @@ trait GLBootstrap extends GLDependencies with LazyLogging {
                 q <- run(cfg, gs)(prevGr)
                 (nextGr, loadCmds) = q
                 midGl <- run(loadCmds.leftWiden[IliadError].value, prevGl)
-                nextGl <- run(cfg, midGl, run(at, nextGr.uniformCache), nextGr)
-              } yield (nextGr, nextGl)
+                us = run(at, nextGr.uniformCache)
+                nextGl <- run(cfg, midGl, us._2, nextGr)
+              } yield (nextGr.copy(uniformCache = us._1), nextGl)
               (xor, xor.bimap(Task.fail, Task.now).merge[Task[(Graphics.State, GL.State)]])
             }
             .eval

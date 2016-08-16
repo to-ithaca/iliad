@@ -2,6 +2,15 @@ package iliad
 package gl
 
 sealed trait GLError extends IliadError
+
+case class VertexDataAlreadyLoaded(r: VertexData.Ref) extends GLError {
+  def message: String = s"Vertex data has already been loaded: $r"
+}
+
+case class ElementDataAlreadyLoaded(r: ElementData.Ref) extends GLError {
+  def message: String = s"Element data has already been loaded: $r"
+}
+
 case class TextureNotLoadedError(t: Texture.Constructor) extends GLError {
   override def toString: String = s"Texture has not been loaded: $t"
 }
@@ -34,10 +43,16 @@ case class FramebufferNotLoadedError(f: Framebuffer.Constructor)
   override def toString: String = s"Framebuffer has not been loaded $f"
 }
 
-case class UndefinedTextureUniformError(p: Program.Unlinked, name: String)
+case class UnsetTextureUniformError(p: Program.Unlinked, name: String)
     extends GLError {
-  override def toString: String = s"Texture uniform $name is not present in program: $p"
+  override def toString: String = s"Texture uniform $name is not suppled for program: $p"
 }
+case class UnsetUniformError(p: Program.Unlinked, unform: Uniform.Constructor)
+    extends GLError {
+  def message: String =
+    s"Uniform ${unform.name} is not suppled for program: $p"
+}
+
 case class UndefinedAttributeError(p: Program.Unlinked,
                                    a: Attribute.Constructor)
     extends GLError {

@@ -362,3 +362,13 @@ trait GLES30Library {
   // def glVertexAttribIPointer(index: Int, size: Int, `type`: Int, stride: Int, pointer: Buffer): Unit
   // def glWaitSync(sync: Long, flags: Int, timeout: Long): Unit
 }
+
+
+#+x11
+
+@jna[iliad.platform.unix.GLES30Library]
+trait GLES30Binding
+
+object GLES30 extends GLES30Library with GLES30Binding
+
+#-x11

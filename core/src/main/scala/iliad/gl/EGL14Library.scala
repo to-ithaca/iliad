@@ -3,6 +3,7 @@ package gl
 
 import java.nio.IntBuffer
 
+/*
 object EGL14Library {
 
   /** Promotes path dependent types to higher kinded types */
@@ -14,7 +15,7 @@ object EGL14Library {
     type EGLSurface = Sfc
     type EGLContext = Ctx
   }
-}
+}*/
 
 trait EGL14Library {
 
@@ -27,7 +28,7 @@ trait EGL14Library {
   type EGLNativeDisplayType
   type EGLNativeWindowType
   type EGLNativePixmapType
-
+ 
   def EGL_DEFAULT_DISPLAY: EGLNativeDisplayType
   def EGL_NO_DISPLAY: EGLDisplay
   def EGL_NO_CONTEXT: EGLContext
@@ -113,3 +114,30 @@ trait EGL14Library {
   def eglWaitClient(): Boolean
   def eglGetCurrentContext(): EGLContext
 }
+
+#+x11
+
+import com.sun.jna.platform.unix.X11
+
+@jna[iliad.platform.unix.EGL14Library]
+trait EGL14Binding
+
+object EGL14 extends EGL14Library with EGL14Binding {
+
+  type EGLConfig = iliad.platform.unix.EGLConfig
+  type EGLSurface = iliad.platform.unix.EGLSurface
+  type EGLDisplay = iliad.platform.unix.EGLDisplay
+  type EGLContext = iliad.platform.unix.EGLContext
+  type EGLClientBuffer = iliad.platform.unix.EGLClientBuffer
+
+  val EGL_NO_CONTEXT = new EGLContext
+  val EGL_NO_DISPLAY = new EGLDisplay
+  val EGL_NO_SURFACE = new EGLSurface
+  val EGL_DEFAULT_DISPLAY = new X11.Display
+
+  type EGLNativeDisplayType = X11.Display
+  type EGLNativeWindowType = X11.Window
+  type EGLNativePixmapType = X11.Pixmap
+}
+
+#-x11

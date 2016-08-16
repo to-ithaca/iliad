@@ -42,11 +42,14 @@ final class SequenceOps[F[_], G[_], A](val fga: F[G[A]]) extends AnyVal {
 }
 
 object StateTExtra {
-  def inspect[F[_]: Applicative, S, A](f: S => F[A]): StateT[F, S, A] =
+  def inspectF[F[_]: Applicative, S, A](f: S => F[A]): StateT[F, S, A] =
     StateT(s => f(s).map(s -> _))
 
   def lift[F[_]: Applicative, S, A](fa: F[A]): StateT[F, S, A] =
     StateT(s => fa.map(a => s -> a))
+
+  def modifyF[F[_]: Applicative, S](f: S => F[S]): StateT[F, S, Unit] =
+    StateT(s => f(s).map(s => (s, ())))
 }
 
 object KleisliExtra {

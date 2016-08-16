@@ -8,7 +8,7 @@ object FreekExtra {
 
   implicit class ToFreeOps[F[_], A](val free: Free[F, A]) extends AnyVal {
     @inline
-    def freekF[C[_] <: CoproductK[_]](
+    def expand[C[_] <: CoproductK[_]](
         implicit sub: SubCop[ConsK[F, CNilK, ?], C]): Free[C, A] =
       free
         .mapSuspension(new (F ~> ConsK[F, CNilK, ?]) {

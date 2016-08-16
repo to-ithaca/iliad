@@ -5,9 +5,11 @@ import iliad.implicits._
 import fs2._
 import fs2.util._
 
-trait EventStream extends EventHandler {
+import com.typesafe.scalalogging._
 
-  private implicit val S: Strategy = Strategy.fromFixedDaemonPool(8, "worker")
+trait EventStream {
+
+  private implicit val S: Strategy = Strategy.fromFixedDaemonPool(1, "worker")
 
   private def baseStream[A](register: (A => Unit) => Unit)(
       implicit R: Async.Run[Task]): Stream[Task, A] = {
@@ -23,7 +25,7 @@ trait EventStream extends EventHandler {
     } yield a
   }
 
-  def eventStream: Stream[Task, InputEvent] = baseStream(onTap)
+  def eventStream: Stream[Task, InputEvent] = baseStream(EventHandler.onTap)
 }
 
 
@@ -35,14 +37,32 @@ object InputEvent {
   case class Tap(at: Long, x: Float, y: Float) extends InputEvent
 }
 
-object EventHandler {
+import InputEvent._
+
+object EventHandler extends LazyLogging {
   type Callback[A] = A => Unit
   def zero[A](a: A): Unit = {}
-}
 
-import InputEvent._
-import EventHandler._
+#+x11
+import com.sun.jna.platform.unix.X11._
+import iliad.platform.unix.X11
 
-trait EventHandler {
-  def onTap(cb: Callback[Tap]): Unit
+  private var tapCallback: Callback[Tap] = EventHandler.zero
+
+  def onTap(cb: Callback[Tap]): Unit = tapCallback = cb
+
+  def handleEvent(e: XEvent, width: Int, height: Int): Unit = e.`type` match {
+    case ButtonPress =>
+      logger.debug("received tap")
+      e.readField("xbutton")
+      val xFraction =
+        (e.xbutton.x - e.xbutton.x_root).toFloat / width.toFloat
+      val yFraction =
+        (e.xbutton.y - e.xbutton.y_root).toFloat / height.toFloat
+      tapCallback(Tap(e.xbutton.time.longValue, xFraction, yFraction))
+    case other =>
+      logger.warn("Unhandled event of type {}", other)
+  }
+#-x11
+
 }

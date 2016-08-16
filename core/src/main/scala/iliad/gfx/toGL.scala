@@ -48,7 +48,7 @@ object ToGL {
   private def apply(n: Draw.Drawable): DSL[GL.DrawOp] =
     for {
       f <- apply(n.instance.framebuffer)
-      tus <- apply(n.instance.uniforms)
+      tus <- apply(n.instance.textureUniforms)
     } yield
       GL.DrawOp(n.instance.model.model,
                 n.instance.constructor.program,
@@ -60,10 +60,10 @@ object ToGL {
                 n.instance.constructor.capabilities,
                 n.instance.numInstances)
 
-  private def apply(c: Clear.Instance): DSL[GL.ClearOp] =
+ private def apply(c: Clear.Instance): DSL[GL.ClearOp] =
     for {
       f <- apply(c.framebuffer)
-    } yield GL.ClearOp(c.constructor.mask, f)
+} yield GL.ClearOp(c.constructor.mask, c.constructor.colour, f)
 
   def apply(
       ns: List[Node.Drawable]): DSL[List[XorT[GL.GL.DSL, GL.GLError, Unit]]] =
