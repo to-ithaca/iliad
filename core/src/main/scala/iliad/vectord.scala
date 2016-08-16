@@ -79,8 +79,7 @@ case class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
                                  G: spa.Rng[A]): VectorD[nat._3, A] =
     (unsized, that.unsized) match {
       case (Vector(u1, u2, u3), Vector(v1, v2, v3)) =>
-        VectorD.sized(
-            3,
+        new VectorD[nat._3, A](
             Vector(u2 * v3 - u3 * v2, u3 * v1 - u1 * v3, u1 * v2 - u2 * v1))
     }
 
@@ -90,9 +89,8 @@ case class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
 
   private def pad[D <: Nat](n: Nat, a: A)(
       implicit DD: Diff.Aux[n.N, N, D],
-      toIntD: ToInt[D],
-      toIntN: ToInt[n.N]): VectorD[n.N, A] =
-    VectorD.sized(n, this.unsized ++ Vector.fill(toIntD())(a))
+      toIntD: ToInt[D]): VectorD[n.N, A] =
+    new VectorD[n.N, A](this.unsized ++ Vector.fill(toIntD())(a))
 
   def padZero[D <: Nat](n: Nat)(implicit G: spa.AdditiveMonoid[A],
                                 DD: Diff.Aux[n.N, N, D],
@@ -124,11 +122,11 @@ case class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
                                           F: spa.Field[A],
                                           N: spa.NRoot[A],
                                           E: spa.Eq[A]): VectorD[nat._4, A] = {
-    val a = padZero(3) cross to.padZero(3)
+    val a: VectorD[nat._3, A] = this.padZero(3) cross to.padZero(3)
     val n = a.norm
     val axis = if (n === F.zero) VectorD.zAxis else a :/ n
     val θ = T.acos(this ⋅ to)
-    VectorD.sized(4, Vector(axis.x, axis.y, axis.z, θ))
+    new VectorD[nat._4, A](Vector(axis.x, axis.y, axis.z, θ))
   }
 
   override def toString: String =

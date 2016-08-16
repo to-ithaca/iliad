@@ -50,7 +50,7 @@ object GL {
         liftS(eff.applyLens[State](_current))
     }
 
-  def runner[F[_]: MonadRec](f: OpenGL.Interpreter[OpenGL.Effect[F, ?]])
+  def runner[F[_]: RecursiveTailRecM : Monad](f: OpenGL.Interpreter[OpenGL.Effect[F, ?]])
     : Interpreter[GLProgram.Cop, PRG[F, ?]] =
     Load.parse(f).andThen(liftOpenGL) :&:
       CacheParser.andThen(liftCache[F]) :&:

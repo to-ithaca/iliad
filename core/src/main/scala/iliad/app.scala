@@ -34,7 +34,7 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
       .validate(graph)
       .map(Graphics.Config(pageSize, _, graphTraversal))
       .leftMap(_.toList.mkString(System.lineSeparator))
-      .task
+      .bimap(s => Task.fail(new Error(s)), Task.now).merge[Task[Graphics.Config]]
 
   private val EGLP: EGLPRG[NativeDisplay,
                            NativeWindow,
@@ -89,8 +89,8 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
   private def eglExecute[A](d: NativeDisplay,
                             dsl: EGLP.DSL[EGLError Xor A]): Task[A] = {
     lockDisplay.foreach(_ (d))
-    val t: Task[A] =
-      dsl.foldMap(LogEGLInterpreter).run(EGL14).flatMap(identity).task
+    val t = dsl.foldMap(LogEGLInterpreter).run(EGL14).flatMap(identity)
+      .bimap(Task.fail, Task.now).merge[Task[A]]
     unlockDisplay.foreach(_ (d))
     t
   }
@@ -204,7 +204,7 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
               } yield {
                 (nextGr.copy(uniformCache = nextUc), nextGl)
               }
-              (xor, xor.task)
+              (xor, xor.bimap(Task.fail, Task.now).merge[Task[(Graphics.State, GL.State)]])
             }
             .eval
             .flatMap { _ =>

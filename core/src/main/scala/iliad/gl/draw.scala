@@ -11,7 +11,7 @@ import cats.implicits._
 object Draw {
   type DSL[A] = Free[Draw, A]
 
-  def parse[F[_]: MonadRec](i: OpenGL.Interpreter[F]): Draw ~> F =
+  def parse[F[_]: RecursiveTailRecM : Monad](i: OpenGL.Interpreter[F]): Draw ~> F =
     DrawParser.andThen(OpenGL.interpret(i))
 
   def bind(f: Framebuffer.Loaded): DSL[Unit] =

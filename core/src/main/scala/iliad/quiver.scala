@@ -7,7 +7,7 @@ object QuiverExtra {
     new GraphOps[N, A, B](g)
 }
 
-final class GraphOps[N, A, B](g: Graph[N, A, B]) {
+final class GraphOps[N, A, B](val g: Graph[N, A, B]) extends AnyVal {
 
   def orderedWith(ns: Seq[N], acc: Vector[N]): Vector[N] =
     if (ns.isEmpty || g.isEmpty) acc

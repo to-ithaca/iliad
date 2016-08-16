@@ -12,8 +12,8 @@ object MonocleExtra {
       s: StateT[F, S, A]): StateTOps[F, S, A] =
     new StateTOps(s)
 
-  final class StateTOps[F[_]: Monad, S, A](s: StateT[F, S, A]) {
-    def applyLens[R](l: Lens[R, S]): StateT[F, R, A] =
+  final class StateTOps[F[_], S, A](val s: StateT[F, S, A]) extends AnyVal {
+    def applyLens[R](l: Lens[R, S])(implicit M: Monad[F]): StateT[F, R, A] =
       s.transformS(_ &|-> l get, {
         case (r, s) => r &|-> l set s
       })

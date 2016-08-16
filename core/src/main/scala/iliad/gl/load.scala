@@ -9,7 +9,7 @@ import cats.free._
 object Load {
   type DSL[A] = Free[Load, A]
 
-  def parse[F[_]: MonadRec](i: OpenGL.Interpreter[F]): Load ~> F =
+  def parse[F[_]: RecursiveTailRecM : Monad](i: OpenGL.Interpreter[F]): Load ~> F =
     LoadParser.andThen(OpenGL.interpret(i))
 
   def apply(s: VertexShader.Source): DSL[VertexShader.Compiled] =
