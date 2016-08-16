@@ -10,4 +10,9 @@ trait MatrixDSyntax extends MatrixContextSyntax {
   type Mat2f = MatrixD[nat._2, nat._2, Float]
   type Mat3f = MatrixD[nat._3, nat._3, Float]
   type Mat4f = MatrixD[nat._4, nat._4, Float]
+  type Mat2[A] = MatrixD[nat._2, nat._2, A]
+  type Mat3[A] = MatrixD[nat._3, nat._3, A]
+  type Mat4[A] = MatrixD[nat._4, nat._4, A]
+
+  type Mat4Algebra[A] = MatrixAlgebra[nat._4, A]
 }

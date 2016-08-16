@@ -101,6 +101,16 @@ trait GLES30Library {
                    `type`: Int,
                    data: Buffer): Unit
 
+  def glTexSubImage2D(target: Int,
+                      level: Int,
+                      xOffset: Int,
+                      yOffset: Int,
+                      width: Int,
+                      height: Int,
+                      format: Int,
+                      `type`: Int,
+                      data: Buffer): Unit
+
   def glActiveTexture(texture: Int): Unit
 
   def glUniform1i(location: Int, arg0: Int): Unit
@@ -120,6 +130,18 @@ trait GLES30Library {
                   arg2: Float,
                   arg3: Float): Unit
 
+  def glUniformMatrix2fv(location: Int,
+                         count: Int,
+                         transpose: Boolean,
+                         arg0: Array[Float]): Unit
+  def glUniformMatrix3fv(location: Int,
+                         count: Int,
+                         transpose: Boolean,
+                         arg0: Array[Float]): Unit
+  def glUniformMatrix4fv(location: Int,
+                         count: Int,
+                         transpose: Boolean,
+                         arg0: Array[Float]): Unit
   def glGenSamplers(num: Int, buffer: IntBuffer): Unit
   def glSamplerParameteri(sid: Int, name: Int, arg0: Int): Unit
   def glBindSampler(tid: Int, sid: Int): Unit
@@ -154,12 +176,6 @@ trait GLES30Library {
 //  def glBindVertexArray(vid: Int): Unit
 //  def glUniform4fv(location: Int, count: Int, ptr: Array[Float]): Unit
 //  def glUniform4iv(location: Int, count: Int, ptr: Array[Int]): Unit
-//  def glUniformMatrix2fv(
-//      location: Int, count: Int, transpose: Boolean, arg0: Array[Float]): Unit
-//  def glUniformMatrix3fv(
-//      location: Int, count: Int, transpose: Boolean, arg0: Array[Float]): Unit
-//  def glUniformMatrix4fv(
-//      location: Int, count: Int, transpose: Boolean, arg0: Array[Float]): Unit
 //  def glUniform3fv(location: Int, count: Int, ptr: Array[Float]): Unit
 //  def glUniform3iv(location: Int, count: Int, ptr: Array[Int]): Unit
 //  def glUniform2fv(location: Int, count: Int, ptr: Array[Float]): Unit

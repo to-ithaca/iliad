@@ -33,7 +33,8 @@ trait Win32EventHandler extends EventHandler {
         val xFraction = Macros.GET_X_LPARAM(lParam).toFloat / width.toFloat
         val yFraction = GET_Y_LPARAM(lParam).toFloat / height.toFloat
         //TODO: windows must have a better way of getting the time
-        tapCallback(Tap(System.currentTimeMillis(), xFraction, yFraction))
+        tapCallback(
+            Tap(Point(System.currentTimeMillis(), xFraction, yFraction)))
         true
       case _ => false
     }

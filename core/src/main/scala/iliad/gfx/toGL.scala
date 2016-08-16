@@ -40,15 +40,15 @@ object ToGL {
 
   private def apply(ts: Map[String, Texture.Uniform])
     : DSL[Map[String, GL.Texture.Constructor]] =
-    ts.mapValues {
-      case t: Texture.Instance => apply(t)
-      case i: Texture.Image => ToGLImage(i).free
+    ts.map {
+      case (k, t: Texture.Instance) => k -> apply(t)
+      case (k, i: Texture.Image) => k -> ToGLImage(i).free
     }.sequence
 
   private def apply(n: Draw.Drawable): DSL[GL.DrawOp] =
     for {
       f <- apply(n.instance.framebuffer)
-      tus <- apply(n.instance.uniforms)
+      tus <- apply(n.instance.textureUniforms)
     } yield
       GL.DrawOp(n.instance.model.model,
                 n.instance.constructor.program,
@@ -63,7 +63,7 @@ object ToGL {
   private def apply(c: Clear.Instance): DSL[GL.ClearOp] =
     for {
       f <- apply(c.framebuffer)
-    } yield GL.ClearOp(c.constructor.mask, f)
+    } yield GL.ClearOp(c.constructor.mask, c.constructor.colour, f)
 
   def apply(
       ns: List[Node.Drawable]): DSL[List[XorT[GL.GL.DSL, GL.GLError, Unit]]] =

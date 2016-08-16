@@ -30,6 +30,8 @@ trait X11GLDependencies extends GLDependencies with IliadApp {
 
   val EGL14 = iliad.kernel.EGL14
   val GLES30 = iliad.kernel.GLES30
+
+  val MatrixLib = X11MatrixLibrary
 }
 
 trait X11Bootstrap
@@ -37,29 +39,23 @@ trait X11Bootstrap
     with X11GLDependencies
     with LazyLogging {
 
-  implicit val SS = Strategy.fromFixedDaemonPool(1, "vsync-thread")
   implicit val S = Scheduler.fromFixedDaemonPool(4)
 
   def width: Int
   def height: Int
+
+  val pageSize: Int = 1024
 
   private val x = iliad.kernel.platform.unix.X11.INSTANCE
 
   override val lockDisplay = Some(x.XLockDisplay _)
   override val unlockDisplay = Some(x.XUnlockDisplay _)
 
-  private def vsync(s: Signal[Task, Long]): Unit = {
-    (for {
-      t <- s.get
-      _ <- s.set(t + 5L).schedule(1 second)
-    } yield vsync(s)).unsafeRunAsync(msg => logger.info(msg.toString))
+  def vsync: Stream[Task, Long] = {
+    implicit val SS: Strategy = Strategy.fromFixedDaemonPool(1, "vsync-thread")
+    val start = System.currentTimeMillis
+    time.awakeEvery[Task]((1.0 / 30.0) seconds).map(_.toMillis + start)
   }
-
-  def vsync: Stream[Task, Long] =
-    Stream.eval(async.signalOf[Task, Long](0L)).flatMap { s =>
-      vsync(s)
-      s.discrete
-    }
 
   private def initThreads(): Error Xor Unit = {
     val code = x.XInitThreads()
@@ -114,7 +110,8 @@ trait X11Bootstrap
     }
   }
 
-  private val inputMask = new NativeLong(ExposureMask | ButtonPressMask)
+  private val inputMask = new NativeLong(
+      ExposureMask | ButtonPressMask | ButtonReleaseMask | Button1MotionMask | LeaveWindowMask)
 
   private def addInputDetection(d: Display, w: Window): Unit = {
     logger.debug("Adding input detection")
@@ -144,11 +141,11 @@ trait X11Bootstrap
   }
 
   private def handleEvents(d: Display): Unit = {
-    val e = new XEvent()
-    val hasEvent = x.XCheckMaskEvent(d, inputMask, e)
-    if (hasEvent) {
-      logger.info("received event")
+    var e = new XEvent()
+    while (x.XCheckMaskEvent(d, inputMask, e)) {
+      logger.debug("received XEvent")
       handleEvent(e)
+      e = new XEvent()
     }
   }
 
@@ -166,6 +163,8 @@ trait X11Bootstrap
 
         var shouldDraw = true
         while (shouldDraw) {
+          //only handleEvents every 70ms so EGL can have display
+          Thread.sleep(70)
           x.XLockDisplay(d)
           handleEvents(d)
           shouldDraw = !shouldClose(d)

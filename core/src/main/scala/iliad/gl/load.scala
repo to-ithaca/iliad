@@ -9,7 +9,7 @@ import cats.free._
 object Load {
   type DSL[A] = Free[Load, A]
 
-  def parse[F[_]: Monad](i: OpenGL.Interpreter[F]): Load ~> F =
+  def parse[F[_]: RecursiveTailRecM : Monad](i: OpenGL.Interpreter[F]): Load ~> F =
     LoadParser.andThen(OpenGL.interpret(i))
 
   def apply(s: VertexShader.Source): DSL[VertexShader.Compiled] =
@@ -51,8 +51,7 @@ object Load {
            b: ElementBuffer.Loaded): DSL[ElementBuffer.Update] =
     LoadCopyElementBuffer(ref, data, pageSize, b).free
 
-  def apply(t: Texture.Constructor,
-            d: Option[Texture.Data]): DSL[Texture.Loaded] =
+  def apply(t: Texture.Constructor, d: Texture.Data): DSL[Texture.Loaded] =
     LoadTexture(t, d).free
 
   def apply(r: Renderbuffer.Constructor): DSL[Renderbuffer.Loaded] =
@@ -104,8 +103,7 @@ case class LoadCopyElementBuffer(ref: ElementData.Ref,
                                  b: ElementBuffer.Loaded)
     extends Load[ElementBuffer.Update]
 
-case class LoadTexture(texture: Texture.Constructor,
-                       data: Option[Texture.Data])
+case class LoadTexture(texture: Texture.Constructor, data: Texture.Data)
     extends Load[Texture.Loaded]
 
 case class LoadRenderbuffer(r: Renderbuffer.Constructor)
@@ -131,11 +129,18 @@ object LoadParser extends (Load ~> OpenGL.DSL) {
         id <- OpenGL.makeProgram(vs.id, fs.id)
         _ <- OpenGL.useProgram(id)
         as <- OpenGL.getAttributeLocations(id, vs.source.attributeNames)
+        tus <- OpenGL.getUniformLocations(
+                  id,
+                  vs.source.textureNames ++ fs.source.textureNames)
         us <- OpenGL.getUniformLocations(
                  id,
-                 vs.source.textureNames ++ fs.source.textureNames)
+                 vs.source.uniformNames ++ fs.source.uniformNames)
       } yield
-        Program.Linked(id, Program.Unlinked(vs.source, fs.source), as, us)
+        Program.Linked(id,
+                       Program.Unlinked(vs.source, fs.source),
+                       as,
+                       tus,
+                       us.toMap)
 
     case LoadCreateVertexBuffer(r, d, pageSize, b) =>
       val capacity = roundUp(d.size, pageSize)
@@ -160,12 +165,12 @@ object LoadParser extends (Load ~> OpenGL.DSL) {
         .insertElements(b.id, b.filled, d.size, d.data)
         .map(_ => ElementBuffer.insert(b, r, d.size))
     case LoadCopyVertexBuffer(r, d, pageSize, b) =>
-      val capacity = roundUp(d.size, pageSize)
+      val capacity = roundUp(d.size + b.filled, pageSize)
       OpenGL
         .copyVertices(b.id, b.filled, d.size, d.data, capacity)
         .map(VertexBuffer.copy(_, b, r, d.size, capacity))
     case LoadCopyElementBuffer(r, d, pageSize, b) =>
-      val capacity = roundUp(d.size, pageSize)
+      val capacity = roundUp(d.size + b.filled, pageSize)
       OpenGL
         .copyElements(b.id, b.filled, d.size, d.data, capacity)
         .map(

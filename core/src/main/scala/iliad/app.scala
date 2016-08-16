@@ -33,7 +33,7 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
     Construct
       .validate(graph)
       .map(Graphics.Config(pageSize, _, graphTraversal))
-      .leftMap(_.unwrap.mkString("\n"))
+      .leftMap(_.toList.mkString(System.lineSeparator))
       .bimap(s => Task.fail(new Error(s)), Task.now).merge[Task[Graphics.Config]]
 
   private val EGLP: EGLPRG[NativeDisplay,
@@ -61,6 +61,8 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
                                 EGLSurface,
                                 EGLContext],
                ?] = EGLInterpreter.logInterpreter
+
+  private lazy val GLInterpreter = GL.runner(OpenGL.run)
 
   private def EGLTask(window: NativeWindow, display: NativeDisplay)(
       cattrs: Attributes[ConfigAttrib, ConfigAttribValue],
@@ -126,47 +128,62 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
       (fa either fb)
         .mapAccumulate2(List.empty[B]) { (bs, i) =>
           i.toXor match {
-            case Xor.Left(a) => (Nil, Some((a, bs.reverse)))
+            case Xor.Left(a) =>
+              (Nil, Some((a, bs.reverse)))
             case Xor.Right(b) => (b :: bs, None)
           }
         }
         .filter(_.nonEmpty)
         .map(_.get)
 
-  private def aggregate(implicit S: Strategy)
-    : Pipe[Task, List[Graphics.Graphics], (Long, List[Graphics.Graphics])] =
-    q =>
-      (vsync through2 q)(aggregateRight).map {
-        case (at, cmds) => (at, cmds.flatten.toList)
+  private def aggregate(
+      implicit S: Strategy): Pipe[Task, List[GFX], (Long, List[GFX])] =
+    graphics =>
+      (vsync through2 graphics)(aggregateRight).map {
+        case (at, cmds) =>
+          (at, cmds.flatten.toList)
     }
 
-  private def run(cfg: Graphics.Config, gs: List[Graphics.Graphics])(
+  private def runGraphics(cfg: Graphics.Config, gs: List[GFX])(
       s: Graphics.State)
-    : Error Xor (Graphics.State, XorT[GL.DSL, GLError, Unit]) =
+    : Error Xor (Graphics.State, XorT[GL.DSL, GLError, Unit]) = {
+    logger.debug("processing graphics commands")
     Graphics(gs).run(cfg).run(s).leftMap(s => new Error(s.toString))
+  }
 
-  private def run[A](gl: GL.DSL[IliadError Xor A],
-                     s: GL.State): Xor[Error, GL.State] = {
-    val interpreter = GL.runner(iliad.gl.OpenGL.debugLog)
-    val prg = gl.interpret(interpreter)
+  //TODO: encapsulate the handling of the effect in the runner
+  /* private def runGl[A](gl: GL.DSL[IliadError Xor A],
+                       s: GL.State): Xor[Error, GL.State] = {
+    logger.debug("running gl commands")
+    val prg = gl.interpret(GL.runner(OpenGL.debugLog))
     val (log, xor) = prg.run(GLES30).run(s).value.run
     log.foreach(l => logger.debug(l))
     xor.flatMap {
       case (nextS, xxor) => xxor.map(_ => nextS)
     }.leftMap(s => new Error(s.toString))
   }
+   */
 
-  private def run(cfg: Graphics.Config,
-                  gls: GL.State,
-                  us: UniformCache.Values,
-                  gs: Graphics.State): Xor[Error, GL.State] =
-    run(Graphics.draws(gs, us).run(cfg).value, gls)
-
-  private def run(at: Long, us: UniformCache.State): UniformCache.Values = {
-    us.map(UniformCache.values(at))
+  private def runGl[A](gl: GL.DSL[IliadError Xor A],
+                       s: GL.State): Xor[Error, GL.State] = {
+    val prg = gl.interpret(GL.runner(OpenGL.effectfulLog))
+    val (nextS, xor) = prg.run(GLES30).run(s)
+    xor.leftMap(s => new Error(s.toString)).map(_ => nextS)
   }
 
-  val GLPipe: Pipe[Task, List[Graphics.Graphics], Unit] = graphics =>
+  private def runDraws(cfg: Graphics.Config,
+                       gls: GL.State,
+                       us: UniformCache.Values,
+                       gs: Graphics.State): Xor[Error, GL.State] = {
+    runGl(Graphics.draws(gs, us).run(cfg).value, gls)
+  }
+
+  private def runUniforms(
+      at: Long,
+      us: UniformCache.State): (UniformCache.State, UniformCache.Values) =
+    UniformCache.values(at).run(us).value
+
+  val GLPipe: Pipe[Task, List[GFX], Unit] = graphics =>
     for {
       (nw, nd) <- Stream.eval(session.task(EGLStrategy))
       (d, sfc, ctx) <- Stream.eval(EGL(nw, nd))
@@ -179,14 +196,19 @@ trait GLBootstrap extends kernel.GLDependencies with LazyLogging {
               val xor = for {
                 p <- prev
                 (prevGr, prevGl) = p
-                q <- run(cfg, gs)(prevGr)
+                q <- runGraphics(cfg, gs)(prevGr)
                 (nextGr, loadCmds) = q
-                midGl <- run(loadCmds.leftWiden[IliadError].value, prevGl)
-                nextGl <- run(cfg, midGl, run(at, nextGr.uniformCache), nextGr)
-              } yield (nextGr, nextGl)
+                midGl <- runGl(loadCmds.leftWiden[IliadError].value, prevGl)
+                (nextUc, us) = runUniforms(at, nextGr.uniformCache)
+                nextGl <- runDraws(cfg, midGl, us, nextGr)
+              } yield {
+                (nextGr.copy(uniformCache = nextUc), nextGl)
+              }
               (xor, xor.bimap(Task.fail, Task.now).merge[Task[(Graphics.State, GL.State)]])
             }
             .eval
-      _ <- Stream.eval(swapBuffers(nd, d, sfc))
+            .flatMap { _ =>
+              Stream.eval(swapBuffers(nd, d, sfc))
+            }
     } yield ()
 }

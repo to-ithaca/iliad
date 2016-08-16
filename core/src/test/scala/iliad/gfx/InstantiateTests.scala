@@ -20,14 +20,14 @@ class InstantiateTests extends FunSuite with Matchers {
       case Xor.Right(_) => 
     }
 
-  private val exampleVertexShader: GL.VertexShader.Source = vsh(
+  private val exampleVertexShader: GL.VertexShader.Source = vertexShader(
       "some text here",
         Attribute[Vec3f]("position"),
         Attribute[Vec3f]("normal"),
         Attribute[Int]("index")
     )
 
-  private val exampleFragmentShader: GL.FragmentShader.Source = fsh(
+  private val exampleFragmentShader: GL.FragmentShader.Source = fragmentShader(
     "some text here",
     Sampler.image("image")
   )
@@ -45,15 +45,15 @@ class InstantiateTests extends FunSuite with Matchers {
     val graph: Xor[NonEmptyList[GraphicsError], Graph.Constructed] = 
       Construct.validate(put(exampleDrawConstructor))
 
-    val animalVref = vref("animal-vdata", 
+    val animalVref = vDataRef("animal-vdata", 
             Attribute[Vec3f]("position"),
       Attribute[Vec3f]("normal"),
       Attribute[Int]("index")
     )
-    val hedgehogVData = vd(animalVref, 12 -> 36)
+    val hedgehogVData = vModelRef(animalVref, 12 -> 36)
 
-    val animalEref = eref("animal-edata", "elements")
-    val hedgehogEData = ed(animalEref, 12 -> 24)
+    val animalEref = eDataRef("animal-edata", "elements")
+    val hedgehogEData = eModelRef(animalEref, 12 -> 24)
 
     val hedgehogModel = model(
       "hedgehog-model", "basic-3D-model",
@@ -63,6 +63,7 @@ class InstantiateTests extends FunSuite with Matchers {
     val hedgehogDraw = drawInstance(
       hedgehogModel,
       exampleDrawConstructor,
+      Map.empty,
       "image" -> hedgehogImage)
 
     val result = for {

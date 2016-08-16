@@ -4,11 +4,24 @@ package gfx
 import iliad.{gl => GL}
 
 sealed trait GraphicsError extends IliadError
-case class UnsetUniformError(d: Draw.Instance) extends GraphicsError {
+case class UnsetScopeError(s: UniformScope, existing: Set[UniformScope])
+    extends GraphicsError {
   override def toString: String =
-    s"""Uniforms have not been set for draw instance:
-    $d"""
+    s"""UnsetScopeError: Scope $s has not been set:
+
+Unset scope: $s
+
+Existing:
+$existing
+"""
 }
+
+case class UnsetUniformError(name: String, s: UniformScope)
+    extends GraphicsError {
+  override def toString: String =
+    s"Uniform [$name] has not been set for scope [$s]"
+}
+
 
 sealed trait ConstructError extends GraphicsError
 case class DuplicateLinkError(duplicates: Set[Set[Link]])
@@ -67,8 +80,9 @@ Pipe: $p
 sealed trait InstantiationError extends GraphicsError
 case class NodeInstantiationError(d: Draw.Instance, e: InstantiationError)
     extends InstantiationError {
+
   override def toString: String =
-    s"""The following draw has an error: 
+    s"""The following draw has an error:
 Error: $e
 
 Draw: $d"""

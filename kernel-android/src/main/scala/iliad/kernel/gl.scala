@@ -36,4 +36,11 @@ object GLES30 extends Lib with GLES20Binding with GLES30Binding {
 
   def glClearBufferuiv(buffer: Int, drawbuffer: Int, value: Array[Int]): Unit =
     glClearBufferuiv(buffer, drawbuffer, value, 0)
+
+  def glUniformMatrix2fv(location: Int, count: Int, transpose: Boolean, arg0: Array[Float]): Unit = 
+    glUniformMatrix2fv(location, count, transpose, arg0, 0)
+  def glUniformMatrix3fv(location: Int, count: Int, transpose: Boolean, arg0: Array[Float]): Unit = 
+    glUniformMatrix3fv(location, count, transpose, arg0, 0)
+  def glUniformMatrix4fv(location: Int, count: Int, transpose: Boolean, arg0: Array[Float]): Unit = 
+    glUniformMatrix4fv(location, count, transpose, arg0, 0)
 }
