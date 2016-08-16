@@ -1,7 +1,6 @@
 package iliad
 package syntax
 
-import iliad.kernel.InputEvent
 import iliad.syntax.vectord._
 
 trait TapInstances {

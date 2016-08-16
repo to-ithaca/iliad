@@ -1,7 +1,6 @@
 package iliad
 
 import iliad.implicits._
-import iliad.kernel._
 
 import fs2._
 import fs2.util._
@@ -25,4 +24,25 @@ trait EventStream extends EventHandler {
   }
 
   def eventStream: Stream[Task, InputEvent] = baseStream(onTap)
+}
+
+
+//Moved from kernel
+//TODO: Parameterize on at
+sealed trait InputEvent
+
+object InputEvent {
+  case class Tap(at: Long, x: Float, y: Float) extends InputEvent
+}
+
+object EventHandler {
+  type Callback[A] = A => Unit
+  def zero[A](a: A): Unit = {}
+}
+
+import InputEvent._
+import EventHandler._
+
+trait EventHandler {
+  def onTap(cb: Callback[Tap]): Unit
 }

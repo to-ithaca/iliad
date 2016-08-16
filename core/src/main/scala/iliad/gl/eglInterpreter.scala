@@ -3,8 +3,6 @@ package gl
 
 import scala.reflect.ClassTag
 
-import iliad.kernel.platform.EGL14Library
-
 import cats._
 import cats.data._
 import cats.implicits._

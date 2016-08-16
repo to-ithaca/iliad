@@ -141,7 +141,7 @@ lazy val core = (project in file("core")).settings(
   paradiseSettings,
   coverageSettings,	
   testSettings
-).dependsOn(kernel)
+).dependsOn(macros)
 
 lazy val androidKernel = (project in file("kernel-android")).settings(
   buildSettings,

@@ -1,11 +1,11 @@
 package iliad
-package kernel
-/*
+
+//Moved from kernel
 import fs2._
 import fs2.util._
 
 /** promise that blocks on the thread until the value is set*/
-private[kernel] final class BlockingPromise[A] {
+final class BlockingPromise[A] {
 
   private var _value: Option[Either[Throwable, A]] = None
 
@@ -32,4 +32,3 @@ private[kernel] final class BlockingPromise[A] {
       case Right(a) => Task.now(a)
     }
 }
- */

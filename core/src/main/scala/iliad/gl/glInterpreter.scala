@@ -1,8 +1,6 @@
 package iliad
 package gl
 
-import iliad.kernel.platform.GLES30Library
-
 import cats._
 import cats.data._
 import cats.implicits._

@@ -1,6 +1,6 @@
 package iliad
 package kernel
-
+/*
 import scala.reflect._
 
 import fs2.util._
@@ -47,3 +47,4 @@ trait GLDependencies extends ScreenDependencies {
 }
 
 //Ideally our only implementation inside here would be the EGL14Library
+ */

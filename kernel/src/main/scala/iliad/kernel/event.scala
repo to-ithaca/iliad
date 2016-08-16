@@ -1,6 +1,6 @@
 package iliad
 package kernel
-
+/*
 //TODO: Parameterize on at
 sealed trait InputEvent
 
@@ -19,3 +19,4 @@ import EventHandler._
 trait EventHandler {
   def onTap(cb: Callback[Tap]): Unit
 }
+ */

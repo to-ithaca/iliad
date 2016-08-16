@@ -1,8 +1,6 @@
 package iliad
 package gl
 
-import iliad.kernel.platform.GLES30Library
-
 import cats._
 import cats.data.{State => CatsState, ReaderT, StateT, Xor, XorT}
 import cats.free._

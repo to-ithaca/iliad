@@ -1,7 +1,6 @@
 package iliad
-package kernel
-package platform
-/*
+package gl
+
 import java.nio._
 
 trait GLES30Library {
@@ -363,4 +362,3 @@ trait GLES30Library {
   // def glVertexAttribIPointer(index: Int, size: Int, `type`: Int, stride: Int, pointer: Buffer): Unit
   // def glWaitSync(sync: Long, flags: Int, timeout: Long): Unit
 }
- */

@@ -1,8 +1,6 @@
 package iliad
 package gl
 
-import iliad.kernel.platform.GLES30Library
-
 import iliad.std.int._
 import iliad.std.list._
 import iliad.syntax.vectord._

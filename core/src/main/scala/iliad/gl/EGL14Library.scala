@@ -1,7 +1,6 @@
 package iliad
-package kernel
-package platform
-/*
+package gl
+
 import java.nio.IntBuffer
 
 object EGL14Library {
@@ -114,4 +113,3 @@ trait EGL14Library {
   def eglWaitClient(): Boolean
   def eglGetCurrentContext(): EGLContext
 }
- */
