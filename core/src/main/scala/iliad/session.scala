@@ -35,18 +35,11 @@ object Session extends LazyLogging {
   def lockDisplay(d: Display) = x.XLockDisplay(d)
   def unlockDisplay(d: Display) = x.XUnlockDisplay(d)
 
-  private def vsync(s: Signal[Task, Long]): Unit = {
-    (for {
-      t <- s.get
-      _ <- s.set(t + 5L).schedule(1 second)
-    } yield vsync(s)).unsafeRunAsync(msg => logger.info(msg.toString))
+ def vsync: Stream[Task, Long] = {
+    implicit val SS: Strategy = Strategy.fromFixedDaemonPool(1, "vsync-thread")
+    val start = System.currentTimeMillis
+    time.awakeEvery[Task]((1.0 / 30.0) seconds).map(_.toMillis + start)
   }
-
-  def vsync: Stream[Task, Long] =
-    Stream.eval(async.signalOf[Task, Long](0L)).flatMap { s =>
-      vsync(s)
-      s.discrete
-    }
 
   private def initThreads(): Error Xor Unit = {
     val code = x.XInitThreads()
@@ -101,7 +94,8 @@ object Session extends LazyLogging {
     }
   }
 
-  private val inputMask = new NativeLong(ExposureMask | ButtonPressMask)
+  private val inputMask = new NativeLong(
+      ExposureMask | ButtonPressMask | ButtonReleaseMask | Button1MotionMask | LeaveWindowMask)
 
   private def addInputDetection(d: Display, w: Window): Unit = {
     logger.debug("Adding input detection")
@@ -131,18 +125,18 @@ object Session extends LazyLogging {
   }
 
   private def handleEvents(d: Display, width: Int, height: Int): Unit = {
-    val e = new XEvent()
-    val hasEvent = x.XCheckMaskEvent(d, inputMask, e)
-    if (hasEvent) {
-      logger.info("received event")
+    var e = new XEvent()
+    while (x.XCheckMaskEvent(d, inputMask, e)) {
+      logger.debug("received XEvent")
       EventHandler.handleEvent(e, width, height)
+      e = new XEvent()
     }
   }
 
   private def shouldClose(d: Display): Boolean = {
     x.XCheckTypedEvent(d, ClientMessage, new XEvent())
   }
-    
+
   def start(width: Int, height: Int) = createWindow(width, height) match {
       case Xor.Right((d, w)) =>
         logger.info("Created window")
@@ -150,6 +144,8 @@ object Session extends LazyLogging {
 
         var shouldDraw = true
         while (shouldDraw) {
+          //only handleEvents every 70ms so EGL can have display
+          Thread.sleep(70)
           x.XLockDisplay(d)
           handleEvents(d, width, height)
           shouldDraw = !shouldClose(d)
@@ -158,6 +154,6 @@ object Session extends LazyLogging {
         destroyWindow(d, w)
       case Xor.Left(err) =>
         session.set(err)
-  }
+    }
 }
 #-x11

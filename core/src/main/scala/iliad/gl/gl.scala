@@ -1,6 +1,8 @@
 package iliad
 package gl
 
+import iliad.syntax.vectord._
+
 import cats._
 import cats.data.{State => CatsState, ReaderT, StateT, Xor, XorT}
 import cats.free._
@@ -202,6 +204,28 @@ object GL {
     ensure(Current.contains(f))(Draw.bind(f).expand[GL] >>
           Current.set(f).expand[GL])
 
+  private def setCapability(c: Capability, value: Boolean): DSL[Unit] =
+    if (value)
+      OpenGL.enable(c).expand[GL] >> Current.enable(c).expand[GL]
+    else
+      OpenGL.disable(c).expand[GL] >> Current.disable(c).expand[GL]
+
+  private def set(c: Capability, value: Boolean): DSL[Unit] =
+    ensure(Current.get(c).map(_.contains(value)))(setCapability(c, value))
+
+  private def set(cs: Map[Capability, Boolean]): DSL[Unit] =
+    cs.toList.traverseUnit {
+      case (c, value) => set(c, value)
+    }
+
+  private def set(m: ColorMask): DSL[Unit] =
+    ensure(Current.contains(m))(Draw.bind(m).expand[GL] >>
+          Current.set(m).expand[GL])
+
+  private def setClearColour(c: Vec4f): DSL[Unit] =
+    ensure(Current.containsClearColour(c))(Draw.bindClearColour(c).expand[GL] >>
+         Current.setClearColour(c).expand[GL])
+
   private def flip(
       t: Texture.Constructor): DSL[TextureNotLoadedError Xor Unit] =
     (for {
@@ -249,8 +273,15 @@ object GL {
       ts: Map[String, Texture.Constructor]): DSL[GLError Xor Unit] = {
     p.textureUniforms(ts)
       .traverse(_.traverse(set).map(_.sequenceUnit))
-      .map(_.leftWiden[GLError].flatMap(identity))
+      .map(_.flatMap(identity))
   }
+
+  private def set(u: Program.UniformValue): DSL[Unit] =
+    Draw.bind(u.uniform, u.value).expand[GL]
+
+  private def set(p: Program.Linked,
+                  us: List[Uniform.Value]): DSL[UnsetUniformError Xor Unit] =
+    p.uniforms(us).traverse(_.traverseUnit(set))
 
   private def set(vb: VertexBuffer.Loaded): DSL[Unit] =
     ensure(Current.contains(vb))(
@@ -273,10 +304,13 @@ object GL {
                Cache.get(draw.framebuffer),
                FramebufferNotLoadedError(draw.framebuffer)).leftWiden[GLError]
       _ <- xort(set(fl))
+      _ <- xort(set(draw.capabilities))
+      _ <- xort(set(draw.colorMask))
       p <- ensure(Cache.get(draw.program), ProgramNotLoadedError(draw.program))
             .leftWiden[GLError]
       _ <- xort(set(p))
-      _ <- XorT(set(p, draw.textureUniforms)).leftWiden[GLError]
+      _ <- XorT(set(p, draw.textureUniforms))
+      _ <- XorT(set(p, draw.uniforms)).leftWiden[GLError]
       vb <- ensure(Cache.get(draw.vertexBuffer),
                    VertexBufferNotLoadedError(draw.vertexBuffer))
              .leftWiden[GLError]
@@ -302,6 +336,7 @@ object GL {
       fl <- ensure(Cache.get(c.framebuffer),
                    FramebufferNotLoadedError(c.framebuffer)).leftWiden[GLError]
       _ <- xort[Unit, GLError](set(fl))
+      _ <- xort(setClearColour(c.colour))
       _ <- xort[Unit, GLError](Draw.clear(c.bitMask).expand[GL])
-    } yield ()).value
+} yield ()).value
 }

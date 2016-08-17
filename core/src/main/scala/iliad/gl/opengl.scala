@@ -326,7 +326,20 @@ object OpenGL {
 
   def bindFramebuffer(framebuffer: Int): DSL[Unit] =
     GLBindFramebuffer(GL_FRAMEBUFFER, framebuffer).free
+
+  def enable(c: Capability): DSL[Unit] =
+    GLEnable(c).free
+  def disable(c: Capability): DSL[Unit] =
+    GLDisable(c).free
+  def colorMask(red: Boolean,
+                green: Boolean,
+                blue: Boolean,
+                alpha: Boolean): DSL[Unit] =
+    GLColorMask(red, green, blue, alpha).free
   def clear(mask: ChannelBitMask): DSL[Unit] = GLClear(mask).free
+  def clearColor(red: Float, green: Float, blue: Float, alpha: Float): DSL[Unit] =
+GLClearColor(red, green, blue, alpha).free
+
   def useProgram(program: Int): DSL[Unit] = GLUseProgram(program).free
   def bindVertexBuffer(buffer: Int): DSL[Unit] =
     GLBindBuffer(GL_ARRAY_BUFFER, buffer).free
@@ -346,6 +359,20 @@ object OpenGL {
                                  false,
                                  stride,
                                  offset).free
+    } yield ()
+
+  def enableAttributeI(location: Int,
+                       numElements: Int,
+                       `type`: VertexAttribIType,
+                       stride: Int,
+                       offset: Int): DSL[Unit] =
+    for {
+      _ <- GLEnableVertexAttribArray(location).free
+      _ <- GLVertexAttribIPointer(location,
+                                  numElements,
+                                  `type`,
+                                  stride,
+                                  offset).free
     } yield ()
 
   def bindUniform1i(location: Int, value: Int): DSL[Unit] =
@@ -498,7 +525,12 @@ case class GLVertexAttribPointer(location: Int,
                                  stride: Int,
                                  offset: Int)
     extends OpenGL[Unit]
-
+case class GLVertexAttribIPointer(location: Int,
+                                  size: Int,
+                                  `type`: VertexAttribIType,
+                                  stride: Int,
+                                  offset: Int)
+extends OpenGL[Unit]
 case class GLActiveTexture(unit: TextureUnit) extends OpenGL[Unit]
 case class GLBindSampler(unit: TextureUnit, sampler: Int) extends OpenGL[Unit]
 case class GLUniform1i(location: Int, value: Int) extends OpenGL[Unit]
@@ -520,3 +552,4 @@ case class GLDrawElements(mode: PrimitiveType,
                           offset: Int)
     extends OpenGL[Unit]
 case class GLClear(bitmask: ChannelBitMask) extends OpenGL[Unit]
+case class GLClearColor(r: Float, g: Float, b: Float, a: Float) extends OpenGL[Unit]
