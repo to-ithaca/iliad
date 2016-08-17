@@ -13,6 +13,8 @@ import spire.implicits._
 
 import com.typesafe.scalalogging._
 
+import scala.concurrent.duration._
+
 trait EventStream extends LazyLogging {
 
   private implicit val S: Strategy = Strategy.fromFixedDaemonPool(1, "worker")
@@ -32,8 +34,6 @@ trait EventStream extends LazyLogging {
   def eventStream: Stream[Task, InputEvent] = baseStream(EventHandler.onEvent)
 }
 
-//Moved from kernel
-//TODO: Parameterize on at
 sealed trait InputEvent
 
 object InputEvent {
@@ -116,6 +116,8 @@ sealed trait EventRecogniser {
 }
 
 object EventRecogniser {
+
+  val minDt = ((1 / 30) seconds).toMillis
 
   private def buttonEvent(e: XEvent,
                           width: Int,
@@ -230,7 +232,9 @@ object EventRecogniser {
         case MotionNotify =>
           logger.debug("DragContinuing: detected drag")
           val end = motionEvent(e, width, height)
-          DragContinuing(end :: points) -> Some(InputEvent.DragContinued(end :: points))
+          if((end.at - points.head.at) > minDt) 
+            DragContinuing(end :: points) -> Some(InputEvent.DragContinued(end :: points))
+          else this -> Option.empty
         case LeaveNotify =>
           logger.warn("DragContinuing: detected leaveNotify")
           Blank -> Option.empty

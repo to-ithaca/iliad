@@ -107,6 +107,7 @@ object Draw {
       primitive: GL.PrimitiveType,
       capabilities: Map[GL.Capability, Boolean],
       colorMask: GL.ColorMask,
+      blend: Option[GL.Blend],
       isInstanced: Boolean,
       model: Model.Constructor,
       framebuffer: Framebuffer.Constructor

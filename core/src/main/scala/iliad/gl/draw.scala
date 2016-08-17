@@ -18,6 +18,10 @@ object Draw {
     BindFramebuffer(f).free
   def bind(m: ColorMask): DSL[Unit] =
     BindColorMask(m).free
+  def bind(m: BlendMode): DSL[Unit] = 
+    BindBlendEquation(m).free
+  def bind(f: BlendFunction): DSL[Unit] =
+    BindBlendFunction(f).free
   def bindClearColour(c: Vec4f): DSL[Unit] =
     BindClearColour(c).free
   def clear(m: ChannelBitMask): DSL[Unit] = ClearFrame(m).free
@@ -43,6 +47,8 @@ case class BindColorMask(c: ColorMask) extends Draw[Unit]
 case class BindClearColour(c: Vec4f) extends Draw[Unit] 
 case class Enable(c: Capability) extends Draw[Unit]
 case class Disable(c: Capability) extends Draw[Unit]
+case class BindBlendEquation(mode: BlendMode) extends Draw[Unit]
+case class BindBlendFunction(f: BlendFunction) extends Draw[Unit]
 case class ClearFrame(bitMask: ChannelBitMask) extends Draw[Unit]
 case class UseProgram(p: Program.Linked) extends Draw[Unit]
 case class BindTextureUniform(unit: TextureUnit,
@@ -88,6 +94,10 @@ object DrawParser extends (Draw ~> OpenGL.DSL) {
       OpenGL.enable(c)
     case Disable(c) =>
       OpenGL.disable(c)
+    case BindBlendEquation(mode) =>
+      OpenGL.blendEquation(mode)
+    case BindBlendFunction(f) =>
+      OpenGL.blendFunc(f.src, f.dest)
     case ClearFrame(bitMask) => OpenGL.clear(bitMask)
     case UseProgram(p) => OpenGL.useProgram(p.id)
     case BindTextureUniform(unit, location, t, s) =>

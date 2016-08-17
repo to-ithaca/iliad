@@ -58,6 +58,7 @@ object ToGL {
                 n.instance.constructor.colorMask,
                 n.instance.constructor.primitive,
                 n.instance.constructor.capabilities,
+                n.instance.constructor.blend,
                 n.instance.numInstances)
 
  private def apply(c: Clear.Instance): DSL[GL.ClearOp] =

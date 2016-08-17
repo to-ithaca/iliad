@@ -33,6 +33,10 @@ object Current {
     getContains(m)(CurrentColorMaskGet)
   def containsClearColour(c: Vec4f): DSL[Boolean] =
     getContains(c)(CurrentClearColourGet)
+  def contains(m: BlendMode): DSL[Boolean] =
+    getContains(m)(CurrentBlendModeGet)
+  def contains(f: BlendFunction): DSL[Boolean] =
+    getContains(f)(CurrentBlendFunctionGet)
 
   def get(c: Capability): DSL[Option[Boolean]] =
     CurrentCapabilityGet(c).free
@@ -44,6 +48,8 @@ object Current {
   def set(e: ElementBuffer.Loaded): DSL[Unit] = CurrentElementBufferSet(e).free
   def set(m: ColorMask): DSL[Unit] = CurrentColorMaskSet(m).free
   def setClearColour(c: Vec4f): DSL[Unit] = CurrentClearColourSet(c).free
+  def set(m: BlendMode): DSL[Unit] = CurrentBlendModeSet(m).free
+  def set(f: BlendFunction): DSL[Unit] = CurrentBlendFunctionSet(f).free
   def enable(c: Capability): DSL[Unit] = CurrentCapabilitySet(c, true).free
   def disable(c: Capability): DSL[Unit] = CurrentCapabilitySet(c, false).free
 
@@ -53,11 +59,13 @@ object Current {
                    elementBuffer: Option[ElementBuffer.Loaded],
                    colorMask: Option[ColorMask],
                    clearColour: Option[Vec4f],
+                   blendMode: Option[BlendMode],
+                   blendFunction: Option[BlendFunction],
                    capabilities: Map[Capability, Boolean]
   )
 
   object State {
-    val empty: State = State(None, None, None, None, None, None, Map.empty)
+    val empty: State = State(None, None, None, None, None, None, None, None, Map.empty)
   }
 }
 
@@ -71,6 +79,9 @@ case object CurrentElementBufferGet
 case object CurrentColorMaskGet extends Current[Option[ColorMask]]
 case class CurrentCapabilityGet(c: Capability) extends Current[Option[Boolean]]
 case object CurrentClearColourGet extends Current[Option[Vec4f]]
+case object CurrentBlendModeGet extends Current[Option[BlendMode]]
+case object CurrentBlendFunctionGet extends Current[Option[BlendFunction]]
+
 
 case class CurrentProgramSet(p: Program.Linked) extends Current[Unit]
 case class CurrentFramebufferSet(f: Framebuffer.Loaded) extends Current[Unit]
@@ -81,6 +92,9 @@ case class CurrentColorMaskSet(m: ColorMask) extends Current[Unit]
 case class CurrentCapabilitySet(c: Capability, value: Boolean)
     extends Current[Unit]
 case class CurrentClearColourSet(c: Vec4f) extends Current[Unit]
+case class CurrentBlendModeSet(m: BlendMode) extends Current[Unit]
+case class CurrentBlendFunctionSet(f: BlendFunction) extends Current[Unit]
+
 
 object CurrentParser extends (Current ~> Current.Effect) {
 
@@ -105,6 +119,12 @@ object CurrentParser extends (Current ~> Current.Effect) {
   private val _clearColour: Lens[Current.State, Option[Vec4f]] =
     GenLens[Current.State](_.clearColour)
 
+  private val _blendMode: Lens[Current.State, Option[BlendMode]] =
+    GenLens[Current.State](_.blendMode)
+
+  private val _blendFunction: Lens[Current.State, Option[BlendFunction]] =
+    GenLens[Current.State](_.blendFunction)
+
   def apply[A](current: Current[A]): Current.Effect[A] = current match {
     case CurrentProgramGet => CatsState.inspect(_ &|-> _program get)
     case CurrentProgramSet(p) => CatsState.modify(_ &|-> _program set Some(p))
@@ -128,5 +148,11 @@ object CurrentParser extends (Current ~> Current.Effect) {
     case CurrentClearColourGet => CatsState.inspect(_ &|-> _clearColour get)
     case CurrentClearColourSet(c) =>
       CatsState.modify(_ &|-> _clearColour set Some(c))
+    case CurrentBlendModeGet => CatsState.inspect(_ &|-> _blendMode get)
+    case CurrentBlendModeSet(m) =>
+      CatsState.modify(_ &|-> _blendMode set Some(m))
+    case CurrentBlendFunctionGet => CatsState.inspect(_ &|-> _blendFunction get)
+    case CurrentBlendFunctionSet(f) =>
+      CatsState.modify(_ &|-> _blendFunction set Some(f))
   }
 }

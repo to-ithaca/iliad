@@ -59,6 +59,7 @@ trait ConstructFunctions {
         drawType.primitive,
         dimension.capabilities,
         GL.ColorMask.none,
+        None,
         false,
         Model.Constructor(model),
         Framebuffer.OnScreen
@@ -84,10 +85,33 @@ trait ConstructFunctions {
         drawType.primitive,
         dimension.capabilities,
         GL.ColorMask.none,
+        None,
         false,
         Model.Constructor(model),
         Framebuffer.OffScreenConstructor(outputs.toList)
     )
+
+  def offScreenAlphaDraw(
+      name: String,
+      v: GL.VertexShader.Source,
+      f: GL.FragmentShader.Source,
+      model: String,
+      drawType: DrawType,
+      dimension: Dimension,
+      outputs: (GL.FramebufferAttachment, Framebuffer.OutputConstructor)*)
+    : Draw.Constructor =
+    Draw.Constructor(
+        name,
+        GL.Program.Unlinked(v, f),
+        drawType.primitive,
+        dimension.capabilities,
+        GL.ColorMask.none,
+        Some(GL.Blend.alpha),
+        false,
+        Model.Constructor(model),
+        Framebuffer.OffScreenConstructor(outputs.toList)
+    )
+
 
   def clear(name: String, colour: Vec4f): Clear.Constructor =
     Clear.Constructor(

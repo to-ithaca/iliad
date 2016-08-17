@@ -226,6 +226,14 @@ object GL {
     ensure(Current.containsClearColour(c))(Draw.bindClearColour(c).expand[GL] >>
          Current.setClearColour(c).expand[GL])
 
+  private def set(blend: Option[Blend]): DSL[Unit] = blend match {
+    case Some(Blend(m, f)) => for {
+      _ <- ensure(Current.contains(m))(Draw.bind(m).expand[GL] >> Current.set(m).expand[GL])
+      _ <- ensure(Current.contains(f))(Draw.bind(f).expand[GL] >> Current.set(f).expand[GL])
+    } yield ()
+    case None => Free.pure(())
+  }
+
   private def flip(
       t: Texture.Constructor): DSL[TextureNotLoadedError Xor Unit] =
     (for {
@@ -306,6 +314,7 @@ object GL {
       _ <- xort(set(fl))
       _ <- xort(set(draw.capabilities))
       _ <- xort(set(draw.colorMask))
+      _ <- xort(set(draw.blend))
       p <- ensure(Cache.get(draw.program), ProgramNotLoadedError(draw.program))
             .leftWiden[GLError]
       _ <- xort(set(p))

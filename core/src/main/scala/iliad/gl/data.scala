@@ -341,6 +341,13 @@ object Capabilities {
   val depth: List[Capability] = List(GL_DEPTH_TEST)
 }
 
+case class BlendFunction(src: BlendFactor, dest: BlendFactor)
+case class Blend(mode: BlendMode, func: BlendFunction)
+
+object Blend {
+  val alpha: Blend = Blend(GL_FUNC_ADD, BlendFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA))
+}
+
 case class DrawOp(model: Model,
                   program: Program.Unlinked,
                   textureUniforms: Map[String, Texture.Constructor],
@@ -349,6 +356,7 @@ case class DrawOp(model: Model,
                   colorMask: ColorMask,
                   primitive: PrimitiveType,
                   capabilities: Map[Capability, Boolean],
+                  blend: Option[Blend],
                   numInstances: Int) {
   val vertexModel: Model.VertexRef = model.vertex
   val vertexData: VertexData.Ref = vertexModel.ref

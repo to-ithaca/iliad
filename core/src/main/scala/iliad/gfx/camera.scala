@@ -170,4 +170,21 @@ object Camera extends LazyLogging {
           (_far[A] set far) compose
           (_fov[A] set fov))(c)
       })
+
+  def ortho[A: Trig : Fractional](position: Vec3[A],
+                                         pointAt: Vec3[A],
+                                         up: Vec3[A],
+                                         near: A,
+                                         far: A,
+                                         aspect: A,
+                                         width: A, yFar: A): Camera[A] =
+    Camera(
+      position = position + ((pointAt - position) :* (-yFar)),
+      pointAt, 
+      up, 
+      near + yFar, 
+      far + yFar, 
+      aspect, 
+      Trig[A].atan(width / yFar)
+    )
 }
