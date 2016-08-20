@@ -3,29 +3,11 @@ package gl
 
 import scala.reflect.ClassTag
 
-import iliad.kernel.platform.EGL14Library
-
 import cats._
 import cats.data._
 import cats.implicits._
 
 import com.typesafe.scalalogging._
-
-object EGLInterpreter {
-
-  def logInterpreter[NDisp, NWin, Disp, Cfg, Sfc, Ctx](
-      implicit ct: ClassTag[Cfg])
-    : EGL[NDisp, NWin, Disp, Cfg, Sfc, Ctx, ?] ~> ReaderT[
-        Xor[EGLError, ?],
-        EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
-        ?] =
-    new EGLDebugInterpreter(
-        new EGLInterpreter[NDisp, NWin, Disp, Cfg, Sfc, Ctx]
-          .compose(
-              new EffectfulLogBefore[EGL[NDisp, NWin, Disp, Cfg, Sfc, Ctx, ?]](
-                  _.toString))
-          .andThen(new EffectfulLogAfter))
-}
 
 final class EffectfulLogBefore[F[_]](showK: F[_] => String)
     extends LazyLogging
@@ -45,13 +27,10 @@ final class EffectfulLogAfter[F[_]: Functor]
   }
 }
 
-final class EGLDebugInterpreter[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](
-    interpret: EGL[NDisp, NWin, Disp, Cfg, Sfc, Ctx, ?] ~> Reader[
-        EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
-        ?])
-    extends (EGL[NDisp, NWin, Disp, Cfg, Sfc, Ctx, ?] ~> ReaderT[
+final class EGLDebugInterpreter(interpret: EGL ~> Reader[EGL14.type,?])
+    extends (EGL ~> ReaderT[
         Xor[EGLError, ?],
-        EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
+        EGL14.type,
         ?]) {
 
   private val lift: Id ~> Xor[EGLError, ?] = new (Id ~> Xor[EGLError, ?]) {
@@ -70,13 +49,13 @@ final class EGLDebugInterpreter[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](
 
   private def debug(method: String)
     : ReaderT[Xor[EGLError, ?],
-              EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
+              EGL14.type,
               Unit] =
     interpret(EGLGetError).transform(lift).mapF(_.flatMap(onError(method)))
 
-  def apply[A](fa: EGL[NDisp, NWin, Disp, Cfg, Sfc, Ctx, A])
+  def apply[A](fa: EGL[A])
     : ReaderT[Xor[EGLError, ?],
-              EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
+              EGL14.type,
               A] =
     for {
       a <- interpret(fa).transform(lift)
@@ -84,80 +63,47 @@ final class EGLDebugInterpreter[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx](
     } yield a
 }
 
-final class EGLInterpreter[NDisp, NWin, Disp, Cfg: ClassTag, Sfc, Ctx]
-    extends (EGL[NDisp, NWin, Disp, Cfg, Sfc, Ctx, ?] ~> Reader[
-        EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
+object EGLInterpreter
+    extends (EGL ~> Reader[
+        EGL14.type,
         ?]) {
 
-  private def reader[A](
-      f: EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx] => A)
-    : Reader[EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx], A] = Reader(f)
-
-  def apply[A](egl: EGL[NDisp, NWin, Disp, Cfg, Sfc, Ctx, A])
-    : Reader[EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx], A] =
+  def apply[A](egl: EGL[A]): Reader[EGL14.type, A] =
     egl match {
-      case EGLGetError => reader(_.eglGetError)
+      case EGLGetError => Reader(_.eglGetError)
       case EGLChooseConfig(dpy, attrs, count) =>
-        reader { lib =>
+        Reader { lib =>
           val s = Buffer.capacity[Int](1)
-          val cfgs = new Array[Cfg](count)
+          val cfgs = new Array[EGL14.EGLConfig](count)
           lib.eglChooseConfig(dpy, attrs.toArray, cfgs, count, s)
           val size = s.get()
           cfgs.take(size).toList
         }
-      case EGLQueryString(disp, p) => reader(_.eglQueryString(disp, p.value))
+      case EGLQueryString(disp, p) => Reader(_.eglQueryString(disp, p.value))
       case EGLCreateContext(disp, cfg, sc, attribs) =>
-        //explicit cast because type isn't inferred
-        reader(_.eglCreateContext(disp, cfg, sc, attribs.toArray))
-          .asInstanceOf[Reader[
-                  EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
-                  A]]
-      case EGLBindAPI(api) => reader(_.eglBindAPI(api.value))
+        Reader(_.eglCreateContext(disp, cfg, sc, attribs.toArray))
+      case EGLBindAPI(api) => Reader(_.eglBindAPI(api.value))
       case EGLCreateWindowSurface(disp, cfg, nw, attribs) =>
-        //explicit cast because type isn't inferred
-        reader(_.eglCreateWindowSurface(disp, cfg, nw, attribs.toArray))
-          .asInstanceOf[Reader[
-                  EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
-                  A]]
+        Reader(_.eglCreateWindowSurface(disp, cfg, nw, attribs.toArray))
       case EGLGetDisplay(nDisp) =>
-        //explicit cast because type isn't inferred
-        reader(_.eglGetDisplay(nDisp)).asInstanceOf[Reader[
-                EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
-                A]]
-      case EGLSwapBuffers(disp, sfc) => reader(_.eglSwapBuffers(disp, sfc))
+        Reader(_.eglGetDisplay(nDisp))
+      case EGLSwapBuffers(disp, sfc) => Reader(_.eglSwapBuffers(disp, sfc))
       case EGLMakeCurrent(disp, draw, read, ctx) =>
-        reader(_.eglMakeCurrent(disp, draw, read, ctx))
+        Reader(_.eglMakeCurrent(disp, draw, read, ctx))
       case EGLInitialize(disp) =>
-        reader { lib =>
+        Reader { lib =>
           val mj = Buffer.capacity[Int](1)
           val mn = Buffer.capacity[Int](1)
           lib.eglInitialize(disp, mj, mn)
           (mj.get(), mn.get())
         }
       case EGLGetConfigAttrib(dpy, cfg, attr) =>
-        reader { lib =>
+        Reader { lib =>
           val value = Buffer.capacity[Int](1)
           lib.eglGetConfigAttrib(dpy, cfg, attr.value, value)
           value.get()
         }
       case EGLSwapInterval(dpy, interval) =>
-        reader(_.eglSwapInterval(dpy, interval))
-      //explit cast because type isn't inferred
-      case EGL_DEFAULT_DISPLAY() =>
-        reader(_.EGL_DEFAULT_DISPLAY).asInstanceOf[Reader[
-                EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
-                A]]
-      case EGL_NO_DISPLAY() =>
-        reader(_.EGL_NO_DISPLAY).asInstanceOf[Reader[
-                EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
-                A]]
-      case EGL_NO_CONTEXT() =>
-        reader(_.EGL_NO_CONTEXT).asInstanceOf[Reader[
-                EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
-                A]]
-      case EGL_NO_SURFACE() =>
-        reader(_.EGL_NO_SURFACE).asInstanceOf[Reader[
-                EGL14Library.Aux[NDisp, NWin, Disp, Cfg, Sfc, Ctx],
-                A]]
+        Reader(_.eglSwapInterval(dpy, interval))
     }
 }

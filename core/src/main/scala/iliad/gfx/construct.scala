@@ -30,17 +30,21 @@ trait ConstructFunctions {
     State.modify(_.addEdge(p.lEdge))
   }
 
-  def vsh(source: String, params: VshParameter*): GL.VertexShader.Source = {
+  def vertexShader(source: String,
+                   params: VshParameter*): GL.VertexShader.Source = {
     val ps = params.toList
     val as = ps.filterClass[Attribute].map(_.attribute)
     val ts = ps.filterClass[Sampler].map(s => (s.name, s.constructor))
-    GL.VertexShader.Source(source, as, ts)
+    val us = ps.filterClass[Uniform].map(_.uniform)
+    GL.VertexShader.Source(source, as, ts, us)
   }
 
-  def fsh(source: String, params: FshParameter*): GL.FragmentShader.Source = {
-    val ts =
-      params.toList.filterClass[Sampler].map(s => (s.name, s.constructor))
-    GL.FragmentShader.Source(source, ts)
+  def fragmentShader(source: String,
+                     params: FshParameter*): GL.FragmentShader.Source = {
+    val ps = params.toList
+    val ts = ps.filterClass[Sampler].map(s => (s.name, s.constructor))
+    val us = ps.filterClass[Uniform].map(_.uniform)
+    GL.FragmentShader.Source(source, ts, us)
   }
 
   def draw(name: String,
@@ -55,6 +59,7 @@ trait ConstructFunctions {
         drawType.primitive,
         dimension.capabilities,
         GL.ColorMask.none,
+        None,
         false,
         Model.Constructor(model),
         Framebuffer.OnScreen
@@ -80,26 +85,52 @@ trait ConstructFunctions {
         drawType.primitive,
         dimension.capabilities,
         GL.ColorMask.none,
+        None,
         false,
         Model.Constructor(model),
         Framebuffer.OffScreenConstructor(outputs.toList)
     )
 
-  def clear(name: String): Clear.Constructor =
+  def offScreenAlphaDraw(
+      name: String,
+      v: GL.VertexShader.Source,
+      f: GL.FragmentShader.Source,
+      model: String,
+      drawType: DrawType,
+      dimension: Dimension,
+      outputs: (GL.FramebufferAttachment, Framebuffer.OutputConstructor)*)
+    : Draw.Constructor =
+    Draw.Constructor(
+        name,
+        GL.Program.Unlinked(v, f),
+        drawType.primitive,
+        dimension.capabilities,
+        GL.ColorMask.none,
+        Some(GL.Blend.alpha),
+        false,
+        Model.Constructor(model),
+        Framebuffer.OffScreenConstructor(outputs.toList)
+    )
+
+
+  def clear(name: String, colour: Vec4f): Clear.Constructor =
     Clear.Constructor(
         name,
         GL.ChannelBitMask.BitMask(
             Set(GL.GL_COLOR_BUFFER_BIT, GL.GL_DEPTH_BUFFER_BIT)),
+        colour,
         Framebuffer.OnScreen
     )
 
   def offScreenClear(
       name: String,
+      colour: Vec4f,
       outputs: (GL.FramebufferAttachment, Framebuffer.OutputConstructor)*)
     : Clear.Constructor = Clear.Constructor(
       name,
       GL.ChannelBitMask.BitMask(
           Set(GL.GL_COLOR_BUFFER_BIT, GL.GL_DEPTH_BUFFER_BIT)),
+      colour,
       Framebuffer.OffScreenConstructor(outputs.toList)
   )
 }

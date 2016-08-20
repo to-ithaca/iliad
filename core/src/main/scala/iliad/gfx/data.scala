@@ -13,7 +13,9 @@ import cats.implicits._
 import quiver.{LNode, LEdge, Decomp}
 import QuiverExtra._
 
-object Graph {
+import com.typesafe.scalalogging._
+
+object Graph extends LazyLogging {
   type Constructor = quiver.Graph[Node.Constructor, String, Link]
   type QInstance = quiver.Graph[Node.Instance, String, Unit]
 
@@ -40,18 +42,37 @@ object Graph {
 
     private[gfx] def put(ns: List[Node.Instance],
                          ls: List[Link.Instance]): Instance = {
-      val next = (addNodes(ns) >> addEdges(ls)).run(graph).value._1
+      val next = (addNodes(ns) >> addEdges(ls)).runS(graph).value
       copy(graph = next)
     }
 
-    private[gfx] def nodes(us: Map[Draw.Instance, List[GL.Uniform]])
-      : Reader[GraphTraversal, UnsetUniformError Xor Vector[Node.Drawable]] =
-      Reader[GraphTraversal, UnsetUniformError Xor Vector[Node.Drawable]](
-          _.apply(graph).traverse {
-        case c: Clear.Instance => c.right
-        case d: Draw.Instance =>
-          us.get(d).map(Draw.Drawable(d, _)).toRightXor(UnsetUniformError(d))
-      })
+    private[gfx] def removeNodes(
+        ns: List[Node.Instance]): State[QInstance, Unit] =
+      State.modify(_.removeNodes(ns.toSeq))
+
+    private[gfx] def remove(ns: List[Node.Instance]): Instance = {
+      val next = removeNodes(ns).runS(graph).value
+      copy(graph = next)
+    }
+
+    private[gfx] def nodes(scopes: UniformCache.Values)
+      : Reader[GraphTraversal, GraphicsError Xor Vector[Node.Drawable]] =
+      Reader[GraphTraversal, GraphicsError Xor Vector[Node.Drawable]] { f =>
+        val ops = f(graph)
+        ops.traverse {
+          case c: Clear.Instance => c.right
+          case d: Draw.Instance =>
+            d.uniformScopes.toList.traverse {
+              case (name, scope) =>
+                for {
+                  us <- scopes
+                         .get(scope)
+                         .toRightXor(UnsetScopeError(scope, scopes.keySet))
+                  v <- us.get(name).toRightXor(UnsetUniformError(name, scope))
+                } yield v
+            }.map(Draw.Drawable(d, _))
+        }
+      }
   }
 }
 
@@ -84,8 +105,9 @@ object Draw {
       name: String,
       program: GL.Program.Unlinked,
       primitive: GL.PrimitiveType,
-      capabilities: Set[GL.Capability],
+      capabilities: Map[GL.Capability, Boolean],
       colorMask: GL.ColorMask,
+      blend: Option[GL.Blend],
       isInstanced: Boolean,
       model: Model.Constructor,
       framebuffer: Framebuffer.Constructor
@@ -98,7 +120,8 @@ object Draw {
 
   case class Instance(
       constructor: Constructor,
-      uniforms: Map[String, Texture.Uniform],
+      textureUniforms: Map[String, Texture.Uniform],
+      uniformScopes: Map[String, UniformScope],
       model: Model.Instance,
       framebuffer: Framebuffer.Instance,
       numInstances: Int
@@ -112,7 +135,7 @@ object Draw {
 
   case class Drawable(
       instance: Instance,
-      uniforms: List[GL.Uniform]
+      uniforms: List[GL.Uniform.Value]
   ) extends Node.Drawable
 }
 
@@ -120,6 +143,7 @@ object Clear {
   case class Constructor(
       name: String,
       mask: GL.ChannelBitMask,
+      colour: Vec4f,
       framebuffer: Framebuffer.Constructor
   ) extends Node.Constructor
 
@@ -219,8 +243,11 @@ object Framebuffer {
 
 object Model {
   case class Constructor(name: String)
-  case class Instance(name: String, constructor: Constructor, model: GL.Model)
+  case class Instance(name: String, constructor: Constructor, model: GL.Model) {
+    def scope: UniformScope = UniformScope(s"model-$this")
+  }
 }
 
+case class UniformScope(name: String)
 //TODO: find out what to do with this
 //case class Valve(start: Node.Draw, links: List[Link.Pipe])

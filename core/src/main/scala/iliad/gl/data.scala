@@ -16,8 +16,10 @@ import monocle.syntax.all._
 object VertexShader {
   case class Source(text: String,
                     attributes: List[Attribute.Constructor],
-                    textures: List[(String, Sampler.Constructor)]) {
+                    textures: List[(String, Sampler.Constructor)],
+                    uniforms: List[Uniform.Constructor]) {
     val attributeNames: List[String] = attributes.map(_.name)
+    val uniformNames: List[String] = uniforms.map(_.name)
     val textureNames: List[String] = textures.map(_._1)
   }
   case class Compiled(id: Int, source: Source)
@@ -25,7 +27,9 @@ object VertexShader {
 
 object FragmentShader {
   case class Source(text: String,
-                    textures: List[(String, Sampler.Constructor)]) {
+                    textures: List[(String, Sampler.Constructor)],
+                    uniforms: List[Uniform.Constructor]) {
+    val uniformNames: List[String] = uniforms.map(_.name)
     val textureNames: List[String] = textures.map(_._1)
   }
   case class Compiled(id: Int, source: Source)
@@ -37,12 +41,18 @@ object Program {
     val samplers: Map[String, Sampler.Constructor] =
       (vertex.textures ++ fragment.textures).toMap
     val textureNames: List[String] = vertex.textureNames ::: fragment.textureNames
+    val uniforms: List[Uniform.Constructor] = vertex.uniforms ::: fragment.uniforms
+    val uniformNames: List[String] = uniforms.map(_.name)
   }
 
   case class Linked(id: Int,
                     unlinked: Unlinked,
                     attributes: List[(String, Int)],
-                    textureUniforms: List[(String, Int)]) {
+                    textureUniforms: List[(String, Int)],
+                    uniformNames: Map[String, Int]) {
+
+    private def uniforms: List[Uniform.Loaded] =
+      unlinked.uniforms.map(u => Uniform.Loaded(u, uniformNames(u.name)))
 
     private def loaded(a: Attribute.Constructor): Option[Attribute.Loaded] =
       attributes.find(_._1 == a.name).map {
@@ -56,11 +66,11 @@ object Program {
         .map(Attribute.LoadedAttributes)
 
     def textureUniforms(ts: Map[String, Texture.Constructor])
-      : UndefinedTextureUniformError Xor List[TextureUniform] =
+      : UnsetTextureUniformError Xor List[TextureUniform] =
       textureUniforms.zipWithIndex.traverse {
         case ((name, location), index) =>
           ts.get(name)
-            .toRightXor(UndefinedTextureUniformError(unlinked, name))
+            .toRightXor(UnsetTextureUniformError(unlinked, name))
             .map(
                 t =>
                   TextureUniform(Bounded.element[TextureUnit](index),
@@ -68,12 +78,22 @@ object Program {
                                  t,
                                  unlinked.samplers(name)))
       }
+
+    def uniforms(
+        us: List[Uniform.Value]): UnsetUniformError Xor List[UniformValue] =
+      uniforms.traverse { u =>
+        us.find(_.constructor == u.constructor)
+          .toRightXor(UnsetUniformError(unlinked, u.constructor))
+          .map(v => UniformValue(u, v))
+      }
   }
 
   case class TextureUniform(unit: TextureUnit,
                             location: Int,
                             texture: Texture.Constructor,
                             sampler: Sampler.Constructor)
+
+  case class UniformValue(uniform: Uniform.Loaded, value: Uniform.Value)
 }
 
 object Attribute {
@@ -95,6 +115,15 @@ object Attribute {
         })
         ._2
   }
+}
+
+object Uniform {
+  case class Constructor(name: String)
+  case class Loaded(constructor: Constructor, location: Int)
+  case class Value(constructor: Constructor, bind: Int => OpenGL.DSL[Unit])
+
+  def apply(name: String, bind: Int => OpenGL.DSL[Unit]): Value =
+    Value(Constructor(name), bind)
 }
 
 object VertexBuffer {
@@ -207,7 +236,10 @@ object Model {
 
 object Texture {
 
-  case class Data(data: Buffer, size: Int)
+  sealed trait Data
+  case object Empty extends Data
+  case class SingleData(data: Buffer, size: Int) extends Data
+  case class GroupData(subData: Map[Rect[Int], SingleData]) extends Data
 
   case class Format(pixel: TextureFormat,
                     internal: TextureInternalFormat,
@@ -309,14 +341,22 @@ object Capabilities {
   val depth: List[Capability] = List(GL_DEPTH_TEST)
 }
 
+case class BlendFunction(src: BlendFactor, dest: BlendFactor)
+case class Blend(mode: BlendMode, func: BlendFunction)
+
+object Blend {
+  val alpha: Blend = Blend(GL_FUNC_ADD, BlendFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA))
+}
+
 case class DrawOp(model: Model,
                   program: Program.Unlinked,
                   textureUniforms: Map[String, Texture.Constructor],
-                  uniforms: List[Uniform],
+                  uniforms: List[Uniform.Value],
                   framebuffer: Framebuffer.Constructor,
                   colorMask: ColorMask,
                   primitive: PrimitiveType,
-                  capabilities: Set[Capability],
+                  capabilities: Map[Capability, Boolean],
+                  blend: Option[Blend],
                   numInstances: Int) {
   val vertexModel: Model.VertexRef = model.vertex
   val vertexData: VertexData.Ref = vertexModel.ref
@@ -328,4 +368,5 @@ case class DrawOp(model: Model,
 }
 
 case class ClearOp(bitMask: ChannelBitMask,
-                   framebuffer: Framebuffer.Constructor)
+                   colour: Vec4f,
+framebuffer: Framebuffer.Constructor)

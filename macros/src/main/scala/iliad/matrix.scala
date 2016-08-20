@@ -49,7 +49,7 @@ private[iliad] final class MatrixContextMacro(val c: whitebox.Context) {
         go(args,
            xs,
            q"""_root_.scala.StringContext($v).${TermName(ctx)}()""" :: previous)
-      case Nil => args -> previous
+      case Nil => args -> previous.reverse
       case _ =>
         c.abort(c.enclosingPosition, "unexpected tree for matrix context")
     }

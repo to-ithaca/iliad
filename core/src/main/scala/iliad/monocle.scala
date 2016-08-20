@@ -17,5 +17,10 @@ object MonocleExtra {
       s.transformS(_ &|-> l get, {
         case (r, s) => r &|-> l set s
       })
+
+    def applyBack[R, SS >: S](ss: S, l: Lens[R, SS])(implicit M: Monad[F]): StateT[F, R, A] =
+      s.transformS(_ => ss, {
+        case (r, s) => r &|-> l set s
+      })
   }
 }

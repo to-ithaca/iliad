@@ -22,6 +22,9 @@ object CatsExtra {
     new ValidatedNelOps(v)
   implicit def oneAndOps[F[_], A](o: OneAnd[F, A]): OneAndOps[F, A] =
     new OneAndOps(o)
+  implicit def monadReaderOps[F[_], R](
+      M: MonadReader[F, R]): MonadReaderOps[F, R] =
+    new MonadReaderOps(M)
 }
 
 final class FreeOps[F[_], A](val f: Free[F, A]) extends AnyVal {
@@ -42,11 +45,14 @@ final class SequenceOps[F[_], G[_], A](val fga: F[G[A]]) extends AnyVal {
 }
 
 object StateTExtra {
-  def inspect[F[_]: Applicative, S, A](f: S => F[A]): StateT[F, S, A] =
+  def inspectF[F[_]: Applicative, S, A](f: S => F[A]): StateT[F, S, A] =
     StateT(s => f(s).map(s -> _))
 
   def lift[F[_]: Applicative, S, A](fa: F[A]): StateT[F, S, A] =
     StateT(s => fa.map(a => s -> a))
+
+  def modifyF[F[_]: Applicative, S](f: S => F[S]): StateT[F, S, Unit] =
+    StateT(s => f(s).map(s => (s, ())))
 }
 
 object KleisliExtra {
@@ -63,15 +69,6 @@ final class XorTOps[F[_], A, B](val xort: XorT[F, A, B]) extends AnyVal {
 
 final class XorOps[A, B](val xor: Xor[A, B]) extends AnyVal {
   def leftWiden[AA >: A]: Xor[AA, B] = xor.leftMap(a => a)
-
-  //TODO: this should not be here
-//  def task: fs2.util.Task[B] =
-  //  xor
-    //  .bimap(a => fs2.util.Task.fail(new Error(a.toString)), fs2.util.Task.now)
-      //.merge[fs2.util.Task[B]]
-
-//    xor.bimap(Task.fail, Task.now).merge[Task[B]]
-
 }
 
 final class ValidatedNelOps[E, A](val v: ValidatedNel[E, A]) extends AnyVal {
@@ -80,4 +77,8 @@ final class ValidatedNelOps[E, A](val v: ValidatedNel[E, A]) extends AnyVal {
 
 final class OneAndOps[F[_], A](val o: OneAnd[F, A]) extends AnyVal {
   def widen[AA >: A](implicit FF: Functor[F]): OneAnd[F, AA] = o.map(identity)
+}
+
+final class MonadReaderOps[F[_], R](val M: MonadReader[F, R]) extends AnyVal {
+  def reader[A](f: R => A): F[A] = M.map(M.ask)(f)
 }

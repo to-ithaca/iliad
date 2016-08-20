@@ -9,7 +9,7 @@ import org.scalatest._
 import cats._
 import cats.data._
 import cats.implicits._
-
+/*
 class ConstructTests extends FunSuite with Matchers {
 
   private def validate(g: State[Graph.Constructor, Unit]): Unit = 
@@ -123,3 +123,4 @@ class ConstructTests extends FunSuite with Matchers {
     validate(graph)
   }
 }
+ */
