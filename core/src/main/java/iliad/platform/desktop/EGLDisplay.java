@@ -1,8 +1,8 @@
-#+x11
-package iliad.platform.unix;
+#+desktop
+package iliad.platform.desktop;
 
 import com.sun.jna.PointerType;
 
 public final class EGLDisplay extends PointerType {
 }
-#-x11
+#-desktop

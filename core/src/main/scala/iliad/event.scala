@@ -34,7 +34,9 @@ trait EventStream extends LazyLogging {
   def eventStream: Stream[Task, InputEvent] = baseStream(EventHandler.onEvent)
 }
 
-sealed trait InputEvent
+sealed trait InputEvent {
+  def recent: Long
+}
 
 object InputEvent {
   case class Point(at: Long, x: Float, y: Float) {
@@ -46,6 +48,7 @@ object InputEvent {
 
   case class Tap(point: Point) extends InputEvent {
     lazy val at: Long = point.at
+    lazy val recent: Long = at
     
     def position: Vec2f = point.position
 
@@ -53,15 +56,19 @@ object InputEvent {
     def windowCoord: Vec2f = point.windowCoord
   }
 
-  case class DragStarted(start: Point, current: Point) extends InputEvent
+  case class DragStarted(start: Point, current: Point) extends InputEvent {
+    lazy val recent: Long = current.at
+  }
   case class DragContinued(points: List[InputEvent.Point])
       extends InputEvent {
+    lazy val recent: Long = end.at
     def start: Point = points.toList.last
     def end: Point = points.head
     def distance: Float = (end.position - start.position).norm
   }
   case class DragBecameSwipe(points: List[InputEvent.Point])
       extends InputEvent {
+    lazy val recent: Long = end.at
     lazy val start: Point = points.toList.last
     lazy val end: Point = points.head
     lazy val distance: Float = {
@@ -77,7 +84,9 @@ object InputEvent {
     def isUp(acceptance: Float): Boolean = direction ⋅ v"0f 1f" > acceptance
   }
 
-  case class DragFinished(points: List[InputEvent.Point]) extends InputEvent
+  case class DragFinished(points: List[InputEvent.Point]) extends InputEvent {
+    lazy val recent: Long = points.head.at
+  }
 
   def distance(s: Point, e: Point): Float = {
     val dx = (e.x - s.x).toDouble
@@ -249,3 +258,103 @@ object EventRecogniser {
 }
 #-x11
 
+#+win32
+import com.sun.jna.platform.win32.User32._
+import com.sun.jna.platform.win32.WinDef._
+
+import iliad.platform.win32.User32._
+import iliad.platform.win32.User32.Macros._
+
+object EventHandler extends LazyLogging {
+
+  type Callback[A] = A => Unit
+  def zero[A](a: A): Unit = {}
+
+  private var eventCallback: Callback[InputEvent] = EventHandler.zero
+
+  def onEvent(cb: InputEvent => Unit): Unit = eventCallback = cb
+
+  def handleEvent(hwnd: HWND,
+                  uMsg: Int,
+                  wParam: WPARAM,
+                  lParam: LPARAM, 
+    width: Int, height: Int): Boolean =
+    uMsg match {
+      case WM_LBUTTONDOWN =>
+        logger.debug("received tap")
+        val xFraction = Macros.GET_X_LPARAM(lParam).toFloat / width.toFloat
+        val yFraction = GET_Y_LPARAM(lParam).toFloat / height.toFloat
+        //TODO: windows must have a better way of getting the time
+        eventCallback(InputEvent.Tap(InputEvent.Point(System.currentTimeMillis(), xFraction, yFraction)))
+        true
+      case _ => false
+    }
+}
+#-win32
+
+#+android
+object EventHandler {
+  type Callback[A] = A => Unit
+  def zero[A](a: A): Unit = {}
+
+  private var eventCallback: Callback[InputEvent] = EventHandler.zero
+  def onEvent(cb: Callback[InputEvent]): Unit = eventCallback = cb
+
+  def handleEvent(e: InputEvent): Unit = eventCallback(e)
+}
+
+import android.view.{GestureDetector, MotionEvent}
+trait AndroidEventHandler extends GestureDetector.OnGestureListener
+    with GestureDetector.OnDoubleTapListener
+    with LazyLogging {
+
+  def width: Int
+  def height: Int
+
+  override def onDown(event: MotionEvent): Boolean =  {
+    logger.debug("onDown: " + event.toString());
+    return true;
+  }
+
+  override def onFling(event1: MotionEvent, event2: MotionEvent, velocityX: Float, velocityY: Float): Boolean = {
+    logger.debug("onFling: " + event1.toString()+event2.toString());
+    return true;
+  }
+
+  override def onLongPress(event: MotionEvent): Unit = {
+    logger.debug("onLongPress: " + event.toString());
+  }
+
+  override def onScroll(e1: MotionEvent, e2: MotionEvent, distanceX: Float, distanceY: Float): Boolean = {
+    logger.debug("onScroll: " + e1.toString()+e2.toString());
+    return true;
+  }
+
+  override def onShowPress(event: MotionEvent): Unit = {
+    logger.debug("onShowPress: " + event.toString());
+  }
+
+  override def onSingleTapUp(event: MotionEvent): Boolean = {
+    logger.debug("onSingleTapUp: " + event.toString());
+    return true;
+  }
+
+  override def onDoubleTap(event: MotionEvent): Boolean = {
+    logger.debug("onDoubleTap: " + event.toString());
+    return true;
+  }
+
+  override def onDoubleTapEvent(event: MotionEvent): Boolean = {
+    logger.debug("onDoubleTapEvent: " + event.toString());
+    return true;
+  }
+
+  override def onSingleTapConfirmed(event: MotionEvent): Boolean = {
+    logger.debug("onSingleTapConfirmed: " + event.toString());
+    val x = event.getX.toFloat / width.toFloat
+    val y = event.getY.toFloat / height.toFloat
+    EventHandler.handleEvent(InputEvent.Tap(InputEvent.Point(event.getEventTime, x, y)))
+    return true;
+  }
+}
+#-android

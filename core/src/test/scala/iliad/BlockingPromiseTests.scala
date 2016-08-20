@@ -1,5 +1,4 @@
 package iliad
-package kernel
 
 import scala.concurrent.duration._
 

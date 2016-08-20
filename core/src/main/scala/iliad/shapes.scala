@@ -34,6 +34,12 @@ case class Rect[A](x0y0: Vec2[A], dimensions: Vec2[A]) {
     val x1y1 = topRight
     xy.x > x0y0.x && xy.x < x1y1.x && xy.y > x0y0.y && xy.y < x1y1.y
   }
+
+  def hit(p: InputEvent.Point)(implicit C: spm.ConvertableTo[A], M: spa.AdditiveMonoid[A],
+    O: spa.PartialOrder[A]
+  ): Boolean =
+    contains(p.windowCoord.as[A])
+
   def combine(that: Rect[A])(implicit F: spa.AdditiveGroup[A],
                              G: spa.Order[A]): Rect[A] = {
     val cx0y0 = (this.bottomLeft map2 that.bottomLeft)(_ min _)
@@ -186,6 +192,13 @@ case class BoundedPlane[A: spm.Fractional: spa.Trig](x0y0: Vec3[A],
 }
 
 object BoundedPlane {
+
+  def fromRect[A : spm.Fractional : spa.Trig](r: Rect[A]): BoundedPlane[A] = 
+    BoundedPlane(r.bottomLeft.padZero(3),
+    r.topLeft.padZero(3),
+    r.bottomRight.padZero(3)
+  )
+
   implicit def boundedPlaneEq[A](implicit ea: Eq[A]): Eq[BoundedPlane[A]] =
     new BoundedPlaneEq[A] {
       val EA = ea

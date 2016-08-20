@@ -364,11 +364,51 @@ trait GLES30Library {
 }
 
 
-#+x11
-
-@jna[iliad.platform.unix.GLES30Library]
+#+desktop
+@jna[iliad.platform.desktop.GLES30Library]
 trait GLES30Binding
 
 object GLES30 extends GLES30Library with GLES30Binding
+#-desktop
 
-#-x11
+#+android
+import java.nio._
+
+@bridge[android.opengl.GLES20] trait GLES20Binding
+@bridge[android.opengl.GLES30] trait GLES30Binding
+
+object GLES30 extends GLES30Library with GLES20Binding with GLES30Binding {
+
+  def glGetProgramInfoLog(program: Int, bufSize: Int, length: java.nio.IntBuffer, infoLog: Buffer): Unit = {
+    val info = glGetProgramInfoLog(program).toCharArray
+    Array.copy(info, 0, infoLog.array(), 0, bufSize) //TODO: check that this works
+  }
+
+  def glGetShaderInfoLog(shader: Int, bufSize: Int, length: java.nio.IntBuffer, infoLog: ByteBuffer): Unit = {
+    val info = glGetShaderInfoLog(shader).toCharArray
+    Array.copy(info, 0, infoLog.array(), 0 , bufSize)
+  }
+
+  def glShaderSource(shader: Int,count: Int, sources: Array[String], lengths: Array[Int]): Unit = {
+    (0 until count).foreach ( i =>
+      glShaderSource(i + shader, sources(i))
+    )
+  }
+
+  def glClearBufferfv(buffer: Int, drawbuffer: Int, value: Array[Float]): Unit =
+    glClearBufferfv(buffer, drawbuffer, value, 0)
+
+  def glClearBufferiv(buffer: Int, drawbuffer: Int, value: Array[Int]): Unit =
+    glClearBufferiv(buffer, drawbuffer, value, 0)
+
+  def glClearBufferuiv(buffer: Int, drawbuffer: Int, value: Array[Int]): Unit =
+    glClearBufferuiv(buffer, drawbuffer, value, 0)
+
+  def glUniformMatrix2fv(location: Int, count: Int, transpose: Boolean, arg0: Array[Float]): Unit = 
+    glUniformMatrix2fv(location, count, transpose, arg0, 0)
+  def glUniformMatrix3fv(location: Int, count: Int, transpose: Boolean, arg0: Array[Float]): Unit = 
+    glUniformMatrix3fv(location, count, transpose, arg0, 0)
+  def glUniformMatrix4fv(location: Int, count: Int, transpose: Boolean, arg0: Array[Float]): Unit = 
+    glUniformMatrix4fv(location, count, transpose, arg0, 0)
+}
+#-android

@@ -32,6 +32,9 @@ case class AxisAngle[A: Trig: Ring](axis: Vec3[A], θ: A) {
 
   def rotate(v: Vec3[A])(implicit MA: MatrixAlgebra[nat._4, A]): Vec3[A] =
     matrix.rotate(v)
+
+  def fraction(f: A): AxisAngle[A] =
+    AxisAngle(axis, θ * f)
 }
 
 object AxisAngle {

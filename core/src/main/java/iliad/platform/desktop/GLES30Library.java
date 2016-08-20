@@ -1,5 +1,5 @@
-#+x11
-package iliad.platform.unix;
+#+desktop
+package iliad.platform.desktop;
 
 import com.sun.jna.Library;
 import com.sun.jna.Native;
@@ -285,4 +285,4 @@ public interface GLES30Library extends Library {
     void glVertexAttribIPointer(int index,int size,int type,int stride, Buffer pointer);
     void glWaitSync(long sync, int flags, long timeout);
 }
-#-x11
+#-desktop

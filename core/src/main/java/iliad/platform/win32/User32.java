@@ -1,4 +1,5 @@
-package iliad.kernel.platform.win32;
+#+win32
+package iliad.platform.win32;
 
 import java.util.Arrays;
 import java.util.List;
@@ -60,3 +61,4 @@ public interface User32 extends com.sun.jna.platform.win32.User32 {
     }
     
 }
+#-win32
