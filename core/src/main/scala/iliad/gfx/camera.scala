@@ -44,8 +44,8 @@ case class Camera[A: Fractional : Trig](position: Vec3[A],
   private val zero = Field[A].zero
   private val one = Field[A].one
 
-  private val nearOffset: A = radius + near
-  private val farOffset: A = radius + far
+  val nearOffset: A = radius + near
+  val farOffset: A = radius + far
 
   private lazy val translateZ = -Field[A]
       .fromInt(2) * farOffset * nearOffset / (farOffset - nearOffset)
