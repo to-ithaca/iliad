@@ -4,6 +4,7 @@ import monocle._
 import monocle.syntax.all._
 
 import cats._
+import cats.functor.Invariant
 import cats.data._
 
 object MonocleExtra {
@@ -23,4 +24,30 @@ object MonocleExtra {
         case (r, s) => r &|-> l set s
       })
   }
+
+  implicit def lensInvariant[S]: Invariant[Lens[S, ?]] = new LensInvariant[S]
+  implicit def lensCartesian[S]: Cartesian[Lens[S, ?]] = new LensCartesian[S]
+
+  implicit def getterApply[S]: Apply[Getter[S, ?]] = new GetterApply[S]
+}
+
+final class LensInvariant[S] extends Invariant[Lens[S, ?]] {
+  def imap[A, B](fa: Lens[S, A])(f: A => B)(g: B => A): Lens[S, B] = {
+    val fb = Lens[A, B](f)(b => a => g(b))
+    fa ^|-> fb
+  }
+}
+
+final class LensCartesian[S] extends Cartesian[Lens[S, ?]] {
+  def product[A, B](fa: Lens[S, A], fb: Lens[S, B]): Lens[S, (A, B)] = 
+    Lens[S, (A, B)](s => (s &|-> fa get, s &|-> fb get)) {
+      case (a, b) => s => ((fa set a) compose (fb set b))(s)
+    }
+}
+
+final class GetterApply[S] extends Apply[Getter[S, ?]] {
+ def map[A, B](fa: Getter[S, A])(f: A => B): Getter[S, B] =
+   Getter[S, B]((fa get _) andThen f)
+  def ap[A, B](ff: Getter[S, A => B])(fa: Getter[S, A]): Getter[S, B] =
+    Getter[S, B](s => (ff get s)(fa get s))
 }
