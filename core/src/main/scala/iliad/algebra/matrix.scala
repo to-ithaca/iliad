@@ -60,19 +60,15 @@ import breeze.linalg.DenseMatrix
 
 #+desktop
 
-  private def dm4f(v: Vector[Float]): DenseMatrix[Float] = DenseMatrix(
-    (v.repr(0), v.repr(1), v.repr(2), v.repr(3)),
-    (v.repr(4), v.repr(5), v.repr(6), v.repr(7)),
-    (v.repr(8), v.repr(9), v.repr(10), v.repr(11)),
-    (v.repr(12), v.repr(13), v.repr(14), v.repr(15))
-  )
+  private def dm4f(v: Vector[Float]): DenseMatrix[Float] =
+    DenseMatrix.create(4, 4, v.toArray)
 
   private def vector(N: Int, M: Int)(dm: DenseMatrix[Float]): Vector[Float] = {
     val builder = Vector.newBuilder[Float]
     builder.sizeHint(N * M)
     (0 until N).foreach { i =>
       (0 until M).foreach { j =>
-        builder += dm(i, j)
+        builder += dm(j, i)
       }
     }
     val v = builder.result()
@@ -82,10 +78,11 @@ import breeze.linalg.DenseMatrix
 
   def product[N1 <: Nat](x: Mat4f, y: Matrix[N1, nat._4, Float])(implicit toInt: ToInt[N1]): Matrix[N1, nat._4, Float] = {
     val N1 = toInt()
-    require(N1 < 4 && N1 > 0, s"not implemented multiplication greater than 4, found $N1")
-
-    val dm1 = N1 match {
-      case 1 => DenseMatrix((y.repr(0), y.repr(1), y.repr(2), y.repr(3)))
+    require(N1 < 5 && N1 > 0, s"not implemented multiplication greater than 4, found $N1")
+    val dmy = N1 match {
+      case 1 => 
+        DenseMatrix.create(4, 1, y.repr.toArray)
+        //DenseMatrix((y.repr(0), y.repr(1), y.repr(2), y.repr(3)))
       case 2 => DenseMatrix(
         (y.repr(0), y.repr(1), y.repr(2), y.repr(3)),
         (y.repr(4), y.repr(5), y.repr(6), y.repr(7))
@@ -97,7 +94,8 @@ import breeze.linalg.DenseMatrix
       )    
       case 4 => dm4f(y.repr)
     }
-    val rdm = dm4f(x.repr) * dm1
+    val dmx = dm4f(x.repr)
+    val rdm = dmx * dmy
     new Matrix(vector(N1, 4)(rdm))
   }
 
@@ -110,7 +108,7 @@ import breeze.linalg.DenseMatrix
 #+android  
   def product[N1 <: Nat](x: Mat4f, y: Matrix[N1, nat._4, Float])(implicit toInt: ToInt[N1]): Matrix[N1, nat._4, Float] = {
     val N1 = toInt()
-    require(N1 < 4, s"not implemented multiplication greater than 4, found $N1")
+    require(N1 < 5, s"not implemented multiplication greater than 4, found $N1")
     val r = if(N1 < 1) {
       val m0 = x.toArray
       val m1 = if(N1 != 4) {
@@ -159,7 +157,6 @@ import breeze.linalg.DenseMatrix
   def times(x: Mat4f, y: Mat4f): Mat4f =
     product(x, y)
 }
-
 
 /** Matrix */
 final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: Vector[A]) extends AnyVal {
@@ -219,19 +216,21 @@ final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: Vector[A]) ex
     G.det(this)
 
   def inverse(implicit G: SquareMatrixMultiplicativeGroup[Matrix[N, M, A], A]): Matrix[N, M, A] = G.inverse(this)
+
   def transpose(implicit toIntN: ToInt[N]): Matrix[M, N, A] = {
     val builder = Vector.newBuilder[A]
     val N = toIntN()
     val M = repr.size / N
+    builder.sizeHint(N * M)
     @annotation.tailrec
     def go(i: Int, j: Int): Vector[A] = {
       if(j < M) {
         builder += repr(i + j * N)
         val ii = i + 1
         if(ii < N)
-          go(0, j + 1)
-        else
           go(i + 1, j)
+        else
+          go(0, j + 1)
      
       } else {
         val v = builder.result()
@@ -240,6 +239,10 @@ final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: Vector[A]) ex
       }
     }
     new Matrix(go(0, 0))
+  }
+
+  def pad[N1 <: Nat, M1 <: Nat](implicit G: AdditiveGroup[A]): Matrix[N1, M1, A] = {
+    ???
   }
 
   def trace(implicit G: AdditiveMonoid[A], toIntN: ToInt[N]): A = {
@@ -269,22 +272,36 @@ final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: Vector[A]) ex
     go(0, 0)
   }
 
+  //TODO: Change this
+  override def toString: String = repr.toString
+
   def toArray(implicit classTag: ClassTag[A]): Array[A] = repr.toArray
 }
 
-object Matrix {
+abstract class MatrixInstances {
+  lazy implicit val Matrix4fAlgebra: SquareMatrixMultiplicativeGroup[Mat4f, Float] 
+      with MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, Float] = new Matrix4fAlgebra
+}
+
+object Matrix extends MatrixInstances {
   def fill[A, N <: Nat, M <: Nat](a: A)(implicit toIntN: ToInt[N], toIntM: ToInt[M]): Matrix[N, M, A] = 
     new Matrix(Vector.fill(toIntN() * toIntM())(a))
 
   def zero[A, N <: Nat, M <: Nat](implicit R: Ring[A], toIntN: ToInt[N], toIntM: ToInt[M]): Matrix[N, M, A] = 
     fill(R.zero)
 
-  def sized[A](n: Nat, m: Nat)(v: Vector[A])(implicit toIntN: ToInt[n.N], toIntM: ToInt[m.N]): Matrix[n.N, m.N, A] = {
+  def zero[A](n: Nat, m: Nat)(implicit R: Ring[A], toIntN: ToInt[n.N], toIntM: ToInt[m.N]): Matrix[n.N, m.N, A] =
+    zero[A, n.N, m.N]
+
+  def sized[A, N <: Nat, M <: Nat](v: Vector[A])(implicit toIntN: ToInt[N], toIntM: ToInt[M]): Matrix[N, M, A] = {
     val N = toIntN()
     val M = toIntM()
     require((N * M) == v.length, s"matrix $v does not have dimensions $N $M")
     new Matrix(v)
-  }  
+  }
+
+  def sized[A](n: Nat, m: Nat)(v: Vector[A])(implicit toIntN: ToInt[n.N], toIntM: ToInt[m.N]): Matrix[n.N, m.N, A] =
+    sized[A, n.N, m.N](v)
 
   def id[A, N <: Nat](implicit toInt: ToInt[N], R: Ring[A]): Matrix[N, N, A] = {
     val N = toInt()
@@ -312,16 +329,33 @@ object Matrix {
     }
     new Matrix(go(0, 0))
   }
+
+  def id[A](n: Nat)(implicit toInt: ToInt[n.N], R: Ring[A]): Matrix[n.N, n.N, A] = id[A, n.N]
+}
+
+object OrthoMatrix {
+
+  private[algebra] def apply[A, N <: Nat, M <: Nat](matrix: Matrix[N, M, A]): OrthoMatrix[N, M, A] = new OrthoMatrix(matrix.repr)  
+  def id[A, N <: Nat](implicit toInt: ToInt[N], R: Ring[A]): OrthoMatrix[N, N, A] = apply(Matrix.id[A, N])
+  def id[A](n: Nat)(implicit toInt: ToInt[n.N], R: Ring[A]): OrthoMatrix[n.N, n.N, A] = id[A, n.N]
+
+  def sized[A, N <: Nat, M <: Nat](v: Vector[A])(implicit toIntN: ToInt[N], toIntM: ToInt[M]): OrthoMatrix[N, M, A] = apply(Matrix.sized[A, N, M](v))
+
+
+  def sized[A](n: Nat, m: Nat)(v: Vector[A])(implicit toIntN: ToInt[n.N], toIntM: ToInt[m.N]): OrthoMatrix[n.N, m.N, A] =
+    sized[A, n.N, m.N](v)
+
+
 }
 
 /** Orthogonal matrix */ //TODO: What to do in the case of 
 final class OrthoMatrix[N <: Nat, M <: Nat, A] private[iliad](val repr: Vector[A]) extends AnyVal {
 
-  def map[B](f: A => B): OrthoMatrix[N, M, B] = new OrthoMatrix(repr.map(f))
+  def map[B](f: A => B): OrthoMatrix[N, M, B] = OrthoMatrix(matrix.map(f))
   def ap[B](ff: OrthoMatrix[N, M, A => B]): OrthoMatrix[N, M, B] =
-    new OrthoMatrix(ff.repr.zip(repr).map { case (f, a) => f(a) })
+    OrthoMatrix(matrix.ap(ff.matrix))
   def map2[B, C](that: OrthoMatrix[N, M, B])(f: (A, B) => C): OrthoMatrix[N, M, C] = 
-    that.ap(this.map(f.curried))
+    OrthoMatrix(matrix.map2(that.matrix)(f))
   
   def +(that: OrthoMatrix[N, M, A])(implicit G: AdditiveSemigroup[A]): Matrix[N, M, A] = 
     map2(that)(_ + _).matrix
@@ -365,6 +399,16 @@ final class OrthoMatrix[N <: Nat, M <: Nat, A] private[iliad](val repr: Vector[A
   def ===(that: OrthoMatrix[N, M, A])(implicit eqA: Eq[A]): Boolean = that.repr === repr
 
   def toArray(implicit classTag: ClassTag[A]): Array[A] = repr.toArray
+
+  def symmetric(implicit eqA: Eq[A], ev: N =:= M): Boolean = matrix.symmetric
+
 }
 
 
+object Test {
+  def main(args: Array[String]): Unit = {
+    val m = Matrix.id[Float, nat._4]
+    implicit val G = new Matrix4fAlgebra
+    println((5 *: m).repr)
+  }
+}
