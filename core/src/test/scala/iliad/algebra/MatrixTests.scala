@@ -22,7 +22,7 @@ class MatrixTests extends FunSuite with GeneratorDrivenPropertyChecks {
     }
   }
   test("Matrix#symmetric") {
-    forAll(MatrixGen.symmetric[nat._3, Int](Gen.choose(Integer.MIN_VALUE, Integer.MAX_VALUE))) { (m: Mat3i) =>
+    forAll(MatrixGen.symmetric[nat._3, Int](Arbitrary.arbitrary[Int])) { (m: Mat3i) =>
       assert(m.symmetric)
     }
   }
