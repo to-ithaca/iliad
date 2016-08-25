@@ -153,17 +153,11 @@ case class AttributeMissingError(a: GL.Attribute.Constructor)
     extends InstantiationError {
   override def toString: String = s"Missing attribute: [$a]"
 }
-case class EndNodeMissingError(l: Link, s: Node.Instance)
-    extends InstantiationError {
-  override def toString: String = s"""The following link is missing an end node:
-Link: $l
-Start node: $s
-"""
-}
+
 case class StartNodeMissingError(l: Link, e: Node.Instance)
     extends InstantiationError {
-  override def toString: String = s"""The following link is missing a start node:
-Link: $l
+  override def toString: String = s"""The following pipe link is missing a start node:
+Pipe link: $l
 End node: $e
 """
 }

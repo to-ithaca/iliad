@@ -58,125 +58,107 @@ trait InstantiateFunctions {
     Clear.Instance(c, Framebuffer.OnScreen)
 }
 
-object Instantiate {
+object ValidateNodeInstance {
 
-  private def framebufferOutput(
+  type ME[F[_]] = ApplicativeError[F, NonEmptyList[InstantiationError]]
+
+  private def framebufferOutput[F[_]](
       c: Framebuffer.OutputConstructor,
-      o: Framebuffer.OutputInstance): ValidatedNel[InstantiationError, Unit] =
+      o: Framebuffer.OutputInstance)(implicit M: ME[F]): F[Unit] =
     (c, o) match {
       case (rc: Renderbuffer.Constructor, ri: Renderbuffer.Instance) =>
-        if (ri.constructor == rc) ().valid
-        else RenderbufferMatchError(rc, ri).invalidNel.widen
+        if (ri.constructor == rc) M.pure(())
+        else  M.raiseError(NonEmptyList(RenderbufferMatchError(rc, ri)))
       case (tc: Texture.Constructor, ti: Texture.Instance) =>
-        if (ti.constructor == tc) ().valid
-        else TextureMatchError(tc, ti).invalidNel.widen
+        if (ti.constructor == tc) M.pure(())
+        else M.raiseError(NonEmptyList(TextureMatchError(tc, ti)))
       case (tc: Texture.Constructor, ri: Renderbuffer.Instance) =>
-        TextureRenderbufferMatchError(tc, ri).invalidNel.widen
+        M.raiseError(NonEmptyList(TextureRenderbufferMatchError(tc, ri)))
       case (rc: Renderbuffer.Constructor, ti: Texture.Instance) =>
-        RenderbufferTextureMatchError(rc, ti).invalidNel.widen
+        M.raiseError(NonEmptyList(RenderbufferTextureMatchError(rc, ti)))
     }
 
-  private def framebuffer(
-      n: Draw.Instance): ValidatedNel[InstantiationError, Unit] = {
+  private def framebuffer[F[_]](
+      n: Draw.Instance)(implicit M: ME[F]): F[Unit] = {
     (n.constructor.framebuffer, n.framebuffer) match {
       case (Framebuffer.OnScreen, Framebuffer.OnScreen) =>
-        ().valid
+        M.pure(())
       case (Framebuffer.OnScreen, i: Framebuffer.OffScreenInstance) =>
-        OffScreenOnScreenMatchError(i).invalidNel.widen
+        M.raiseError(NonEmptyList(OffScreenOnScreenMatchError(i)))
       case (c: Framebuffer.OffScreenConstructor, Framebuffer.OnScreen) =>
-        OnScreenOffScreenMatchError(c).invalidNel.widen
+        M.raiseError(NonEmptyList(OnScreenOffScreenMatchError(c)))
       case (c: Framebuffer.OffScreenConstructor,
             i: Framebuffer.OffScreenInstance) =>
         c.buffers.toList.traverseUnit {
           case (a, c) =>
             i.instances.toMap.get(a) match {
-              case None => AttachmentMissingError(a).invalidNel.widen
+              case None => M.raiseError[Unit](NonEmptyList(AttachmentMissingError(a)))
               case Some(o) => framebufferOutput(c, o)
             }
         }
     }
   }
 
-  private def instanced(
-      n: Draw.Instance): ValidatedNel[NumInstanceError, Unit] =
+  private def instanced[F[_]](
+      n: Draw.Instance)(implicit M: ME[F]): F[Unit] =
     if (!n.constructor.isInstanced && n.numInstances != 1)
-      NumInstanceError(n.constructor.isInstanced, n.numInstances).invalidNel
-    else if (n.numInstances == 0) //TODO: have a non-zero integer
-      NumInstanceError(n.constructor.isInstanced, n.numInstances).invalidNel
-    else ().valid
+      M.raiseError(NonEmptyList(NumInstanceError(n.constructor.isInstanced, n.numInstances)))
+    else if (n.numInstances == 0)
+      M.raiseError(NonEmptyList(NumInstanceError(n.constructor.isInstanced, n.numInstances)))
+    else M.pure(())
 
-  private def textures(
-      n: Draw.Instance): ValidatedNel[TextureUniformMissingError, Unit] =
+  private def textures[F[_]](
+      n: Draw.Instance)(implicit M: ME[F]): F[Unit] =
     n.constructor.program.textureNames.traverseUnit { name =>
       n.textureUniforms.get(name) match {
-        case Some(_) => ().valid
-        case None => TextureUniformMissingError(name).invalidNel
+        case Some(_) => M.pure(())
+        case None => M.raiseError[Unit](NonEmptyList(TextureUniformMissingError(name)))
       }
     }
 
-  private def attributes(
-      n: Draw.Instance): ValidatedNel[AttributeMissingError, Unit] =
+  private def attributes[F[_]](
+      n: Draw.Instance)(implicit M: ME[F]): F[Unit] =
     n.vertexAttribs.traverseUnit { a =>
-      if (n.modelAttribs.contains(a)) ().valid
-      else AttributeMissingError(a).invalidNel
+      if (n.modelAttribs.contains(a)) M.pure(())
+      else M.raiseError[Unit](NonEmptyList(AttributeMissingError(a)))
     }
 
-  //FIXME: what do we do if we have a web like structure?
-  private def links(
-      ns: List[Node.Instance]): ReaderT[ValidatedNel[InstantiationError, ?],
-                                        Graph.Instance,
-                                        List[Link.Instance]] =
-    ReaderT(_.constructed.links.flatMap { l =>
-      val sOpt = ns.find(_.constructor == l.start)
-      val eOpt = ns.find(_.constructor == l.end)
-      (sOpt, eOpt) match {
-        case (Some(s), Some(e)) =>
-          Some(Link.Instance(s, e).valid)
-        case _ =>
-          //Some(EndNodeMissingError(l, s).invalidNel.widen[InstantiationError])
-          Option.empty[ValidatedNel[InstantiationError, Link.Instance]]
-//        case (None, Some(e)) =>
-        //Some(
-        //StartNodeMissingError(l, e).invalidNel.widen[InstantiationError])
-        //        None
-        //    case _ => None
+  private def pipes[F[_]](n: Draw.Instance, sources: List[Node.Instance], g: Graph.Instance)(implicit E: ME[F]): F[List[Link.Instance]] =
+    g.constructed.pipes.toList.filter(_.end == n.constructor).traverse { l =>
+        sources.find(_.constructor == l.start) match {
+          case Some(start) => E.pure(Link.Instance(start, n))
+          case None => E.raiseError[Link.Instance](NonEmptyList(StartNodeMissingError(l, n)))
+        }
       }
-    }.toList.sequence)
 
-  //TODO: validate that all uniform scopes are set
-
-  private def validate(
-      d: Draw.Instance): ValidatedNel[InstantiationError, Unit] = {
+  def validate[F[_]](d: Draw.Instance, sources: List[Draw.Instance], g: Graph.Instance)(implicit E: ME[F]): F[List[Link.Instance]] = {
     val v = framebuffer(d) *>
-        instanced(d).widen *>
-        textures(d).widen *>
-        attributes(d).widen
-    v.leftMap(_.map(e => NodeInstantiationError(d, e)))
+        instanced(d) *>
+        textures(d) *>
+        attributes(d) *>
+        pipes(d, sources, g)
+    v.handleErrorWith(err => 
+      E.raiseError(err.map(e => NodeInstantiationError(d, e))))
+  }
+}
+
+object Instantiate {
+
+  type XorNel[A] = Xor[NonEmptyList[InstantiationError], A]
+  type Effect[A] = StateT[Xor[NonEmptyList[InstantiationError], ?], Graph.Instance, A] 
+
+  private def links(n: Draw.Instance, sources: List[Draw.Instance]): Effect[List[Link.Instance]] = StateTExtra.inspectF { s =>
+    val validated = ValidateNodeInstance.validate[ValidatedNel[InstantiationError, ?]](n, sources, s)
+    validated.toXor
   }
 
-  private def lift(v: ValidatedNel[InstantiationError, Unit])
-    : ReaderT[ValidatedNel[InstantiationError, ?], Graph.Instance, Unit] =
-    KleisliExtra.lift(v)
+  def apply(n: Draw.Instance, sources: List[Draw.Instance]): Effect[Unit] = for {
+    links <- links(n, sources)
+        _ <- Graph.Instance.addNode[XorNel](n)
+        _ <- Graph.Instance.addEdges[XorNel](links)
+  } yield ()
 
-  private def checks(ns: List[Node.Instance])
-    : ReaderT[Xor[NonEmptyList[InstantiationError], ?],
-              Graph.Instance,
-              List[Link.Instance]] = {
-    val vs =
-      lift((ns.filterClass[Draw.Instance].traverseUnit(validate))) *>
-        links(ns)
-    vs.mapF(_.toXor)
-  }
-
-  def apply(ns: List[Node.Instance])
-    : StateT[Xor[NonEmptyList[InstantiationError], ?], Graph.Instance, Unit] =
-    for {
-      ls <- StateTExtra.inspectF(checks(ns).run)
-      _ <- State
-            .modify[Graph.Instance](_.put(ns, ls))
-            .transformF[Xor[NonEmptyList[InstantiationError], ?], Unit](
-                _.value.right)
-    } yield ()
+  def apply(n: Clear.Instance): Effect[Unit] = Graph.Instance.addNode[XorNel](n)
 }
 
 object HideInstantiate {

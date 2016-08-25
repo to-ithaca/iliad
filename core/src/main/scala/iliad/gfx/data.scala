@@ -13,6 +13,10 @@ import cats.implicits._
 import quiver.{LNode, LEdge, Decomp}
 import QuiverExtra._
 
+import monocle._
+import monocle.syntax.all._
+import monocle.macros._
+
 import com.typesafe.scalalogging._
 
 object Graph extends LazyLogging {
@@ -23,28 +27,28 @@ object Graph extends LazyLogging {
     quiver.empty[Node.Constructor, String, Link]
 
   case class Constructed(
-      nodes: Set[Node.Constructed],
+      nodes: Vector[Node.Constructed],
       links: Set[Link],
       start: Set[Node.Constructed],
       end: Set[Node.Constructed],
       doubleTextures: Map[Texture.Constructor, Texture.Constructed]) {
     private[gfx] def instance: Instance =
       Instance(this, quiver.empty[Node.Instance, String, Unit])
+    private[gfx] val orderedLinks: Set[Link.Order] = links.filterClass[Link.Order]
+    private[gfx] val pipes: Set[Link.Pipe] = links.filterClass[Link.Pipe]
+  }
+
+  object Instance {
+    private val _graph: Lens[Instance, QInstance] = GenLens[Instance](_.graph)
+
+    private[gfx] def addNode[F[_]: Applicative](n: Node.Instance): StateT[F, Instance, Unit] =
+      StateTExtra.modify[F, Instance](_graph modify(_.addNode(n.lNode)))
+
+    private[gfx] def addEdges[F[_]: Applicative](ls: List[Link.Instance]): StateT[F, Instance, Unit] =
+      StateTExtra.modify[F, Instance](_graph modify(qg => ls.foldLeft(qg)((next, l) => next.addEdge(l.lEdge))))
   }
 
   case class Instance(constructed: Constructed, graph: QInstance) {
-
-    private def addNodes(ns: List[Node.Instance]): State[QInstance, Unit] =
-      State.modify(qg => ns.foldLeft(qg)((next, n) => next.addNode(n.lNode)))
-
-    private def addEdges(ls: List[Link.Instance]): State[QInstance, Unit] =
-      State.modify(qg => ls.foldLeft(qg)((next, l) => next.addEdge(l.lEdge)))
-
-    private[gfx] def put(ns: List[Node.Instance],
-                         ls: List[Link.Instance]): Instance = {
-      val next = (addNodes(ns) >> addEdges(ls)).runS(graph).value
-      copy(graph = next)
-    }
 
     private[gfx] def removeNodes(
         ns: List[Node.Instance]): State[QInstance, Unit] =
@@ -58,7 +62,7 @@ object Graph extends LazyLogging {
     private[gfx] def nodes(scopes: UniformCache.Values)
       : Reader[GraphTraversal, GraphicsError Xor Vector[Node.Drawable]] =
       Reader[GraphTraversal, GraphicsError Xor Vector[Node.Drawable]] { f =>
-        val ops = f(graph)
+        val ops = f(this)
         ops.traverse {
           case c: Clear.Instance => c.right
           case d: Draw.Instance =>
@@ -74,10 +78,6 @@ object Graph extends LazyLogging {
         }
       }
   }
-}
-
-object GraphTraversal {
-  val ordered: GraphTraversal = g => g.ordered
 }
 
 sealed trait Node

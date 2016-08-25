@@ -9,6 +9,7 @@ import cats.data._
 import cats.implicits._
 
 import CatsExtra._
+import QuiverExtra._
 
 trait ConstructFunctions {
 
@@ -150,7 +151,7 @@ private[iliad] object Construct {
   private val nodesUnique: ReaderT[ValidatedNel[NonUniqueNodeError, ?],
                                    Graph.Constructed,
                                    Unit] = ReaderT { g =>
-    val dupes = g.nodes.duplicates(_.constructor.name)
+    val dupes = g.nodes.toSet.duplicates(_.constructor.name)
     validate(dupes.isEmpty, NonUniqueNodeError(dupes))
   }
 
@@ -241,7 +242,7 @@ private[iliad] object Construct {
     val ds = doubleTextures(c)
     val g = c.vmap(n => constructed(n).run(ds))
     Graph.Constructed(
-        g.nodes.toSet,
+        g.ordered,
         g.labEdges.map(_.label).toSet,
         g.roots.toSet,
         g.leaves.toSet,
