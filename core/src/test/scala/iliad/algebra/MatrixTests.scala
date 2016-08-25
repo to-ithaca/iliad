@@ -29,40 +29,31 @@ class MatrixTests extends FunSuite with Discipline with GeneratorDrivenPropertyC
     Gen.choose(-100f, 100f)
   }
 
-  checkAll("Matrix[4, 4, Float]", GroupLaws[Mat4f].additiveGroup)
   checkAll("Matrix[?, ?, Float]", MatrixLaws[Matrix, Float].multiplicativeGroup[nat._4, nat._1])
   checkAll("Matrix[?, ?, Float]", MatrixLaws[Matrix, Float].multiplicativeGroup[nat._4, nat._2])
   checkAll("Matrix[?, ?, Float]", MatrixLaws[Matrix, Float].multiplicativeGroup[nat._4, nat._3])
   checkAll("Matrix[?, ?, Float]", MatrixLaws[Matrix, Float].multiplicativeGroup[nat._4, nat._4])
+  checkAll("Matrix[?, ?, Float]", MatrixLaws[Matrix, Float]
+    .squareMultiplicativeGroup[nat._4](MatrixGen.symmetric(Arbitrary.arbitrary)))
 
-
-  /*test("Matrix[3, 3, Int].symmetric") {
-    forAll(MatrixGen.symmetric[nat._3, Int](Arbitrary.arbitrary[Int])) { (m: Mat3i) =>
-      assert(m.symmetric)
-    }
-  }
-
-  test("Matrix[4, 4, Float].id * m === m") {
-    forAll { (m: Matrix[nat._1, nat._4, Float]) =>
-      val id  = Matrix.id[Float](4)
-      assert(id * m === m)
-    }
-  }
-
-  test("Matrix[2, 2, Int].transpose.transpose === m") {
-    forAll { (m: Mat2i) =>
-      assert(m.transpose.transpose === m)
-    }
-  }
-
-  test("Matrix[2, 2, Int].context") {
+  test("Matrix[2, 2, Int].context is correct") {
     val m = mat"""1 0
                   0 1"""
-    assert(m === Matrix.id[Float, nat._2])
+    assert(m === Matrix.id[Int, nat._2])
   }
 
-  test("Matrix[4, 4, Float].inverse * m === id") { (a: Mat4f) =>
-    val id = Matrix.id[Float](4)
-    assert((a.inverse * a) === id)
-  }*/
+  test("Matrix[3, 3, Int].context is correct") {
+    val m = mat"""1 0 0
+                  0 1 0
+                  0 0 1"""
+    assert(m === Matrix.id[Int, nat._3])
+  }
+
+  test("Matrix[4, 4, Int].context is correct") {
+    val m = mat"""1 0 0 0
+                  0 1 0 0
+                  0 0 1 0
+                  0 0 0 1"""
+    assert(m === Matrix.id[Int, nat._4])
+  }
 }
