@@ -60,9 +60,6 @@ import breeze.linalg.DenseMatrix
 
 #+desktop
 
-  private def dm4f(v: Vector[Float]): DenseMatrix[Float] =
-    DenseMatrix.create(4, 4, v.toArray)
-
   private def vector(N: Int, M: Int)(dm: DenseMatrix[Float]): Vector[Float] = {
     val builder = Vector.newBuilder[Float]
     builder.sizeHint(N * M)
@@ -79,28 +76,14 @@ import breeze.linalg.DenseMatrix
   def product[N1 <: Nat](x: Mat4f, y: Matrix[N1, nat._4, Float])(implicit toInt: ToInt[N1]): Matrix[N1, nat._4, Float] = {
     val N1 = toInt()
     require(N1 < 5 && N1 > 0, s"not implemented multiplication greater than 4, found $N1")
-    val dmy = N1 match {
-      case 1 => 
-        DenseMatrix.create(4, 1, y.repr.toArray)
-        //DenseMatrix((y.repr(0), y.repr(1), y.repr(2), y.repr(3)))
-      case 2 => DenseMatrix(
-        (y.repr(0), y.repr(1), y.repr(2), y.repr(3)),
-        (y.repr(4), y.repr(5), y.repr(6), y.repr(7))
-      )
-      case 3 => DenseMatrix(
-        (y.repr(0), y.repr(1), y.repr(2), y.repr(3)),
-        (y.repr(4), y.repr(5), y.repr(6), y.repr(7)),
-        (y.repr(8), y.repr(9), y.repr(10), y.repr(11))
-      )    
-      case 4 => dm4f(y.repr)
-    }
-    val dmx = dm4f(x.repr)
+    val dmy = DenseMatrix.create(4, N1, y.repr.toArray)
+    val dmx = DenseMatrix.create(4, 4, x.repr.toArray)
     val rdm = dmx * dmy
     new Matrix(vector(N1, 4)(rdm))
   }
 
   def inverse(x: Mat4f): Mat4f = {
-    val idm = breeze.linalg.inv[DenseMatrix[Float], DenseMatrix[Float]](dm4f(x.repr))
+    val idm = breeze.linalg.inv[DenseMatrix[Float], DenseMatrix[Float]](DenseMatrix.create(4, 4, x.repr.toArray))
     new Matrix(vector(4, 4)(idm))
   }
 #-desktop
@@ -408,11 +391,3 @@ final class OrthoMatrix[N <: Nat, M <: Nat, A] private[iliad](val repr: Vector[A
 
 }
 
-
-object Test {
-  def main(args: Array[String]): Unit = {
-    val m = Matrix.id[Float, nat._4]
-    implicit val G = new Matrix4fAlgebra
-    println((5 *: m).repr)
-  }
-}
