@@ -281,6 +281,10 @@ final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: Vector[A]) ex
 abstract class MatrixInstances {
   lazy implicit val Matrix4fAlgebra: SquareMatrixMultiplicativeGroup[Mat4f, Float] 
       with MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, Float] = new Matrix4fAlgebra
+
+  implicit def matrixEq[A, N <: Nat, M <: Nat](implicit eqA: Eq[A]): Eq[Matrix[N, M, A]] = new Eq[Matrix[N, M, A]] {
+    def eqv(x: Matrix[N, M, A], y: Matrix[N, M, A]): Boolean = x === y
+  }
 }
 
 object Matrix extends MatrixInstances {
