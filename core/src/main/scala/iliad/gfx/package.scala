@@ -18,9 +18,9 @@ package object gfx
   type GraphTraversal = Graph.Instance => Vector[Node.Instance]
 
   object GraphTraversal {
-    val ordered: GraphTraversal = g => 
+    val ordered: GraphTraversal = g =>
     g.constructed.nodes.flatMap { n =>
-      g.graph.nodes.filter(_.constructor == n)
+      g.graph.nodes.filter(_.constructor == n.constructor)
     }
   }
 
