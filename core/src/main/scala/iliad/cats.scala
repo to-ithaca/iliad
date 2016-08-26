@@ -25,6 +25,11 @@ object CatsExtra {
   implicit def monadReaderOps[F[_], R](
       M: MonadReader[F, R]): MonadReaderOps[F, R] =
     new MonadReaderOps(M)
+
+  implicit def stateTMonadError[F[_], S, E](implicit M: MonadError[F, E]): MonadError[StateT[F, S, ?], E]
+  = new StateTMonadError[F, S, E] {
+    def FE = M
+  }
 }
 
 final class FreeOps[F[_], A](val f: Free[F, A]) extends AnyVal {
@@ -45,6 +50,12 @@ final class SequenceOps[F[_], G[_], A](val fga: F[G[A]]) extends AnyVal {
 }
 
 object StateTExtra {
+
+  def get[F[_]: Applicative, S]: StateT[F, S, S] = StateT(s => Applicative[F].pure((s, s)))
+
+  def modify[F[_]: Applicative, S](f: S => S): StateT[F, S, Unit] =
+    StateT(s => Applicative[F].pure((f(s), ())))
+
   def inspectF[F[_]: Applicative, S, A](f: S => F[A]): StateT[F, S, A] =
     StateT(s => f(s).map(s -> _))
 
@@ -81,4 +92,17 @@ final class OneAndOps[F[_], A](val o: OneAnd[F, A]) extends AnyVal {
 
 final class MonadReaderOps[F[_], R](val M: MonadReader[F, R]) extends AnyVal {
   def reader[A](f: R => A): F[A] = M.map(M.ask)(f)
+}
+
+sealed trait StateTMonadError[F[_], S, E] extends MonadError[StateT[F, S, ?], E] {
+
+  implicit def FE: MonadError[F, E]
+  
+  def pure[A](x: A): StateT[F,S,A] = StateT.pure[F, S, A](x)
+  def handleErrorWith[A](fa: StateT[F,S,A])(f: E => StateT[F,S,A]): StateT[F,S,A] = 
+    StateT( s => FE.handleErrorWith(fa.run(s))(e => f(e).run(s)))
+  
+  def raiseError[A](e: E): StateT[F,S,A] = StateTExtra.lift(FE.raiseError(e))
+  def flatMap[A, B](fa: StateT[F,S,A])(f: A => StateT[F,S,B]): StateT[F,S,B] = 
+    fa.flatMap(f)
 }

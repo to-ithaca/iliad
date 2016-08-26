@@ -68,7 +68,7 @@ class InstantiateTests extends FunSuite with Matchers {
 
     val result = for {
       i <- graph.map(_.instance)
-      _ <- Instantiate(List(hedgehogDraw)).run(i).leftMap(_.widen[GraphicsError])
+      _ <- Instantiate(hedgehogDraw, Nil).run(i).leftMap(_.widen[GraphicsError])
     } yield ()
 
     validate(result)

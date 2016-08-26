@@ -15,7 +15,14 @@ package object gfx
     with InstantiateFunctions
     with ShaderFunctions {
 
-  type GraphTraversal = Graph.QInstance => Vector[Node.Instance]
+  type GraphTraversal = Graph.Instance => Vector[Node.Instance]
+
+  object GraphTraversal {
+    val ordered: GraphTraversal = g =>
+    g.constructed.nodes.flatMap { n =>
+      g.graph.nodes.filter(_.constructor == n.constructor)
+    }
+  }
 
   type GFX = UniformCache :+: Load :+: Action :+: CNil
 }
