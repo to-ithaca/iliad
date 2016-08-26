@@ -5,7 +5,7 @@ import cats.data._
 import cats.free._
 import cats.implicits._
 
-object CatsExtra {
+object CatsExtra extends StateTInstances1 {
   implicit def freeOps[F[_], A](f: Free[F, A]): FreeOps[F, A] = new FreeOps(f)
   implicit def toFreeOps[F[_], A](f: F[A]): ToFreeOps[F, A] = new ToFreeOps(f)
   implicit def sequenceOps[F[_], G[_], A](
@@ -25,6 +25,14 @@ object CatsExtra {
   implicit def monadReaderOps[F[_], R](
       M: MonadReader[F, R]): MonadReaderOps[F, R] =
     new MonadReaderOps(M)
+
+  implicit def stateTMonadReader[F[_], S](implicit F: Monad[F]): MonadReader[StateT[F, S, ?], S] =
+    new StateTMonadReader[F, S] {
+      def M = F
+    }
+}
+
+sealed trait StateTInstances1 {
 
   implicit def stateTMonadError[F[_], S, E](implicit M: MonadError[F, E]): MonadError[StateT[F, S, ?], E]
   = new StateTMonadError[F, S, E] {
@@ -48,6 +56,7 @@ final class TraverseOps[F[_], A](val fa: F[A]) extends AnyVal {
 final class SequenceOps[F[_], G[_], A](val fga: F[G[A]]) extends AnyVal {
   def sequenceUnit(implicit T: Traverse[F], AA: Applicative[G]): G[Unit] = fga.sequence.map(_ => ())
 }
+
 
 object StateTExtra {
 
@@ -105,4 +114,14 @@ sealed trait StateTMonadError[F[_], S, E] extends MonadError[StateT[F, S, ?], E]
   def raiseError[A](e: E): StateT[F,S,A] = StateTExtra.lift(FE.raiseError(e))
   def flatMap[A, B](fa: StateT[F,S,A])(f: A => StateT[F,S,B]): StateT[F,S,B] = 
     fa.flatMap(f)
+}
+
+sealed trait StateTMonadReader[F[_], S] extends MonadReader[StateT[F, S, ?], S] {
+
+  implicit def M: Monad[F]
+
+  def pure[A](x: A): StateT[F, S, A] = StateT.pure(x)
+  def ask: StateT[F, S, S] = StateTExtra.get
+  def flatMap[A, B](fa: StateT[F,S,A])(f: A => StateT[F,S,B]): StateT[F,S,B] = fa.flatMap(f)
+  def local[A](f: S => S)(fa: StateT[F,S,A]): StateT[F,S,A] = ask.flatMapF(fa.runA)
 }

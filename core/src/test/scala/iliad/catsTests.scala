@@ -32,7 +32,7 @@ class CatsTests extends FunSuite with Discipline with Matchers {
     implicit val eq0: Eq[XorT[StateT[Option, Int, ?], Unit, Int]] =
       XorT.xorTEq[StateT[Option, Int, ?], Unit, Int]
 
-    //F has a Monad
+    //F has a MonadError
     MonadError[Option, Unit]
 
     MonadError[StateT[Option, Int, ?], Unit]
@@ -41,5 +41,15 @@ class CatsTests extends FunSuite with Discipline with Matchers {
       MonadErrorTests[StateT[Option, Int, ?], Unit].monadError[Int, Int, Int])
     checkAll("MonadError[StateT[Option, Int, ?], Int]", 
       SerializableTests.serializable(MonadError[StateT[Option, Int, ?], Unit]))
+  }
+
+  {
+    //F has a Monad
+    Monad[Option]
+
+    MonadReader[StateT[Option, Int, ?], Int]
+
+    checkAll("StateT[Option, Int, Int]", MonadReaderTests[StateT[Option, Int, ?], Int].monadReader[Int, Int, Int])
+    checkAll("MonadReader[StateT[Option, Int, ?], Int]", SerializableTests.serializable(MonadReader[StateT[Option, Int, ?], Int]))
   }
 }

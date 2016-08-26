@@ -19,7 +19,7 @@ object VectorDGen {
     apply[N, A](genA).map(_.normalize).filter { v => 
       val n = v.norm
       n > spa.Field[A].zero && n < spa.Field[A].fromInt(2)
-    }
+    }.map(_.normalize)
 }
 
 object RectGen {
