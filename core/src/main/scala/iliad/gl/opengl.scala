@@ -13,8 +13,6 @@ import cats.implicits._
 
 import java.nio.Buffer
 
-import iliad.CatsExtra._
-
 object OpenGL {
 
   type DSL[A] = Free[OpenGL, A]

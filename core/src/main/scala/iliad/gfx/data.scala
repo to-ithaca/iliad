@@ -11,7 +11,6 @@ import cats.data._
 import cats.implicits._
 
 import quiver.{LNode, LEdge, Decomp}
-import QuiverExtra._
 
 import monocle._
 import monocle.syntax.all._
@@ -42,10 +41,10 @@ object Graph extends LazyLogging {
     private val _graph: Lens[Instance, QInstance] = GenLens[Instance](_.graph)
 
     private[gfx] def addNode[F[_]: Applicative](n: Node.Instance): StateT[F, Instance, Unit] =
-      StateTExtra.modify[F, Instance](_graph modify(_.addNode(n.lNode)))
+      StateT.modify[F, Instance](_graph modify(_.addNode(n.lNode)))
 
     private[gfx] def addEdges[F[_]: Applicative](ls: List[Link.Instance]): StateT[F, Instance, Unit] =
-      StateTExtra.modify[F, Instance](_graph modify(qg => ls.foldLeft(qg)((next, l) => next.addEdge(l.lEdge))))
+      StateT.modify[F, Instance](_graph modify(qg => ls.foldLeft(qg)((next, l) => next.addEdge(l.lEdge))))
   }
 
   case class Instance(constructed: Constructed, graph: QInstance) {

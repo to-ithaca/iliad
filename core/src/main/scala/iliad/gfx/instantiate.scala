@@ -8,8 +8,6 @@ import cats._
 import cats.data._
 import cats.implicits._
 
-import CatsExtra._
-
 trait InstantiateFunctions {
 
   def vDataRef(name: String, attributes: Attribute*): GL.VertexData.Ref = {
@@ -147,7 +145,7 @@ object Instantiate {
   type XorNel[A] = Xor[NonEmptyList[InstantiationError], A]
   type Effect[A] = StateT[Xor[NonEmptyList[InstantiationError], ?], Graph.Instance, A] 
 
-  private def links(n: Draw.Instance, sources: List[Draw.Instance]): Effect[List[Link.Instance]] = StateTExtra.inspectF { s =>
+  private def links(n: Draw.Instance, sources: List[Draw.Instance]): Effect[List[Link.Instance]] = StateT.inspectF { s =>
     val validated = ValidateNodeInstance.validate[ValidatedNel[InstantiationError, ?]](n, sources, s)
     validated.toXor
   }

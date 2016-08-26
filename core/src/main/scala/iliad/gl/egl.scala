@@ -33,8 +33,6 @@ object Attributes {
   def empty[K <: IntConstant, V <: IntConstant]: Attributes[K, V] = apply()
 }
 
-import CatsExtra._
-
 object EGL {
 
   type DSL[A] = Free[EGL, A]

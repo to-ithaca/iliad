@@ -2,7 +2,7 @@ package iliad
 
 import quiver._
 
-object QuiverExtra {
+trait QuiverInstances {
   implicit def graphOps[N, A, B](g: Graph[N, A, B]): GraphOps[N, A, B] =
     new GraphOps[N, A, B](g)
 }

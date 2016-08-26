@@ -18,14 +18,6 @@ import freek._
 
 import com.typesafe.scalalogging._
 
-import CatsExtra._
-import Fs2Extra._
-
-//Moved from kernel
-import scala.reflect._
-
-import fs2.util._
-
 case class Config(
   graph: State[Graph.Constructor, Unit],
   graphTraversal: GraphTraversal

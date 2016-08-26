@@ -9,25 +9,11 @@ import cats.data._
 
 import scala.reflect._
 
-import CatsExtra._
+trait MonocleInstances {
 
-object MonocleExtra {
-
-  implicit def toStateTOps[F[_]: Monad, S, A](
-      s: StateT[F, S, A]): StateTOps[F, S, A] =
-    new StateTOps(s)
-
-  final class StateTOps[F[_], S, A](val s: StateT[F, S, A]) extends AnyVal {
-    def applyLens[R](l: Lens[R, S])(implicit M: Monad[F]): StateT[F, R, A] =
-      s.transformS(_ &|-> l get, {
-        case (r, s) => r &|-> l set s
-      })
-
-    def applyBack[R, SS >: S](ss: S, l: Lens[R, SS])(implicit M: Monad[F]): StateT[F, R, A] =
-      s.transformS(_ => ss, {
-        case (r, s) => r &|-> l set s
-      })
-  }
+  implicit def toMonocleStateTOps[F[_]: Monad, S, A](
+      s: StateT[F, S, A]): MonocleStateTOps[F, S, A] =
+    new MonocleStateTOps(s)
 
   implicit def lensInvariant[S]: Invariant[Lens[S, ?]] = new LensInvariant[S]
   implicit def lensCartesian[S]: Cartesian[Lens[S, ?]] = new LensCartesian[S]
@@ -39,7 +25,23 @@ object MonocleExtra {
 
   implicit def lensGetterOps[S, A](lens: Lens[S, A]): GetterOps[S, A] = new GetterOps(lens.asGetter)
   implicit def lensSetterOps[S, A](lens: Lens[S, A]): SetterOps[S, A] = new SetterOps(lens.asSetter)
+
+  implicit def optionalObjectOps(optional: Optional.type): OptionalObjectOps = 
+    new OptionalObjectOps(optional)
 }
+
+final class MonocleStateTOps[F[_], S, A](val s: StateT[F, S, A]) extends AnyVal {
+  def applyLens[R](l: Lens[R, S])(implicit M: Monad[F]): StateT[F, R, A] =
+    s.transformS(_ &|-> l get, {
+      case (r, s) => r &|-> l set s
+    })
+
+  def applyBack[R, SS >: S](ss: S, l: Lens[R, SS])(implicit M: Monad[F]): StateT[F, R, A] =
+    s.transformS(_ => ss, {
+      case (r, s) => r &|-> l set s
+    })
+}
+
 
 final class LensInvariant[S] extends Invariant[Lens[S, ?]] {
   def imap[A, B](fa: Lens[S, A])(f: A => B)(g: B => A): Lens[S, B] = {
@@ -83,7 +85,7 @@ final class SetterOps[S, A](val setter: Setter[S, A]) extends AnyVal {
     M.modify(setter modify f)
 }
 
-object OptionalExtra {
+final class OptionalObjectOps(val optional: Optional.type) extends AnyVal {
   def narrow[A, B <: A](implicit ct: ClassTag[B]): Optional[A, B] = Optional[A, B]({
     case b: B => Some(b)
     case _ => None

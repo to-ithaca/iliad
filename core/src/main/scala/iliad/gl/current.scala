@@ -2,7 +2,6 @@ package iliad
 package gl
 
 import iliad.syntax.vectord._
-import iliad.CatsExtra._
 
 import cats._
 import cats.data.{State => CatsState}

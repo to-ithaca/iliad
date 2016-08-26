@@ -85,7 +85,7 @@ case object EGLBindAPIError extends EGLError {
 }
 case class EGLCallFailedError(method: String, code: EGLErrorCode)
     extends EGLError {
-  override def toString: String = "EGL method $method failed with error code $code"
+  override def toString: String = s"EGL method $method failed with error code $code"
 }
 case class EGLCallFailedUnknownError(method: String, code: Int)
     extends EGLError {

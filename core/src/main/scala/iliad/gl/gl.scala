@@ -13,10 +13,6 @@ import freek._
 import monocle._
 import monocle.macros._
 
-import FreekExtra._
-import MonocleExtra._
-import CatsExtra._
-
 object GL {
 
   case class State(cache: Cache.State, current: Current.State)

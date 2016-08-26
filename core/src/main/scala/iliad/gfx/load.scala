@@ -7,8 +7,6 @@ import cats._
 import cats.data._
 import cats.implicits._
 
-import CatsExtra._
-
 object Load {
   type Effect = Reader[Graphics.Config, XorT[GL.DSL, GLError, Unit]]
 
