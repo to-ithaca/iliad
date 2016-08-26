@@ -249,6 +249,13 @@ final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: Vector[A]) ex
     new Matrix(go(0, 0))
   }
 
+  def pad(n: Nat, m: Nat)(implicit G: Ring[A], 
+    ev: (N < n.N) || (M < m.N), 
+    toIntN: ToInt[N], 
+    toIntNN: ToInt[n.N], 
+    toIntM: ToInt[m.N]): Matrix[n.N, m.N, A] =
+    pad[n.N, m.N]
+
   def pad[N1 <: Nat, M1 <: Nat](implicit G: Ring[A], ev: (N < N1) || (M < M1), toIntN: ToInt[N], toIntN1: ToInt[N1], toIntM1: ToInt[M1]): Matrix[N1, M1, A] = {
     val N = toIntN()
     val M = repr.size / N

@@ -38,14 +38,14 @@ class MatrixTests extends FunSuite with Discipline with GeneratorDrivenPropertyC
   test("Matrix[2, 2, Int].context is correct") {
     val m = mat"""1 0
                   0 1"""
-    assert(m === Matrix.id[Int, nat._2])
+    assert(m === Matrix.id[Int](2))
   }
 
   test("Matrix[3, 3, Int].context is correct") {
     val m = mat"""1 0 0
                   0 1 0
                   0 0 1"""
-    assert(m === Matrix.id[Int, nat._3])
+    assert(m === Matrix.id[Int](3))
   }
 
   test("Matrix[4, 4, Int].context is correct") {
@@ -53,13 +53,13 @@ class MatrixTests extends FunSuite with Discipline with GeneratorDrivenPropertyC
                   0 1 0 0
                   0 0 1 0
                   0 0 0 1"""
-    assert(m === Matrix.id[Int, nat._4])
+    assert(m === Matrix.id[Int](4))
   }
 
   test("Matrix[3, 2, Int].pad === id") {
     val m = mat"""1 0 0
                   0 1 0"""
-    assert(m.pad[nat._4, nat._4] === Matrix.id[Int, nat._4])
+    assert(m.pad(4, 4) === Matrix.id[Int](4))
   }
 
   test("Matrix[2, 4, Int].pad === id") {
@@ -67,12 +67,12 @@ class MatrixTests extends FunSuite with Discipline with GeneratorDrivenPropertyC
                   0 1
                   0 0
                   0 0"""
-    assert(m.pad[nat._4, nat._4] === Matrix.id[Int, nat._4])
+    assert(m.pad(4, 4) === Matrix.id[Int](4))
   }
 
   test("Matrix[4, 2, Int].pad === id") {
     val m = mat"""1 0 0 0
                   0 1 0 0"""
-    assert(m.pad[nat._4, nat._4] === Matrix.id[Int, nat._4])
+    assert(m.pad(4, 4) === Matrix.id[Int](4))
   }
 }
