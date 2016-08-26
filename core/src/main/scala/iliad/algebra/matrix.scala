@@ -306,7 +306,7 @@ final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: Vector[A]) ex
     new Matrix(v)
   }
 
-  def trace(implicit G: AdditiveMonoid[A], toIntN: ToInt[N]): A = {
+  def trace(implicit G: AdditiveMonoid[A], toIntN: ToInt[N], ev: N =:= M): A = {
     val N = toIntN()
     val M = repr.size / N
     (0 until N).foldLeft(G.zero) { (b, i) =>
@@ -457,7 +457,7 @@ final class OrthoMatrix[N <: Nat, M <: Nat, A] private[iliad](val repr: Vector[A
 
   def transpose(implicit toIntN: ToInt[N]): OrthoMatrix[M, N, A] = new OrthoMatrix(matrix.transpose.repr)
 
-  def trace(implicit G: AdditiveMonoid[A], toIntN: ToInt[N]): A = matrix.trace
+  def trace(implicit G: AdditiveMonoid[A], toIntN: ToInt[N], ev: N =:= M): A = matrix.trace
 
   def matrix: Matrix[N, M, A] = new Matrix(repr)
 

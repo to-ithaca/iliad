@@ -75,4 +75,16 @@ class MatrixTests extends FunSuite with Discipline with GeneratorDrivenPropertyC
                   0 1 0 0"""
     assert(m.pad(4, 4) === Matrix.id[Int](4))
   }
+
+  test("Matrix[4, 4].id === 4") {
+    assert(Matrix.id[Int](4).trace === 4)
+  }
+
+  test("Matrix[3, 3].id === 3") {
+    assert(Matrix.id[Int](3).trace === 3)
+  }
+
+  test("Matrix[2, 2].id === 2") {
+    assert(Matrix.id[Int](2).trace === 2)
+  }
 }
