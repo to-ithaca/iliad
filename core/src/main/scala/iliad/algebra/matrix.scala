@@ -30,7 +30,6 @@ trait SquareMatrixMultiplicativeGroup[M, A] extends MultiplicativeSemigroup[M] w
   def symmetric(x: M): Boolean
 }
 
-
 private[algebra] final class Matrix4fAlgebra 
     extends SquareMatrixMultiplicativeGroup[Mat4f, Float]
     with MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, Float] {
@@ -141,10 +140,36 @@ import breeze.linalg.DenseMatrix
     product(x, y)
 }
 
+trait ||[A, B] {
+  def a: Option[A]
+  def b: Option[B]
+}
+
+//TODO: Migrate to shapeless
+trait LowPriorityOrImplicits {
+    implicit def aOrTpe[A, B](implicit eva: A): A || B = new ||[A, B] {
+      val a = Some(eva)
+      val b = None
+    }
+    implicit def bOrTpe[A, B](implicit evb: B): A || B = new ||[A, B] {
+      val a = None
+      val b = Some(evb)
+    }
+}
+
+object || extends LowPriorityOrImplicits {
+   implicit def abOrTpe[A, B](implicit eva: A, evb: B): A || B = new ||[A, B] {
+    val a = Some(eva)
+    val b = Some(evb)
+  }
+}
+
+
 /** Matrix */
 final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: Vector[A]) extends AnyVal {
 
   import LTEq._
+  import LT._
 
   def apply(n: Nat, m: Nat)(
     implicit evN: n.N <= N, 
@@ -224,8 +249,54 @@ final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: Vector[A]) ex
     new Matrix(go(0, 0))
   }
 
-  def pad[N1 <: Nat, M1 <: Nat](implicit G: AdditiveGroup[A]): Matrix[N1, M1, A] = {
-    ???
+  def pad[N1 <: Nat, M1 <: Nat](implicit G: Ring[A], ev: (N < N1) || (M < M1), toIntN: ToInt[N], toIntN1: ToInt[N1], toIntM1: ToInt[M1]): Matrix[N1, M1, A] = {
+    val N = toIntN()
+    val M = repr.size / N
+    
+    val builder = Vector.newBuilder[A]
+
+    val z = G.zero
+    val o = G.one
+
+    def pad(i: Int, j: Int): Unit = if(i == j) 
+      builder += o else builder += z
+
+    def padN(N1: Int): Unit = {
+      (0 until M).foreach { i =>
+        val idx = i * N
+        builder ++= repr.slice(idx, idx + N)
+        (N until N1).foreach(pad(i, _))
+      }
+    }
+
+    def padM(N1: Int, M1: Int): Unit = {
+      (M until M1).foreach { i =>
+        (0 until N1).foreach(pad(i, _))
+      }
+    }
+
+    (ev.a.isDefined, ev.b.isDefined) match {
+      case (true, true) =>
+        val N1 = toIntN1()
+        val M1 = toIntM1()
+        builder.sizeHint(N1 * M1)
+        padN(N1)
+        padM(N1, M1)
+      case (true, false) =>
+        val N1 = toIntN1()
+        builder.sizeHint(N1 * M)
+        padN(N1)
+      case (false, true) =>   
+        val M1 = toIntM1()
+        builder.sizeHint(N * M1)
+        builder ++= repr
+        padM(N, M1)
+      case _ => sys.error(s"impossible situation, type evidence is not working!")   
+    }
+
+    val v = builder.result()
+    builder.clear()
+    new Matrix(v)
   }
 
   def trace(implicit G: AdditiveMonoid[A], toIntN: ToInt[N]): A = {

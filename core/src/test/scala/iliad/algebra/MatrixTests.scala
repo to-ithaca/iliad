@@ -29,12 +29,11 @@ class MatrixTests extends FunSuite with Discipline with GeneratorDrivenPropertyC
     Gen.choose(-100f, 100f)
   }
 
-  checkAll("Matrix[?, ?, Float]", MatrixLaws[Matrix, Float].multiplicativeGroup[nat._4, nat._1])
-  checkAll("Matrix[?, ?, Float]", MatrixLaws[Matrix, Float].multiplicativeGroup[nat._4, nat._2])
-  checkAll("Matrix[?, ?, Float]", MatrixLaws[Matrix, Float].multiplicativeGroup[nat._4, nat._3])
-  checkAll("Matrix[?, ?, Float]", MatrixLaws[Matrix, Float].multiplicativeGroup[nat._4, nat._4])
-  checkAll("Matrix[?, ?, Float]", MatrixLaws[Matrix, Float]
-    .squareMultiplicativeGroup[nat._4](MatrixGen.symmetric(Arbitrary.arbitrary)))
+  checkAll("Matrix[?, ?, Float]", MatrixLaws[Matrix, Float].product[nat._4, nat._1])
+  checkAll("Matrix[?, ?, Float]", MatrixLaws[Matrix, Float].product[nat._4, nat._2])
+  checkAll("Matrix[?, ?, Float]", MatrixLaws[Matrix, Float].product[nat._4, nat._3])
+  checkAll("Matrix[?, ?, Float]", MatrixLaws[Matrix, Float].product[nat._4, nat._4])
+  checkAll("Matrix[?, ?, Float]", MatrixLaws[Matrix, Float].square[nat._4](MatrixGen.symmetric(Arbitrary.arbitrary)))
 
   test("Matrix[2, 2, Int].context is correct") {
     val m = mat"""1 0
@@ -55,5 +54,25 @@ class MatrixTests extends FunSuite with Discipline with GeneratorDrivenPropertyC
                   0 0 1 0
                   0 0 0 1"""
     assert(m === Matrix.id[Int, nat._4])
+  }
+
+  test("Matrix[3, 2, Int].pad === id") {
+    val m = mat"""1 0 0
+                  0 1 0"""
+    assert(m.pad[nat._4, nat._4] === Matrix.id[Int, nat._4])
+  }
+
+  test("Matrix[2, 4, Int].pad === id") {
+    val m = mat"""1 0
+                  0 1
+                  0 0
+                  0 0"""
+    assert(m.pad[nat._4, nat._4] === Matrix.id[Int, nat._4])
+  }
+
+  test("Matrix[4, 2, Int].pad === id") {
+    val m = mat"""1 0 0 0
+                  0 1 0 0"""
+    assert(m.pad[nat._4, nat._4] === Matrix.id[Int, nat._4])
   }
 }

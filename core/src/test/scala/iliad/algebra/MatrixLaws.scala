@@ -23,7 +23,7 @@ object MatrixLaws {
 }
 
 trait MatrixLaws[F[_ <: Nat, _ <: Nat, _], A] extends Laws {
-  def multiplicativeGroup[N <: Nat, N1 <: Nat](
+  def product[N <: Nat, N1 <: Nat](
     implicit MGNN: MatrixMultiplicativeGroup[F, N, N, A],
     EqN1N: Eq[F[N1, N, A]],
     EqNN: Eq[F[N, N, A]],
@@ -47,7 +47,7 @@ trait MatrixLaws[F[_ <: Nat, _ <: Nat, _], A] extends Laws {
     )
   }
 
-  def squareMultiplicativeGroup[N <: Nat](SymmetricGen: Gen[F[N, N, A]])(
+  def square[N <: Nat](SymmetricGen: Gen[F[N, N, A]])(
     implicit G: SquareMatrixMultiplicativeGroup[F[N, N, A], A],
     EqA: Eq[A],
     ArbA: Arbitrary[A],
