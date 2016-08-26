@@ -186,12 +186,15 @@ final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: Vector[A]) ex
   def map2[B, C](that: Matrix[N, M, B])(f: (A, B) => C): Matrix[N, M, C] = 
     that.ap(this.map(f.curried))
 
-  def ortho(implicit G0: SquareMatrixMultiplicativeGroup[Matrix[N, M, A], A], G1: MatrixMultiplicativeGroup[Matrix, N, M, A], toIntN: ToInt[N], toIntM: ToInt[M]): Option[OrthoMatrix[N, M, A]] = {
-    if((this * transpose) == G0.id)
+  def ortho(implicit G0: SquareMatrixMultiplicativeGroup[Matrix[N, N, A], A], G1: MatrixMultiplicativeGroup[Matrix, M, N, A], toIntN: ToInt[N], toIntM: ToInt[M], EqA: Eq[A], ev: N =:= M): Option[OrthoMatrix[N, M, A]] = {
+    if((transpose * this) === G0.id)
       Some(new OrthoMatrix(repr))
     else
       None
   }
+
+  def isOrtho(implicit G0: SquareMatrixMultiplicativeGroup[Matrix[N, N, A], A], G1: MatrixMultiplicativeGroup[Matrix, M, N, A], toIntN: ToInt[N], toIntM: ToInt[M], ev: N =:= M, EqA: Eq[A]): Boolean =
+    ortho.isDefined
 
   def +(that: OrthoMatrix[N, M, A])(implicit G: AdditiveSemigroup[A]): Matrix[N, M, A] = 
     map2(that.matrix)(_ + _)

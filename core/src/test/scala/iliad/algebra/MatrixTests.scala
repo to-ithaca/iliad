@@ -98,9 +98,9 @@ class MatrixTests extends FunSuite with Discipline with GeneratorDrivenPropertyC
     assert(m.transpose === t)
   }
 
-  test("Matrix[4, 4].rotation.ortho") {
+  test("Matrix[4, 4].rotation.isOrtho") {
     forAll(MatrixGen.rotation[nat._2, Float](Gen.choose(0f, (2f * Math.PI.toFloat)))) { (m: Mat2f) =>
-      assert(m.pad(4, 4).ortho.isDefined)
+      assert(m.pad(4, 4).isOrtho)
     }
   }
 }
