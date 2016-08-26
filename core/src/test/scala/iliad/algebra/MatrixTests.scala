@@ -87,4 +87,20 @@ class MatrixTests extends FunSuite with Discipline with GeneratorDrivenPropertyC
   test("Matrix[2, 2].id === 2") {
     assert(Matrix.id[Int](2).trace === 2)
   }
+
+  test("Matrix[3, 3].transpose is expected") {
+    val m = mat"""1 2 3
+                  4 5 6
+                  7 8 9"""
+    val t = mat"""1 4 7
+                  2 5 8
+                  3 6 9"""
+    assert(m.transpose === t)
+  }
+
+  test("Matrix[4, 4].rotation.ortho") {
+    forAll(MatrixGen.rotation[nat._2, Float](Gen.choose(0f, (2f * Math.PI.toFloat)))) { (m: Mat2f) =>
+      assert(m.pad(4, 4).ortho.isDefined)
+    }
+  }
 }

@@ -6,6 +6,11 @@ import shapeless.ops.nat._
 
 import org.scalacheck._
 
+import spire.implicits._
+import spire.algebra._
+
+import iliad.algebra.syntax.matrix._
+
 object MatrixGen {
   def gen[N <: Nat, M <: Nat, A](genA: Gen[A])(implicit toIntN: ToInt[N], toIntM: ToInt[M]): Gen[Matrix[N, M, A]] =
     Gen.listOfN(toIntN() * toIntM(), genA).map(as => Matrix.sized[A, N, M](as.toVector))
@@ -31,6 +36,17 @@ object MatrixGen {
       builder.clear()
       m
     }
+  }
+
+  def rotation[N <: Nat, A](genA: Gen[A])(implicit toIntN: ToInt[N], Trig: Trig[A], G: AdditiveGroup[A]): Gen[Matrix[N, N, A]] = {
+    toIntN() match {
+      case 2 => genA.map { theta =>
+        mat"""${Trig.cos(theta)} ${-Trig.sin(theta)}
+              ${Trig.sin(theta)} ${Trig.cos(theta)}""".asInstanceOf[Matrix[N, N, A]]
+      }
+      case _ => sys.error("unimplemented")
+    }
+
   }
 }
 

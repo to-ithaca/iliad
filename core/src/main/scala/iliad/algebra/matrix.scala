@@ -230,23 +230,15 @@ final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: Vector[A]) ex
     val N = toIntN()
     val M = repr.size / N
     builder.sizeHint(N * M)
-    @annotation.tailrec
-    def go(i: Int, j: Int): Vector[A] = {
-      if(j < M) {
+
+    (0 until N).foreach { i =>
+      (0 until M).foreach { j =>
         builder += repr(i + j * N)
-        val ii = i + 1
-        if(ii < N)
-          go(i + 1, j)
-        else
-          go(0, j + 1)
-     
-      } else {
-        val v = builder.result()
-        builder.clear()
-        v
       }
     }
-    new Matrix(go(0, 0))
+    val v = builder.result()
+    builder.clear()
+    new Matrix(v)
   }
 
   def pad(n: Nat, m: Nat)(implicit G: Ring[A], 
