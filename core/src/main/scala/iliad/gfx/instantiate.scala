@@ -37,8 +37,8 @@ trait InstantiateFunctions {
     Model.Instance(name, Model.Constructor(constructorName), m)
   }
 
-  def png(name: String, size: Vec2i): Texture.Image =
-    Texture.Image(name, TextureFormat.rgba, size)
+  def png(name: String): Texture.Image =
+    Texture.Image(name, TextureFormat.rgba)
 
   def drawInstance(
       model: Model.Instance,

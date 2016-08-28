@@ -182,63 +182,6 @@ object OpenGL {
                     data,
                     capacity)
 
-
-  private def emptyTextureData(t: Texture.Constructor, id: Int): DSL[Unit] =
-    for {
-      _ <- GLBindTexture(id).free
-      _ <- GLTexImage2D(t.format.internal,
-                        t.viewport.x,
-                        t.viewport.y,
-                        t.format.pixel,
-                        t.format.pixelType,
-                        null).free
-    } yield ()
-
-  private def singleTextureData(t: Texture.Constructor,
-                                id: Int,
-                                data: Buffer): DSL[Unit] =
-    for {
-      _ <- GLBindTexture(id).free
-      _ <- GLTexImage2D(t.format.internal,
-                        t.viewport.x,
-                        t.viewport.y,
-                        t.format.pixel,
-                        t.format.pixelType,
-                        data).free
-    } yield ()
-
-  private def textureData(t: Texture.Constructor,
-                          id: Int,
-                          rect: Rect[Int],
-                          data: Buffer): DSL[Unit] =
-    for {
-      _ <- GLTexSubImage2D(rect.bottomLeft.x,
-                           rect.bottomLeft.y,
-                           rect.width,
-                           rect.height,
-                           t.format.pixel,
-                           t.format.pixelType,
-                           data).free
-    } yield ()
-
-  private def textureData(t: Texture.Constructor,
-                          id: Int,
-                          data: Texture.GroupData): DSL[Unit] =
-    for {
-      _ <- emptyTextureData(t, id)
-      _ <- data.subData.toList.traverseUnit {
-            case (rect, d) => textureData(t, id, rect, d.data)
-          }
-    } yield ()
-
-  private def textureData(t: Texture.Constructor,
-                          data: Texture.Data,
-                          id: Int): DSL[Unit] = data match {
-    case Texture.Empty => emptyTextureData(t, id)
-    case Texture.SingleData(d, _) => singleTextureData(t, id, d)
-    case g: Texture.GroupData => textureData(t, id, g)
-  }
-
   def makeSingleTexture(t: Texture.SingleConstructor,
                         data: Texture.Data): DSL[Int] =
     for {
@@ -254,7 +197,51 @@ object OpenGL {
       back = ids.tail.head
       _ <- textureData(t, data, front)
       _ <- textureData(t, data, back)
-} yield (front, back)
+    } yield (front, back)
+
+  private def textureData(t: Texture.Constructor,
+                          data: Texture.Data,
+                          id: Int): DSL[Unit] = data match {
+    case Texture.Empty(dim) => 
+      GLBindTexture(id).free >> texImage2D(t, id, dim, None)
+    case Texture.SingleData(dim, pixels) => 
+      GLBindTexture(id).free >> texImage2D(t, id, dim, Some(pixels.toDirectByteBuffer))
+    case Texture.GroupData(subData, dim) => for {
+      _ <- GLBindTexture(id).free
+      _ <- texImage2D(t, id, dim, None)
+      _ <- subData.toList.traverseUnit {
+            case (rect, pixels) => texSubImage2D(t, id, rect, pixels.toDirectByteBuffer)
+      }
+    } yield ()
+  }
+
+  private def texImage2D(t: Texture.Constructor, 
+    id: Int, dimensions: Vec2i, 
+    data: Option[Buffer]): DSL[Unit] =
+    for {
+      _ <- GLBindTexture(id).free
+      _ <- GLTexImage2D(t.format.internal,
+                        dimensions.x,
+                        dimensions.y,
+                        t.format.pixel,
+                        t.format.pixelType,
+                        data getOrElse null).free
+    } yield ()
+
+  private def texSubImage2D(t: Texture.Constructor,
+                          id: Int,
+                          rect: Rect[Int],
+                          data: Buffer): DSL[Unit] =
+    for {
+      _ <- GLTexSubImage2D(rect.bottomLeft.x,
+                           rect.bottomLeft.y,
+                           rect.width,
+                           rect.height,
+                           t.format.pixel,
+                           t.format.pixelType,
+                           data).free
+    } yield ()
+
 
   def makeRenderbuffer(r: Renderbuffer.Constructor): DSL[Int] =
     for {

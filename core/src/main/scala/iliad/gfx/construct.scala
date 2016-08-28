@@ -66,7 +66,7 @@ trait ConstructFunctions {
   def txt(name: String,
           format: GL.Texture.Format,
           viewport: Vec2i): Texture.Constructor =
-    Texture.Constructor(name, format, viewport)
+    Texture.Constructor(name, format)
 
   def offScreenDraw(
       name: String,

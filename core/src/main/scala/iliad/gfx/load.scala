@@ -28,6 +28,8 @@ object Load {
       liftXor(cfg => GL.load(r, d, cfg.pageSize))
     case PutTexture(t, d) =>
       lift(cfg => GL.load(ToGL.run(ToGL(t)).run(cfg.graph), d))
+    case PutImage(i, d) =>
+      lift(cfg => GL.load(ToGL.run(ToGL(i)).run(cfg.graph), d))
     case PutRenderbuffer(r) =>
       lift(cfg => GL.load(ToGL.run(ToGL(r)).run(cfg.graph)))
     case PutFramebuffer(f) =>
@@ -44,6 +46,7 @@ private case class PutElements(r: ElementData.Ref, d: ElementData.Data)
     extends Load
 private case class PutTexture(t: Texture.Instance, d: gl.Texture.Data)
     extends Load
+private case class PutImage(i: Texture.Image, d: gl.Texture.Data) extends Load
 private case class PutRenderbuffer(r: Renderbuffer.Instance) extends Load
 private case class PutFramebuffer(f: Framebuffer.Instance) extends Load
 
@@ -65,6 +68,9 @@ trait LoadFunctions {
 
   def load(t: Texture.Instance, d: gl.Texture.Data): GFX =
     lift(PutTexture(t, d))
+
+  def load(i: Texture.Image, d: gl.Texture.Data): GFX =
+    lift(PutImage(i, d))
 
   def load(r: Renderbuffer.Instance): GFX =
     lift(PutRenderbuffer(r))
