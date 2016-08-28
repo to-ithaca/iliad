@@ -3,9 +3,12 @@ package iliad
 import cats._
 import cats.data._
 import cats.free._
+import cats.functor._
 import cats.implicits._
 
-object CatsExtra {
+
+trait CatsInstances extends StateTInstances1 {
+
   implicit def freeOps[F[_], A](f: Free[F, A]): FreeOps[F, A] = new FreeOps(f)
   implicit def toFreeOps[F[_], A](f: F[A]): ToFreeOps[F, A] = new ToFreeOps(f)
   implicit def sequenceOps[F[_], G[_], A](
@@ -22,9 +25,25 @@ object CatsExtra {
     new ValidatedNelOps(v)
   implicit def oneAndOps[F[_], A](o: OneAnd[F, A]): OneAndOps[F, A] =
     new OneAndOps(o)
+  implicit def stateTObjectOps(stateT: StateT.type): StateTObjectOps = new StateTObjectOps(stateT)
+  implicit def kleisliObjectOps(kleisli: Kleisli.type): KleisliObjectOps = new KleisliObjectOps(kleisli)
   implicit def monadReaderOps[F[_], R](
       M: MonadReader[F, R]): MonadReaderOps[F, R] =
     new MonadReaderOps(M)
+
+  implicit def stateTMonadReader[F[_], S](implicit F: Monad[F]): MonadReader[StateT[F, S, ?], S] =
+    new StateTMonadReader[F, S] {
+      def M = F
+    }
+
+  implicit def monadStateInvariant[F[_]]: Invariant[MonadState[F, ?]] = 
+    new MonadStateInvariant[F]
+
+  implicit def monadReaderInvariant[F[_]]: Invariant[MonadReader[F, ?]] =
+    new MonadReaderInvariant[F]
+}
+
+sealed trait StateTInstances1 {
 
   implicit def stateTMonadError[F[_], S, E](implicit M: MonadError[F, E]): MonadError[StateT[F, S, ?], E]
   = new StateTMonadError[F, S, E] {
@@ -49,7 +68,8 @@ final class SequenceOps[F[_], G[_], A](val fga: F[G[A]]) extends AnyVal {
   def sequenceUnit(implicit T: Traverse[F], AA: Applicative[G]): G[Unit] = fga.sequence.map(_ => ())
 }
 
-object StateTExtra {
+
+final class StateTObjectOps(val stateT: StateT.type) extends AnyVal {
 
   def get[F[_]: Applicative, S]: StateT[F, S, S] = StateT(s => Applicative[F].pure((s, s)))
 
@@ -66,7 +86,7 @@ object StateTExtra {
     StateT(s => f(s).map(s => (s, ())))
 }
 
-object KleisliExtra {
+final class KleisliObjectOps(val kleisli: Kleisli.type) extends AnyVal {
   def lift[F[_], A, B](fb: F[B]): Kleisli[F, A, B] = Kleisli(_ => fb)
 }
 
@@ -102,7 +122,39 @@ sealed trait StateTMonadError[F[_], S, E] extends MonadError[StateT[F, S, ?], E]
   def handleErrorWith[A](fa: StateT[F,S,A])(f: E => StateT[F,S,A]): StateT[F,S,A] = 
     StateT( s => FE.handleErrorWith(fa.run(s))(e => f(e).run(s)))
   
-  def raiseError[A](e: E): StateT[F,S,A] = StateTExtra.lift(FE.raiseError(e))
+  def raiseError[A](e: E): StateT[F,S,A] = StateT.lift(FE.raiseError(e))
   def flatMap[A, B](fa: StateT[F,S,A])(f: A => StateT[F,S,B]): StateT[F,S,B] = 
     fa.flatMap(f)
+}
+
+sealed trait StateTMonadReader[F[_], S] extends MonadReader[StateT[F, S, ?], S] {
+
+  implicit def M: Monad[F]
+
+  def pure[A](x: A): StateT[F, S, A] = StateT.pure(x)
+  def ask: StateT[F, S, S] = StateT.get
+  def flatMap[A, B](fa: StateT[F,S,A])(f: A => StateT[F,S,B]): StateT[F,S,B] = fa.flatMap(f)
+  def local[A](f: S => S)(fa: StateT[F,S,A]): StateT[F,S,A] = ask.flatMapF(fa.runA)
+}
+
+
+final class MonadStateInvariant[F[_]] extends Invariant[MonadState[F, ?]] {
+  def imap[A, B](fa: MonadState[F, A])(f: A => B)(g: B => A): MonadState[F, B] =
+    new MonadState[F, B] {
+      def pure[A](x: A): F[A] = fa.pure(x)
+      def flatMap[A, B](faa: F[A])(f: A => F[B]): F[B] = fa.flatMap(faa)(f) 
+      def get: F[B] = fa.map(fa.get)(f)
+      def set(s: B): F[Unit] = fa.set(g(s))
+    }
+}
+
+
+final class MonadReaderInvariant[F[_]] extends Invariant[MonadReader[F, ?]] {
+  def imap[A, B](fa: MonadReader[F, A])(f: A => B)(g: B => A): MonadReader[F, B] = 
+    new MonadReader[F, B] {
+      def pure[A](x: A): F[A] = fa.pure(x)
+      def flatMap[A, B](faa: F[A])(f: A => F[B]): F[B] = fa.flatMap(faa)(f) 
+      def ask: F[B] = map(fa.ask)(f)
+      def local[A](ff: B => B)(faa: F[A]): F[A] = fa.local(a => g(ff(f(a))))(faa)
+    }
 }

@@ -1,8 +1,6 @@
 package iliad
 package gl
 
-import iliad.CatsExtra._
-
 import cats._
 import cats.free._
 

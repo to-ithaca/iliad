@@ -18,8 +18,6 @@ import monocle.std.map._
 
 import scala.util.Try
 
-import CatsExtra._
-
 sealed trait CachedFunction
 
 object CachedFunction {
@@ -72,15 +70,15 @@ object UniformCache {
 
   private[gfx] def apply(a: UniformCache): Effect = a match {
     case UniformPut(scope, fs) =>
-      StateTExtra.modifyF(s => (s + (scope -> fs)).right)
+      StateT.modifyF(s => (s + (scope -> fs)).right)
     case UniformUpdate(scope, name, f) =>
-      StateTExtra.modifyF(
+      StateT.modifyF(
           s =>
             s.get(scope)
               .toRightXor(UnsetScopeError(scope, s.keySet))
               .map(_ => (root ^|-? index(scope) ^|-> at(name) set Some(f))(s)))
     case UniformFold(scope, name, f) =>
-      StateTExtra.modifyF { (fs: State) =>
+      StateT.modifyF { (fs: State) =>
         for {
           us <- fs.get(scope).toRightXor(UnsetScopeError(scope, fs.keySet))
           u <- us.get(name).toRightXor(UnsetUniformError(name, scope))

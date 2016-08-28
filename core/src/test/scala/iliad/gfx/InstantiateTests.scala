@@ -10,8 +10,6 @@ import cats._
 import cats.data._
 import cats.implicits._
 
-import CatsExtra._
-
 class InstantiateTests extends FunSuite with Matchers {
 
   private def validate(x: Xor[NonEmptyList[GraphicsError], Unit]): Unit = 

@@ -13,7 +13,6 @@ import shapeless._
 import cats._
 import cats.implicits._
 
-import CatsExtra._
 import Construct._
 //import gen._
 /*

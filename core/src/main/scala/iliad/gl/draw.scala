@@ -1,7 +1,6 @@
 package iliad
 package gl
 
-import iliad.CatsExtra._
 import iliad.syntax.vectord._
 
 import cats._

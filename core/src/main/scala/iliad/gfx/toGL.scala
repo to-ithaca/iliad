@@ -8,8 +8,6 @@ import cats.data._
 import cats.free._
 import cats.implicits._
 
-import CatsExtra._
-
 object ToGL {
 
   type DSL[A] = Free[ToGL, A]

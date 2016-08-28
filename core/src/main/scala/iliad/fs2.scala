@@ -2,7 +2,7 @@ package iliad
 
 import fs2._
 
-object Fs2Extra {
+trait Fs2Instances {
   implicit def toNestedStreamOps[F[_], A](
       s: Stream[F, F[A]]): NestedStreamOps[F, A] =
     new NestedStreamOps(s)

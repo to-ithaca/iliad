@@ -11,9 +11,6 @@ import monocle.macros._
 
 import shapeless._
 
-import CatsExtra._
-import MonocleExtra._
-
 object Graphics {
 
   case class Config(pageSize: Int,
@@ -38,7 +35,7 @@ object Graphics {
     : ReaderT[StateT[Xor[NonEmptyList[GraphicsError], ?], State, ?],
               Config,
               XorT[GL.GL.DSL, GL.GLError, Unit]] =
-    KleisliExtra.lift(fa.applyLens(_graph).map(_ => XorT.pure(())))
+    Kleisli.lift(fa.applyLens(_graph).map(_ => XorT.pure(())))
 
   private def liftLoad(fa: Load.Effect)
     : ReaderT[StateT[Xor[NonEmptyList[GraphicsError], ?], State, ?],
@@ -50,7 +47,7 @@ object Graphics {
     : ReaderT[StateT[Xor[NonEmptyList[GraphicsError], ?], State, ?],
               Config,
               XorT[GL.GL.DSL, GL.GLError, Unit]] =
-    KleisliExtra.lift(
+    Kleisli.lift(
         fa.applyLens(_uniformCache)
           .transformF(a => a.leftMap(e => NonEmptyList(e, Nil)))
           .map(_ => XorT.pure(())))

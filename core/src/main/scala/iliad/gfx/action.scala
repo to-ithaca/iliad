@@ -5,8 +5,6 @@ import cats._
 import cats.data._
 import cats.implicits._
 
-import CatsExtra._
-
 object Action {
   type Effect =
     StateT[Xor[NonEmptyList[GraphicsError], ?], Graph.Instance, Unit]

@@ -17,9 +17,6 @@ import cats.implicits._
 
 import org.scalacheck._
 
-import MonocleExtra._
-import CatsExtra._
-
 case class Person(name: Name)
 case class Name(first: String, second: String)
 
@@ -144,8 +141,8 @@ class OptionalTests extends FunSuite with GeneratorDrivenPropertyChecks with Mat
     }
   }
 
-  test("OptionalExtra#narrow#getOption should exist if the subtype exists") {
-    val narrow = OptionalExtra.narrow[Animal, Cat]
+  test("Optional#narrow#getOption should exist if the subtype exists") {
+    val narrow = Optional.narrow[Animal, Cat]
     
     forAll { (animal : Animal) =>
       animal match {
@@ -157,8 +154,8 @@ class OptionalTests extends FunSuite with GeneratorDrivenPropertyChecks with Mat
     }
   }
 
-  test("OptionalExtra#narrow#set should always set a value") {
-    val narrow = OptionalExtra.narrow[Animal, Cat]
+  test("Optional#narrow#set should always set a value") {
+    val narrow = Optional.narrow[Animal, Cat]
     
     forAll { (cat : Cat, animal: Animal) =>
       narrow.set(cat)(animal) should === (cat)

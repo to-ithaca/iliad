@@ -5,8 +5,6 @@ import cats._
 import cats.data._
 import cats.implicits._
 
-import CatsExtra._
-
 import java.nio.IntBuffer
 
 object GLInterpreter extends (OpenGL.Interpreter[OpenGL.NoEffect]) {

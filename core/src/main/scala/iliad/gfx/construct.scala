@@ -8,9 +8,6 @@ import cats._
 import cats.data._
 import cats.implicits._
 
-import CatsExtra._
-import QuiverExtra._
-
 trait ConstructFunctions {
 
   def put(n: Node.Constructor): State[Graph.Constructor, Unit] =
