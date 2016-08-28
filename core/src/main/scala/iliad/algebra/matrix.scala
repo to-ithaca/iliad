@@ -11,6 +11,8 @@ import spire.implicits._
 import scala.annotation
 import scala.reflect._
 
+import scala.{Vector => SVector}
+
 trait MatrixMultiplicativeGroup[F[_ <: Nat, _ <: Nat, _], N <: Nat, M <: Nat, A] extends Module[F[N, M, A], A] {
 
   implicit def scalar: Field[A]
@@ -59,8 +61,8 @@ import breeze.linalg.DenseMatrix
 
 #+desktop
 
-  private def vector(N: Int, M: Int)(dm: DenseMatrix[Float]): Vector[Float] = {
-    val builder = Vector.newBuilder[Float]
+  private def vector(N: Int, M: Int)(dm: DenseMatrix[Float]): SVector[Float] = {
+    val builder = SVector.newBuilder[Float]
     builder.sizeHint(N * M)
     (0 until N).foreach { i =>
       (0 until M).foreach { j =>
@@ -124,7 +126,7 @@ import breeze.linalg.DenseMatrix
       Native.multiplyMV(r, 0, t, 0, m1, 0)
       r
     }
-    new Matrix(r.toVector)
+    new Matrix(r.toSVector)
   }
 
   def inverse(x: Mat4f): Mat4f = {
@@ -132,7 +134,7 @@ import breeze.linalg.DenseMatrix
     val t = new Array[Float](16)
     Native.transposeM(t, 0, x.toArray, 0)
     Native.invertM(r, 0, t, 0)
-    new Matrix(r.toVector)
+    new Matrix(r.toSVector)
   }
 #-android
 
@@ -166,7 +168,7 @@ object || extends LowPriorityOrImplicits {
 
 
 /** Matrix */
-final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: Vector[A]) extends AnyVal {
+final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: SVector[A]) extends AnyVal {
 
   import LTEq._
   import LT._
@@ -179,6 +181,9 @@ final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: Vector[A]) ex
     toIntM: ToInt[m.N]): A = {
     repr(toIntN() * toIntNN() + toIntM())
   }
+
+  def n(implicit toIntN: ToInt[N]): Int = toIntN()
+  def m(implicit toIntM: ToInt[M]): Int = toIntM()
 
   def map[B](f: A => B): Matrix[N, M, B] = new Matrix(repr.map(f))
   def ap[B](ff: Matrix[N, M, A => B]): Matrix[N, M, B] =
@@ -229,7 +234,7 @@ final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: Vector[A]) ex
   def inverse(implicit G: SquareMatrixMultiplicativeGroup[Matrix[N, M, A], A]): Matrix[N, M, A] = G.inverse(this)
 
   def transpose(implicit toIntN: ToInt[N]): Matrix[M, N, A] = {
-    val builder = Vector.newBuilder[A]
+    val builder = SVector.newBuilder[A]
     val N = toIntN()
     val M = repr.size / N
     builder.sizeHint(N * M)
@@ -255,7 +260,7 @@ final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: Vector[A]) ex
     val N = toIntN()
     val M = repr.size / N
     
-    val builder = Vector.newBuilder[A]
+    val builder = SVector.newBuilder[A]
 
     val z = G.zero
     val o = G.one
@@ -328,6 +333,10 @@ final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: Vector[A]) ex
     go(0, 0)
   }
 
+  def *(v: Vector[N, A])(implicit G: MatrixMultiplicativeGroup[Matrix, N, M, A]): Vector[N, A] =
+    new Vector((this * new Matrix[nat._1, N, A](v.repr)).repr)
+
+
   //TODO: Change this
   override def toString: String = repr.toString
 
@@ -345,7 +354,7 @@ abstract class MatrixInstances {
 
 object Matrix extends MatrixInstances {
   def fill[A, N <: Nat, M <: Nat](a: A)(implicit toIntN: ToInt[N], toIntM: ToInt[M]): Matrix[N, M, A] = 
-    new Matrix(Vector.fill(toIntN() * toIntM())(a))
+    new Matrix(SVector.fill(toIntN() * toIntM())(a))
 
   def zero[A, N <: Nat, M <: Nat](implicit R: Ring[A], toIntN: ToInt[N], toIntM: ToInt[M]): Matrix[N, M, A] = 
     fill(R.zero)
@@ -353,26 +362,26 @@ object Matrix extends MatrixInstances {
   def zero[A](n: Nat, m: Nat)(implicit R: Ring[A], toIntN: ToInt[n.N], toIntM: ToInt[m.N]): Matrix[n.N, m.N, A] =
     zero[A, n.N, m.N]
 
-  def sized[A, N <: Nat, M <: Nat](v: Vector[A])(implicit toIntN: ToInt[N], toIntM: ToInt[M]): Matrix[N, M, A] = {
+  def sized[A, N <: Nat, M <: Nat](v: SVector[A])(implicit toIntN: ToInt[N], toIntM: ToInt[M]): Matrix[N, M, A] = {
     val N = toIntN()
     val M = toIntM()
     require((N * M) == v.length, s"matrix $v does not have dimensions $N $M")
     new Matrix(v)
   }
 
-  def sized[A](n: Nat, m: Nat)(v: Vector[A])(implicit toIntN: ToInt[n.N], toIntM: ToInt[m.N]): Matrix[n.N, m.N, A] =
+  def sized[A](n: Nat, m: Nat)(v: SVector[A])(implicit toIntN: ToInt[n.N], toIntM: ToInt[m.N]): Matrix[n.N, m.N, A] =
     sized[A, n.N, m.N](v)
 
   def id[A, N <: Nat](implicit toInt: ToInt[N], R: Ring[A]): Matrix[N, N, A] = {
     val N = toInt()
     val NN = N * N
-    val builder = Vector.newBuilder[A]
+    val builder = SVector.newBuilder[A]
     builder.sizeHint(NN)
     val z = R.zero
     val o = R.one
 
     @annotation.tailrec
-    def go(i: Int, n: Int): Vector[A] = {
+    def go(i: Int, n: Int): SVector[A] = {
       if(i < NN) {
         if(i == n) {
           builder += o
@@ -399,17 +408,17 @@ object OrthoMatrix {
   def id[A, N <: Nat](implicit toInt: ToInt[N], R: Ring[A]): OrthoMatrix[N, N, A] = apply(Matrix.id[A, N])
   def id[A](n: Nat)(implicit toInt: ToInt[n.N], R: Ring[A]): OrthoMatrix[n.N, n.N, A] = id[A, n.N]
 
-  def sized[A, N <: Nat, M <: Nat](v: Vector[A])(implicit toIntN: ToInt[N], toIntM: ToInt[M]): OrthoMatrix[N, M, A] = apply(Matrix.sized[A, N, M](v))
+  def sized[A, N <: Nat, M <: Nat](v: SVector[A])(implicit toIntN: ToInt[N], toIntM: ToInt[M]): OrthoMatrix[N, M, A] = apply(Matrix.sized[A, N, M](v))
 
 
-  def sized[A](n: Nat, m: Nat)(v: Vector[A])(implicit toIntN: ToInt[n.N], toIntM: ToInt[m.N]): OrthoMatrix[n.N, m.N, A] =
+  def sized[A](n: Nat, m: Nat)(v: SVector[A])(implicit toIntN: ToInt[n.N], toIntM: ToInt[m.N]): OrthoMatrix[n.N, m.N, A] =
     sized[A, n.N, m.N](v)
 
 
 }
 
 /** Orthogonal matrix */ //TODO: What to do in the case of 
-final class OrthoMatrix[N <: Nat, M <: Nat, A] private[iliad](val repr: Vector[A]) extends AnyVal {
+final class OrthoMatrix[N <: Nat, M <: Nat, A] private[iliad](val repr: SVector[A]) extends AnyVal {
 
   def map[B](f: A => B): OrthoMatrix[N, M, B] = OrthoMatrix(matrix.map(f))
   def ap[B](ff: OrthoMatrix[N, M, A => B]): OrthoMatrix[N, M, B] =

@@ -15,7 +15,5 @@ trait MatrixSyntax extends MatrixContextSyntax {
   type Mat2[A] = Matrix[nat._2, nat._2, A]
   type Mat3[A] = Matrix[nat._3, nat._3, A]
   type Mat4[A] = Matrix[nat._4, nat._4, A]
-
-  type Mat4Algebra[A] = MatrixAlgebra[nat._4, A]
 }
 

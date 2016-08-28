@@ -11,6 +11,8 @@ import spire.algebra._
 
 import iliad.algebra.syntax.matrix._
 
+import scala.{Vector => SVector}
+
 object MatrixGen {
   def gen[N <: Nat, M <: Nat, A](genA: Gen[A])(implicit toIntN: ToInt[N], toIntM: ToInt[M]): Gen[Matrix[N, M, A]] =
     Gen.listOfN(toIntN() * toIntM(), genA).map(as => Matrix.sized[A, N, M](as.toVector))
@@ -21,7 +23,7 @@ object MatrixGen {
       diag <- Gen.listOfN(N, genA)
       els <- Gen.listOfN(N * (N - 1), genA)
     } yield {
-      val builder = Vector.newBuilder[A]
+      val builder = SVector.newBuilder[A]
       (0 until N).foreach { i =>
         (0 until N).foreach { j =>
           if(i == j)
@@ -52,4 +54,9 @@ object MatrixGen {
 
 object OrthoMatrixGen {
   def gen[N <: Nat, M <: Nat, A](genA: Gen[A])(implicit toIntN: ToInt[N], toIntM: ToInt[M]): Gen[OrthoMatrix[N, M , A]] = MatrixGen.gen[N, M, A](genA).map(OrthoMatrix(_))
+}
+
+object VectorGen {
+  def gen[N <: Nat, A](genA: Gen[A])(implicit toInt: ToInt[N]): Gen[Vector[N, A]] =
+    Gen.listOfN(toInt(), genA).map(as => Vector.sized[N, A](as.toVector))
 }
