@@ -59,7 +59,9 @@ lazy val commonSettings = Seq(
     "com.projectseptember" %% "freek" % "0.3.0",
     "oncue.quiver" %% "core" % "5.3.57",
     "org.slf4j" % "slf4j-api" % "1.7.13",
-    "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0"
+    "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0",
+    "org.scodec" %% "scodec-bits" % "1.1.0",
+    "org.scodec" %% "scodec-core" % "1.10.2"
   )
 ) ++ compilerOptions
 
