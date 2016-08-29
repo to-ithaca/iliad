@@ -9,8 +9,7 @@ import shapeless._
 
 import java.io.ByteArrayInputStream
 
-
-final class Bitmap[F <: HList](dimensions: Vec2i, pixels: BitVector)
+final class Bitmap[F <: HList](val dimensions: Vec2i, val pixels: BitVector)
 
 final class PNGDecoder[F <: HList] extends Decoder[Bitmap[F]] {
 
@@ -23,11 +22,12 @@ import javax.imageio.ImageIO
 #+desktop
     //TODO: try catch
     val image = ImageIO.read(stream)
-    val pixels = image.getRaster.asInstanceOf[java.awt.image.DataBufferByte].getData()
+    val pixels = BitVector(image.getRaster.getDataBuffer()
+      .asInstanceOf[java.awt.image.DataBufferByte].getData()).swizzleZYX
     val dimensions = v"${image.getWidth} ${image.getHeight}"
 #-desktop
     //TODO: verify format?
-    val bitmap = new Bitmap[F](dimensions, BitVector(pixels))
+    val bitmap = new Bitmap[F](dimensions, pixels)
     Attempt.successful(DecodeResult(bitmap, BitVector.empty))
   }
 }

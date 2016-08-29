@@ -38,7 +38,7 @@ trait InstantiateFunctions {
   }
 
   def png(name: String): Texture.Image =
-    Texture.Image(name, TextureFormat.rgba)
+    Texture.Image(name, TextureFormat.rgb)
 
   def drawInstance(
       model: Model.Instance,

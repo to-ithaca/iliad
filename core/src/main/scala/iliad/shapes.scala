@@ -186,6 +186,12 @@ case class BoundedPlane[A: spm.Fractional: spa.Trig](x0y0: Vec3[A],
 }
 
 object BoundedPlane {
+
+  def fromRect[A: spm.Fractional : spa.Trig](rect: Rect[A], z: A) =
+    BoundedPlane(rect.bottomLeft.pad(3, z), 
+      rect.topLeft.pad(3, z), 
+      rect.bottomRight.pad(3, z))
+
   implicit def boundedPlaneEq[A](implicit ea: Eq[A]): Eq[BoundedPlane[A]] =
     new BoundedPlaneEq[A] {
       val EA = ea

@@ -21,4 +21,9 @@ class ScodecTests extends FunSuite with Matchers {
     val bitVector = BitVector(Array[Byte](1, 2, 3))
     bitVector.toDirectByteBuffer.isReadOnly should be(true)
   }
+
+  test("swizzleZYX should flip 1st and 3rd values, keeping second values constant") {
+    val bitVector = BitVector(Array[Byte](1, 2, 3, 4, 5, 6))
+    bitVector.swizzleZYX should ===(BitVector(Array[Byte](3, 2, 1, 6, 5, 4)))
+  }
 }

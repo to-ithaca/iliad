@@ -70,10 +70,17 @@ object GL {
       _ <- Cache.put(v).expand[GL]
     } yield v)
 
+  private def load(s: Sampler.Constructor): DSL[Sampler.Loaded] = 
+    getOrElse(Cache.get(s).expand[GL])(for {
+      sl <- Load(s).expand[GL]
+      _ <- Cache.put(sl).expand[GL]
+    } yield sl)
+
   def load(p: Program.Unlinked): DSL[Program.Linked] =
     getOrElse(Cache.get(p).expand[GL])(for {
       v <- load(p.vertex)
       f <- load(p.fragment)
+      _ <- p.samplers.values.toList.traverse(load)
       pl <- Load(v, f).expand[GL]
       _ <- Cache.put(pl).expand[GL]
       _ <- Current.set(pl).expand[GL]
