@@ -187,8 +187,7 @@ object Link {
 object Texture {
   sealed trait Uniform
   case class Constructor(name: String,
-                         format: GL.Texture.Format,
-                         viewport: Vec2i)
+                         format: GL.Texture.Format)
       extends Framebuffer.OutputConstructor {
     private[gfx] def single: Constructed = Constructed(this, false)
     private[gfx] def double: Constructed = Constructed(this, true)
@@ -200,7 +199,7 @@ object Texture {
       extends Uniform
       with Framebuffer.OutputInstance
 
-  case class Image(name: String, format: GL.Texture.Format, viewport: Vec2i)
+  case class Image(name: String, format: GL.Texture.Format /*, viewport: Vec2i*/)
       extends Uniform
 }
 

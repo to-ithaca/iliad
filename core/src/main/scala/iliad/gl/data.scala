@@ -13,6 +13,8 @@ import monocle._
 import monocle.macros._
 import monocle.syntax.all._
 
+import scodec.bits._
+
 object VertexShader {
   case class Source(text: String,
                     attributes: List[Attribute.Constructor],
@@ -237,9 +239,9 @@ object Model {
 object Texture {
 
   sealed trait Data
-  case object Empty extends Data
-  case class SingleData(data: Buffer, size: Int) extends Data
-  case class GroupData(subData: Map[Rect[Int], SingleData]) extends Data
+  case class Empty(dim: Vec2i) extends Data
+  case class SingleData(dim: Vec2i, pixels: BitVector) extends Data
+  case class GroupData(subData: Map[Rect[Int], BitVector], dim: Vec2i) extends Data
 
   case class Format(pixel: TextureFormat,
                     internal: TextureInternalFormat,
@@ -249,12 +251,11 @@ object Texture {
   sealed trait Constructor extends Framebuffer.AttachmentConstructor {
     def name: String
     def format: Format
-    def viewport: Vec2i
   }
 
-  case class SingleConstructor(name: String, format: Format, viewport: Vec2i)
+  case class SingleConstructor(name: String, format: Format)
       extends Constructor
-  case class DoubleConstructor(name: String, format: Format, viewport: Vec2i)
+  case class DoubleConstructor(name: String, format: Format)
       extends Constructor
 
   sealed trait Loaded extends Framebuffer.AttachmentLoaded {

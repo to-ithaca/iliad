@@ -18,6 +18,9 @@ object ToGL {
   def apply(t: Texture.Instance): DSL[GL.Texture.Constructor] =
     ToGLTexture(t).free
 
+  def apply(t: Texture.Image): DSL[GL.Texture.Constructor] =
+    ToGLImage(t).free
+
   def apply(r: Renderbuffer.Instance): DSL[GL.Renderbuffer.Constructor] =
     ToGLRenderbuffer(r).free
 
@@ -95,17 +98,15 @@ object ToGLInterpreter extends (ToGL ~> ToGL.Effect) {
         val tt: GL.Texture.Constructor =
           if (c.doubleTextures.contains(t.constructor)) {
             GL.Texture.DoubleConstructor(s"${t.name}-${t.constructor.name}",
-                                         t.constructor.format,
-                                         t.constructor.viewport)
+                                         t.constructor.format)
           } else {
             GL.Texture.SingleConstructor(s"${t.name}-${t.constructor.name}",
-                                         t.constructor.format,
-                                         t.constructor.viewport)
+                                         t.constructor.format)
           }
         tt
       }
     case ToGLImage(i) =>
-      Kleisli.pure(GL.Texture.SingleConstructor(i.name, i.format, i.viewport))
+      Kleisli.pure(GL.Texture.SingleConstructor(i.name, i.format))
     case ToGLRenderbuffer(r) =>
       Kleisli.pure(
           GL.Renderbuffer.Constructor(s"${r.name}-${r.constructor.name}",

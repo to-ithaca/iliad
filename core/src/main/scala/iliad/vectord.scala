@@ -87,7 +87,7 @@ case class VectorD[N <: Nat, A] private[iliad] (_unsized: Vector[A]) {
       implicit G: spa.MultiplicativeSemigroup[A]): VectorD[N, A] =
     map2(that)(_ * _)
 
-  private def pad[D <: Nat](n: Nat, a: A)(
+  def pad[D <: Nat](n: Nat, a: A)(
       implicit DD: Diff.Aux[n.N, N, D],
       toIntD: ToInt[D]): VectorD[n.N, A] =
     new VectorD[n.N, A](this.unsized ++ Vector.fill(toIntD())(a))

@@ -63,10 +63,28 @@ trait ConstructFunctions {
         Framebuffer.OnScreen
     )
 
+  def alphaDraw(name: String,
+           v: GL.VertexShader.Source,
+           f: GL.FragmentShader.Source,
+           model: String,
+           drawType: DrawType,
+           dimension: Dimension): Draw.Constructor =
+    Draw.Constructor(
+        name,
+        GL.Program.Unlinked(v, f),
+        drawType.primitive,
+        dimension.capabilities + (GL.GL_BLEND -> true),
+        GL.ColorMask.none,
+        Some(GL.Blend.alpha),
+        false,
+        Model.Constructor(model),
+        Framebuffer.OnScreen
+    )
+
   def txt(name: String,
           format: GL.Texture.Format,
           viewport: Vec2i): Texture.Constructor =
-    Texture.Constructor(name, format, viewport)
+    Texture.Constructor(name, format)
 
   def offScreenDraw(
       name: String,

@@ -139,6 +139,7 @@ object Camera extends LazyLogging with CameraFunctions {
 sealed trait CameraFunctions {
 
   private def _position[A: Trig : Fractional]: Lens[Camera[A], Vec3[A]] = GenLens[Camera[A]](_.position)
+  private def _focalPoint[A: Trig : Fractional]: Lens[Camera[A], Vec3[A]] = GenLens[Camera[A]](_.focalPoint)
   private def _near[A: Trig: Fractional]: Lens[Camera[A], A] = GenLens[Camera[A]](_.near)
   private def _far[A: Trig: Fractional]: Lens[Camera[A], A] = GenLens[Camera[A]](_.far)
   private def _up[A: Trig: Fractional]: Lens[Camera[A], Vec3[A]] = GenLens[Camera[A]](_.up)
@@ -177,13 +178,15 @@ sealed trait CameraFunctions {
         c &|-> _position set p
       })
 
-  def interpolate[A: Trig: Fractional](dt: A, pEnd: Vec3[A], upEnd: Vec3[A])
+  def interpolate[A: Trig: Fractional](dt: A, pEnd: Vec3[A], upEnd: Vec3[A], fEnd: Vec3[A])
     (implicit M: Mat4Algebra[A]): CameraFunction[A] =
     CameraFunction(Some(dt), (t: A, c: Camera[A]) => {
       val f = t / dt
       val up = AxisAngle(c.up.rotate(upEnd)).fraction(f).rotate(c.up)
       val position = c.position + ((pEnd - c.position) :* f)
+      val focalPoint = c.focalPoint + ((fEnd - c.focalPoint) :* f)
       ((_position[A] set position) compose
+      (_focalPoint[A] set focalPoint) compose
       (_up[A] set up))(c)
     })
 }

@@ -14,6 +14,8 @@ import ScodecExtra._
 
 final class BitVectorOps(val bitVector: BitVector) extends AnyVal {
   def toDirectByteBuffer: ByteBuffer = bitVector.toByteVector.toDirectByteBuffer
+
+  def swizzleZYX: BitVector = bitVector.toByteVector.swizzleZYX.toBitVector
 }
 
 final class ByteVectorOps(val byteVector: ByteVector) extends AnyVal {
@@ -27,4 +29,10 @@ final class ByteVectorOps(val byteVector: ByteVector) extends AnyVal {
  private def toIntSize(size: Long): Int = 
    if (size <= Int.MaxValue) size.toInt else 
      throw new IllegalArgumentException(s"size must be <= Int.MaxValue but is $size")
+
+  def swizzleZYX: ByteVector =
+    ByteVector.viewAt({(i: Long) => 
+      val j = i + 2 - 2 * (i % 3)
+      byteVector.apply(j)
+    }, byteVector.size)
 }
