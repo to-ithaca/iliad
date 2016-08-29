@@ -73,7 +73,7 @@ object EGLInterpreter
       case EGLGetError => Reader(_.eglGetError)
       case EGLChooseConfig(dpy, attrs, count) =>
         Reader { lib =>
-          val s = Buffer.capacity[Int](1)
+          val s = Buffer.int(1)
           val cfgs = new Array[EGL14.EGLConfig](count)
           lib.eglChooseConfig(dpy, attrs.toArray, cfgs, count, s)
           val size = s.get()
@@ -92,14 +92,14 @@ object EGLInterpreter
         Reader(_.eglMakeCurrent(disp, draw, read, ctx))
       case EGLInitialize(disp) =>
         Reader { lib =>
-          val mj = Buffer.capacity[Int](1)
-          val mn = Buffer.capacity[Int](1)
+          val mj = Buffer.int(1)
+          val mn = Buffer.int(1)
           lib.eglInitialize(disp, mj, mn)
           (mj.get(), mn.get())
         }
       case EGLGetConfigAttrib(dpy, cfg, attr) =>
         Reader { lib =>
-          val value = Buffer.capacity[Int](1)
+          val value = Buffer.int(1)
           lib.eglGetConfigAttrib(dpy, cfg, attr.value, value)
           value.get()
         }

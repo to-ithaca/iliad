@@ -4,6 +4,8 @@ package gl
 import cats._
 import cats.free._
 
+import scodec.bits._
+
 object Load {
   type DSL[A] = Free[Load, A]
 
@@ -19,32 +21,32 @@ object Load {
     LoadProgram(vs, fs).free
 
   def create(ref: VertexData.Ref,
-             data: VertexData.Data,
+             data: BitVector,
              pageSize: Int,
              b: VertexBuffer.Constructor): DSL[VertexBuffer.Update] =
     LoadCreateVertexBuffer(ref, data, pageSize, b).free
   def create(ref: ElementData.Ref,
-             data: ElementData.Data,
+             data: BitVector,
              pageSize: Int,
              b: ElementBuffer.Constructor): DSL[ElementBuffer.Update] =
     LoadCreateElementBuffer(ref, data, pageSize, b).free
   def insert(ref: VertexData.Ref,
-             data: VertexData.Data,
+             data: BitVector,
              pageSize: Int,
              b: VertexBuffer.Loaded): DSL[VertexBuffer.Update] =
     LoadInsertVertexBuffer(ref, data, pageSize, b).free
   def insert(ref: ElementData.Ref,
-             data: ElementData.Data,
+             data: BitVector,
              pageSize: Int,
              b: ElementBuffer.Loaded): DSL[ElementBuffer.Update] =
     LoadInsertElementBuffer(ref, data, pageSize, b).free
   def copy(ref: VertexData.Ref,
-           data: VertexData.Data,
+           data: BitVector,
            pageSize: Int,
            b: VertexBuffer.Loaded): DSL[VertexBuffer.Update] =
     LoadCopyVertexBuffer(ref, data, pageSize, b).free
   def copy(ref: ElementData.Ref,
-           data: ElementData.Data,
+           data: BitVector,
            pageSize: Int,
            b: ElementBuffer.Loaded): DSL[ElementBuffer.Update] =
     LoadCopyElementBuffer(ref, data, pageSize, b).free
@@ -71,32 +73,32 @@ case class LoadProgram(vs: VertexShader.Compiled, fs: FragmentShader.Compiled)
     extends Load[Program.Linked]
 
 case class LoadCreateVertexBuffer(ref: VertexData.Ref,
-                                  data: VertexData.Data,
+                                  data: BitVector,
                                   pageSize: Int,
                                   b: VertexBuffer.Constructor)
     extends Load[VertexBuffer.Update]
 case class LoadCreateElementBuffer(ref: ElementData.Ref,
-                                   data: ElementData.Data,
+                                   data: BitVector,
                                    pageSize: Int,
                                    b: ElementBuffer.Constructor)
     extends Load[ElementBuffer.Update]
 case class LoadInsertVertexBuffer(ref: VertexData.Ref,
-                                  data: VertexData.Data,
+                                  data: BitVector,
                                   pageSize: Int,
                                   b: VertexBuffer.Loaded)
     extends Load[VertexBuffer.Update]
 case class LoadInsertElementBuffer(ref: ElementData.Ref,
-                                   data: ElementData.Data,
+                                   data: BitVector,
                                    pageSize: Int,
                                    b: ElementBuffer.Loaded)
     extends Load[ElementBuffer.Update]
 case class LoadCopyVertexBuffer(ref: VertexData.Ref,
-                                data: VertexData.Data,
+                                data: BitVector,
                                 pageSize: Int,
                                 b: VertexBuffer.Loaded)
     extends Load[VertexBuffer.Update]
 case class LoadCopyElementBuffer(ref: ElementData.Ref,
-                                 data: ElementData.Data,
+                                 data: BitVector,
                                  pageSize: Int,
                                  b: ElementBuffer.Loaded)
     extends Load[ElementBuffer.Update]
@@ -142,38 +144,38 @@ object LoadParser extends (Load ~> OpenGL.DSL) {
                        us.toMap)
 
     case LoadCreateVertexBuffer(r, d, pageSize, b) =>
-      val capacity = roundUp(d.size, pageSize)
+      val capacity = roundUp(d.size.toInt, pageSize)
       OpenGL
-        .makeVertexBuffer(d.data, d.size, capacity)
+        .makeVertexBuffer(d, capacity)
         .map(
-            VertexBuffer.loadNew(_, b, r, d.size, capacity)
+            VertexBuffer.loadNew(_, b, r, d.size.toInt, capacity)
         )
     case LoadCreateElementBuffer(r, d, pageSize, b) =>
-      val capacity = roundUp(d.size, pageSize)
+      val capacity = roundUp(d.size.toInt, pageSize)
       OpenGL
-        .makeElementBuffer(d.data, d.size, capacity)
+        .makeElementBuffer(d, capacity)
         .map(
-            ElementBuffer.loadNew(_, b, r, d.size, capacity)
+            ElementBuffer.loadNew(_, b, r, d.size.toInt, capacity)
         )
     case LoadInsertVertexBuffer(r, d, pageSize, b) =>
       OpenGL
-        .insertVertices(b.id, b.filled, d.size, d.data)
-        .map(_ => VertexBuffer.insert(b, r, d.size))
+        .insertVertices(b.id, b.filled, d)
+        .map(_ => VertexBuffer.insert(b, r, d.size.toInt))
     case LoadInsertElementBuffer(r, d, pageSize, b) =>
       OpenGL
-        .insertElements(b.id, b.filled, d.size, d.data)
-        .map(_ => ElementBuffer.insert(b, r, d.size))
+        .insertElements(b.id, b.filled, d)
+        .map(_ => ElementBuffer.insert(b, r, d.size.toInt))
     case LoadCopyVertexBuffer(r, d, pageSize, b) =>
-      val capacity = roundUp(d.size + b.filled, pageSize)
+      val capacity = roundUp(d.size.toInt + b.filled, pageSize)
       OpenGL
-        .copyVertices(b.id, b.filled, d.size, d.data, capacity)
-        .map(VertexBuffer.copy(_, b, r, d.size, capacity))
+        .copyVertices(b.id, b.filled, d, capacity)
+        .map(VertexBuffer.copy(_, b, r, d.size.toInt, capacity))
     case LoadCopyElementBuffer(r, d, pageSize, b) =>
-      val capacity = roundUp(d.size + b.filled, pageSize)
+      val capacity = roundUp(d.size.toInt + b.filled, pageSize)
       OpenGL
-        .copyElements(b.id, b.filled, d.size, d.data, capacity)
+        .copyElements(b.id, b.filled, d, capacity)
         .map(
-            ElementBuffer.copy(_, b, r, d.size, capacity)
+            ElementBuffer.copy(_, b, r, d.size.toInt, capacity)
         )
     case LoadTexture(t, d) =>
       t match {

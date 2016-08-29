@@ -212,7 +212,6 @@ case class DataRange(start: Int, end: Int) {
 }
 
 object VertexData {
-  case class Data(data: Buffer, size: Int)
   case class Ref(name: String, buffer: VertexBuffer.Constructor)
   case class Loaded(range: DataRange, ref: Ref) {
     def offset(ref: Model.VertexRef): Int =
@@ -221,7 +220,6 @@ object VertexData {
 }
 
 object ElementData {
-  case class Data(data: Buffer, size: Int)
   case class Ref(name: String, buffer: ElementBuffer.Constructor)
   case class Loaded(range: DataRange, ref: Ref) {
     def offset(ref: Model.ElementRef): DataRange =

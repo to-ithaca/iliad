@@ -199,7 +199,7 @@ object Texture {
       extends Uniform
       with Framebuffer.OutputInstance
 
-  case class Image(name: String, format: GL.Texture.Format /*, viewport: Vec2i*/)
+  case class Image(name: String, format: GL.Texture.Format)
       extends Uniform
 }
 
