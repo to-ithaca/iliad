@@ -28,7 +28,7 @@ class VectorDTests extends FunSuite with Discipline with GeneratorDrivenProperty
 
   implicit val iso = CartesianTests.Isomorphisms.invariant[VectorD[nat._3, ?]]
 
-  {
+/*  {
     Functor[VectorD[nat._3, ?]]
     Applicative[VectorD[nat._3, ?]]
     
@@ -147,4 +147,6 @@ class VectorDTests extends FunSuite with Discipline with GeneratorDrivenProperty
     assert(aa.w == Math.PI)
   
   }
+
+ */
 }
