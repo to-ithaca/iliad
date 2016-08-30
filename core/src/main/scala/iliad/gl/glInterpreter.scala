@@ -5,14 +5,23 @@ import cats._
 import cats.data._
 import cats.implicits._
 
-import java.nio.IntBuffer
+import java.nio.{ByteOrder, IntBuffer}
+
+import scodec._
+import scodec.codecs._
+import scodec.bits._
 
 object GLInterpreter extends (OpenGL.Interpreter[OpenGL.NoEffect]) {
 
+  private val codec: Codec[List[Int]] = list(ByteOrder.nativeOrder match {
+    case ByteOrder.BIG_ENDIAN => int32
+    case ByteOrder.LITTLE_ENDIAN => int32L
+  })
+  
   private def genObject(r: Reader[GLES30.type, (Int, IntBuffer) => Unit],
                         num: Int): Reader[GLES30.type, Set[Int]] = r map {
     f =>
-      val ptr = Buffer.capacity[Int](num)
+      val ptr = Buffer.int(num)
       f(num, ptr)
       val arr = new Array[Int](num)
       ptr.get(arr, 0, num)
@@ -25,15 +34,15 @@ object GLInterpreter extends (OpenGL.Interpreter[OpenGL.NoEffect]) {
 
     case GLGetShaderiv(shader, pname) =>
       Reader { lib =>
-        val ptr = Buffer.capacity[Int](1)
+        val ptr = Buffer.int(1)
         lib.glGetShaderiv(shader, pname.value, ptr)
         ptr.get()
       }
 
     case GLGetShaderInfoLog(shader, maxLength) =>
       Reader { lib =>
-        val lenPtr = Buffer.capacity[Int](1)
-        val logPtr = Buffer.capacity[Byte](maxLength)
+        val lenPtr = Buffer.int(1)
+        val logPtr = Buffer.byte(maxLength)
         lib.glGetShaderInfoLog(shader, maxLength, lenPtr, logPtr)
         val len = lenPtr.get()
         val arr = new Array[Byte](len)
@@ -42,14 +51,14 @@ object GLInterpreter extends (OpenGL.Interpreter[OpenGL.NoEffect]) {
       }
     case GLGetProgramiv(program, pname) =>
       Reader { lib =>
-        val ptr = Buffer.capacity[Int](1)
+        val ptr = Buffer.int(1)
         lib.glGetProgramiv(program, pname.value, ptr)
         ptr.get()
       }
     case GLGetProgramInfoLog(program, maxLength) =>
       Reader { lib =>
-        val lenPtr = Buffer.capacity[Int](1)
-        val logPtr = Buffer.capacity[Byte](maxLength)
+        val lenPtr = Buffer.int(1)
+        val logPtr = Buffer.byte(maxLength)
         lib.glGetProgramInfoLog(program, maxLength, lenPtr, logPtr)
         val len = lenPtr.get()
         val arr = new Array[Byte](len)
@@ -76,9 +85,9 @@ object GLInterpreter extends (OpenGL.Interpreter[OpenGL.NoEffect]) {
     case GLBindBuffer(target, buffer) =>
       Reader(_.glBindBuffer(target.value, buffer))
     case GLBufferData(target, size, data, usage) =>
-      Reader(_.glBufferData(target.value, size, data, usage.value))
-    case GLBufferSubData(target, offset, size, data) =>
-      Reader(_.glBufferSubData(target.value, offset, size, data))
+      Reader(_.glBufferData(target.value, size, data.map(_.toDirectByteBuffer) getOrElse null, usage.value))
+    case GLBufferSubData(target, offset, data) =>
+      Reader(_.glBufferSubData(target.value, offset, data.size.toInt, data.toDirectByteBuffer))
     case GLCopyBufferSubData(read, write, readOffset, writeOffset, size) =>
       Reader(
           _.glCopyBufferSubData(read.value,
@@ -104,7 +113,7 @@ object GLInterpreter extends (OpenGL.Interpreter[OpenGL.NoEffect]) {
                          0,
                          format.value,
                          pixelType.value,
-                         data))
+                         data.map(_.toDirectByteBuffer) getOrElse null))
     case GLTexSubImage2D(xOffset,
                          yOffset,
                          width,
@@ -121,7 +130,7 @@ object GLInterpreter extends (OpenGL.Interpreter[OpenGL.NoEffect]) {
                             height,
                             format.value,
                             pixelType.value,
-                            data))
+                            data.toDirectByteBuffer))
     case GLGenRenderbuffers(number) =>
       genObject(Reader(_.glGenRenderbuffers), number)
     case GLBindRenderbuffer(renderbuffer) =>
@@ -151,8 +160,11 @@ object GLInterpreter extends (OpenGL.Interpreter[OpenGL.NoEffect]) {
                                    texture,
                                    0))
     case GLDrawBuffers(bufs) =>
-      val b = Buffer(bufs.map(_.value): _*)
-      Reader(_.glDrawBuffers(bufs.size, b))
+      val buffers = codec.encode(bufs.map(_.value)) match {
+        case Attempt.Successful(b) => b
+        case _ => sys.error("failed to encode draw buffers!")
+      }
+      Reader(_.glDrawBuffers(bufs.size, buffers.toDirectByteBuffer.asIntBuffer))
 
     case GLGenSamplers(number) => genObject(Reader(_.glGenSamplers), number)
     case GLSamplerParameteri(sampler, name, value) =>

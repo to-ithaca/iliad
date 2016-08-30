@@ -13,6 +13,8 @@ import freek._
 import monocle._
 import monocle.macros._
 
+import scodec.bits._
+
 object GL {
 
   case class State(cache: Cache.State, current: Current.State)
@@ -93,11 +95,11 @@ object GL {
     } yield ()
 
   private def loadVertices(r: VertexData.Ref,
-                           d: VertexData.Data,
+                           d: BitVector,
                            pageSize: Int): DSL[Unit] =
     Cache.get(r.buffer).expand[GL] flatMap {
       case Some(prev) =>
-        if (VertexBuffer.fits(prev, d.size))
+        if (VertexBuffer.fits(prev, d.size.toInt))
           for {
             next <- Load.insert(r, d, pageSize, prev).expand[GL]
             _ <- add(next)
@@ -115,7 +117,7 @@ object GL {
     }
 
   def load(r: VertexData.Ref,
-           d: VertexData.Data,
+           d: BitVector,
            pageSize: Int): DSL[VertexDataAlreadyLoaded Xor Unit] =
     Cache.get(r).expand[GL] flatMap {
       case Some(_) => Free.pure(VertexDataAlreadyLoaded(r).left)
@@ -129,11 +131,11 @@ object GL {
     } yield ()
 
   private def loadElements(r: ElementData.Ref,
-                           d: ElementData.Data,
+                           d: BitVector,
                            pageSize: Int): DSL[Unit] =
     Cache.get(r.buffer).expand[GL] flatMap {
       case Some(prev) =>
-        if (ElementBuffer.fits(prev, d.size))
+        if (ElementBuffer.fits(prev, d.size.toInt))
           for {
             next <- Load.insert(r, d, pageSize, prev).expand[GL]
             _ <- add(next)
@@ -151,7 +153,7 @@ object GL {
     }
 
   def load(r: ElementData.Ref,
-           d: ElementData.Data,
+           d: BitVector,
            pageSize: Int): DSL[ElementDataAlreadyLoaded Xor Unit] =
     Cache.get(r).expand[GL] flatMap {
       case Some(_) => Free.pure(ElementDataAlreadyLoaded(r).left)
