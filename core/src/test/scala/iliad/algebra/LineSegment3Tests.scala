@@ -18,9 +18,17 @@ import shapeless.ops.nat._
 
 import org.scalacheck._
 
-class LineSegment3Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChecks with Inside {
+import org.typelevel.discipline.scalatest._
+import cats.laws.discipline.FunctorTests
+
+import arbitrary._
+
+class LineSegment3Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChecks 
+    with Inside with Discipline {
 
   val doubleGen = Gen.choose(-10.0, 10.0)
+
+  checkAll("LineSegment3[Int]", FunctorTests[LineSegment3].functor[Int, Int, Int])
 
   test("average of start and end is within bounds") {
     forAll(LineSegment3Gen.gen(doubleGen)) { l => 

@@ -42,13 +42,15 @@ final class Rect[A](val x0y0: Vec2[A], val dimensions: Vec2[A]) {
     (x0y0 === that.x0y0) && (width === that.width) && (height === that.height)
 
   def map[B](f: A => B): Rect[B] = Rect[B](x0y0.map(f), dimensions.map(f))
-  def cmap[B: ConvertableTo](implicit F: ConvertableFrom[A]): Rect[B] =
-    map(F.toType[B])
 }
 
 object Rect extends RectInstances {
   def apply[A](bottomLeft: Vec2[A], dimensions: Vec2[A]): Rect[A] = new Rect(bottomLeft, dimensions)
   def square[A](x0y0: Vec2[A], dw: A): Rect[A] = Rect(x0y0, v"$dw $dw")
+
+  implicit lazy val rectFunctor: cats.Functor[Rect] = new cats.Functor[Rect] {
+    def map[A, B](fa: Rect[A])(f: A => B): Rect[B] = fa.map(f)
+  }
 }
 
 private[algebra] abstract class RectInstances {

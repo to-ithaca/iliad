@@ -113,8 +113,6 @@ final class Vector[N <: Nat, A](val repr: SVector[A]) extends AnyVal {
     new Vector(SVector((u2 * v3) - (u3 * v2), (u3 * v1) - (u1 * v3), (u1 * v2) - (u2 * v1)))
   }
 
-  def cmap[B: ConvertableTo](implicit F: ConvertableFrom[A]): Vector[N, B] = map(F.toType[B])
-
   def toArray(implicit classTag: ClassTag[A]): Array[A] = repr.toArray
 
   override def toString: String = repr.toString
@@ -156,6 +154,10 @@ abstract class VectorInstances extends VectorInstances0 {
   implicit lazy val vec3fNormedVectorSpace: NormedVectorSpace[Vec3f, Float] = vec3fInnerProductSpace.normed
   implicit lazy val vec2dNormedVectorSpace: NormedVectorSpace[Vec2d, Double] = vec2dInnerProductSpace.normed
   implicit lazy val vec3dNormedVectorSpace: NormedVectorSpace[Vec3d, Double] = vec3dInnerProductSpace.normed
+
+  implicit def vectorFunctor[N <: Nat]: cats.Functor[Vector[N, ?]] = new cats.Functor[Vector[N, ?]] {
+    def map[A, B](fa: Vector[N, A])(f: A => B): Vector[N, B] = fa.map(f)
+  }
 }
 
 sealed trait VectorInstances0 {

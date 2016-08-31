@@ -18,7 +18,15 @@ import shapeless.ops.nat._
 
 import org.scalacheck._
 
-class LineSegment2Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChecks with Inside { 
+import org.typelevel.discipline.scalatest._
+import cats.laws.discipline.FunctorTests
+
+import arbitrary._
+
+class LineSegment2Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChecks 
+    with Inside with Discipline {
+
+  checkAll("LineSegment2[Int]", FunctorTests[LineSegment2].functor[Int, Int, Int])
 
   val θ = 0.0872665 //5 degrees
   val α = 0.1

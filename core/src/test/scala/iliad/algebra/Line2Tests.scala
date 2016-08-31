@@ -18,7 +18,14 @@ import shapeless.ops.nat._
 
 import org.scalacheck._
 
-class Line2Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChecks with Inside {
+import org.typelevel.discipline.scalatest._
+import cats.laws.discipline.FunctorTests
+
+import arbitrary._
+
+class Line2Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChecks with Inside with Discipline {
+
+  checkAll("Line2[Float]", FunctorTests[Line2].functor[Float, Float, Float])
 
   val θ = 0.0872665 //5 degrees
   val α = 0.1

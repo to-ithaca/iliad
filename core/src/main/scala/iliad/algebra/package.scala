@@ -14,6 +14,10 @@ package object algebra {
   type Mat2f = Mat2[Float]
   type Mat3f = Mat3[Float]
   type Mat4f = Mat4[Float]
+  type Mat2d = Mat2[Double]
+  type Mat3d = Mat3[Double]
+  type Mat4d = Mat4[Double]
+
 
   type OMat4[A] = OrthoMatrix[nat._4, nat._4, A]
 

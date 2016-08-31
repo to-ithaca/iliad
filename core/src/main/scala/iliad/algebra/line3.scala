@@ -13,6 +13,8 @@ final class Line3[A](val p0: Vec3[A], val direction: Vec3[A]) {
 
   def ===(that: Line3[A])(implicit ea: Eq[A]): Boolean =
     p0 === that.p0 && direction === that.direction
+
+  def map[B](f: A => B): Line3[B] = Line3(p0.map(f), direction.map(f))
 }
 
 object Line3 {
@@ -21,6 +23,10 @@ object Line3 {
 
   implicit def lineEq[A](implicit ea: Eq[A]): Eq[Line3[A]] = new Line3Eq[A] {
     val EA = ea
+  }
+
+  implicit lazy val line3Functor: cats.Functor[Line3] = new cats.Functor[Line3] {
+    def map[A, B](fa: Line3[A])(f: A => B): Line3[B] = fa.map(f)
   }
 }
 
@@ -52,6 +58,9 @@ final class LineSegment3[A](val start: Vec3[A], val end: Vec3[A]) {
 
   def ===(that: LineSegment3[A])(implicit ea: Eq[A]): Boolean =
     start === that.start && end === that.end
+
+  def map[B](f: A => B): LineSegment3[B] =
+    LineSegment3(start.map(f), end.map(f))
 }
 
 object LineSegment3 {
@@ -62,6 +71,10 @@ object LineSegment3 {
     new LineSegment3Eq[A] {
       val EA = ea
     }
+
+  implicit lazy val lineSegment3Functor: cats.Functor[LineSegment3] = new cats.Functor[LineSegment3] {
+    def map[A, B](fa: LineSegment3[A])(f: A => B): LineSegment3[B] = fa.map(f)
+  }
 }
 
 private[algebra] sealed trait LineSegment3Eq[A] extends Eq[LineSegment3[A]] {

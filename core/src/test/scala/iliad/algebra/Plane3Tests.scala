@@ -12,14 +12,19 @@ import spire._
 import spire.algebra._
 import spire.implicits._
 
-import arbitrary._
-
 import shapeless._
 import shapeless.ops.nat._
 
 import org.scalacheck._
 
-class Plane3Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChecks with Inside { 
+import org.typelevel.discipline.scalatest._
+import cats.laws.discipline.FunctorTests
+
+import arbitrary._
+
+class Plane3Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChecks with Inside with Discipline { 
+
+  checkAll("Plane3[Float]", FunctorTests[Plane3].functor[Float, Float, Float])
 
   test("line intersects with plane within acceptance angle") {
     val p = Plane3(v"0.0 0.0 0.0", v"0.0 0.0 1.0")

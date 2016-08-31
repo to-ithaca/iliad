@@ -78,13 +78,40 @@ object Line2Gen {
   } yield Line2(p, n)
 }
 
-object LineSegment3Gen {
+object LineSegment2Gen {
+  def gen[A](genA: Gen[A])(implicit E: Eq[A]): Gen[LineSegment2[A]] = for {
+    s <- VectorGen.gen[nat._2, A](genA)
+    e <- VectorGen.gen[nat._2, A](genA).filter(_ =!= s)
+  } yield LineSegment2(s, e)
+}
 
+object Line3Gen {
+  def gen[A](genA: Gen[A])(implicit F: Fractional[A], N: NormedVectorSpace[Vec3[A], A]): Gen[Line3[A]] = for {
+    p <- VectorGen.gen[nat._3, A](genA)
+    d <- VectorGen.normalGen[nat._3, A](genA)
+  } yield Line3(p, d)
+}
+
+object LineSegment3Gen {
   def gen[A : Eq](genA: Gen[A]): Gen[LineSegment3[A]] = for {
     s <- VectorGen.gen[nat._3, A](genA)
     e <- VectorGen.gen[nat._3, A](genA).filter(_ =!= s)
   } yield LineSegment3(s, e)
+}
 
+object Plane3Gen {
+  def gen[A](genA: Gen[A])(implicit F: Fractional[A], N: NormedVectorSpace[Vec3[A], A]): Gen[Plane3[A]] = for {
+    p <- VectorGen.gen[nat._3, A](genA)
+    d <- VectorGen.normalGen[nat._3, A](genA)
+  } yield Plane3(p, d)
+}
+
+object PlaneSegment3Gen {
+  def gen[A : Eq](genA: Gen[A]): Gen[PlaneSegment3[A]] = for {
+    a <- VectorGen.gen[nat._3, A](genA)
+    b <- VectorGen.gen[nat._3, A](genA).filter(_ =!= a)
+    c <- VectorGen.gen[nat._3, A](genA).filter(c => c =!= a && c =!= b)
+  } yield PlaneSegment3(a, b, c)
 }
 
 object RectGen {

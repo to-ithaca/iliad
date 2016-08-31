@@ -32,6 +32,29 @@ trait SquareMatrixMultiplicativeGroup[M, A] extends MultiplicativeSemigroup[M] w
   def symmetric(x: M): Boolean
 }
 
+private[algebra] final class Matrix4dAlgebra(floatAlgebra: Matrix4fAlgebra) extends SquareMatrixMultiplicativeGroup[Mat4d, Double] 
+    with MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, Double] {
+
+  val scalar = spire.std.double.DoubleAlgebra
+
+  def negate(x: Mat4d): Mat4d = -x
+
+  val zero: Mat4d = Matrix.zero
+  val id: Mat4d = Matrix.id
+  def plus(x: Mat4d, y: Mat4d): Mat4d = x + y
+  def transpose(x: Mat4d): Mat4d = x.transpose
+  def timesl(r: Double, v: Mat4d): Mat4d = r *: v
+  def trace(x: Mat4d): Double = x.trace
+  def det(x: Mat4d): Double = ???
+  def symmetric(x: Mat4d): Boolean = x.symmetric
+  
+  def product[N1 <: Nat](x: Mat4d, y: Matrix[N1, nat._4, Double])(implicit toInt: ToInt[N1]): Matrix[N1, nat._4, Double] =
+    floatAlgebra.product(x.cmap[Float], y.cmap[Float]).cmap[Double]
+
+  def times(x: Mat4d, y: Mat4d): Mat4d = product(x, y)
+  def inverse(x: Mat4d): Mat4d = floatAlgebra.inverse(x.cmap[Float]).cmap[Double]
+}
+
 private[algebra] final class Matrix4fAlgebra 
     extends SquareMatrixMultiplicativeGroup[Mat4f, Float]
     with MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, Float] {
@@ -350,11 +373,18 @@ final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: SVector[A]) e
 }
 
 abstract class MatrixInstances {
-  lazy implicit val Matrix4fAlgebra: SquareMatrixMultiplicativeGroup[Mat4f, Float] 
+  implicit lazy val Matrix4fAlgebra: SquareMatrixMultiplicativeGroup[Mat4f, Float] 
       with MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, Float] = new Matrix4fAlgebra
+
+  implicit lazy val Matrix4DAlgebra: SquareMatrixMultiplicativeGroup[Mat4d, Double] 
+      with MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, Double] = new Matrix4dAlgebra(new Matrix4fAlgebra)
 
   implicit def matrixEq[A, N <: Nat, M <: Nat](implicit eqA: Eq[A]): Eq[Matrix[N, M, A]] = new Eq[Matrix[N, M, A]] {
     def eqv(x: Matrix[N, M, A], y: Matrix[N, M, A]): Boolean = x === y
+  }
+
+  implicit def matrixFunctor[N <: Nat, M <: Nat]: cats.Functor[Matrix[N, M, ?]] = new cats.Functor[Matrix[N, M, ?]] {
+    def map[A, B](fa: Matrix[N, M, A])(f: A => B): Matrix[N, M, B] = fa.map(f)
   }
 }
 
