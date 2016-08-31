@@ -161,3 +161,10 @@ Pipe link: $l
 End node: $e
 """
 }
+
+case class PNGDecodeError(err: scodec.Err) extends GraphicsError {
+  override def toString: String = s"""Error decoding PNG: $err"""
+}
+case class FileNotFoundError(name: String) extends GraphicsError {
+  override def toString: String = s"File with name [ $name ] does not exist"
+}

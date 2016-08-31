@@ -57,7 +57,7 @@ class InstantiateTests extends FunSuite with Matchers {
       "hedgehog-model", "basic-3D-model",
       hedgehogVData, hedgehogEData)
 
-    val hedgehogImage = png("hedgehog-spikes")
+    val hedgehogImage = Texture.Image("hedgehog-spikes", GL.Texture.Format.rgba)
     val hedgehogDraw = drawInstance(
       hedgehogModel,
       exampleDrawConstructor,

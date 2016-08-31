@@ -9,6 +9,8 @@ import cats.implicits._
 
 import scodec.bits._
 
+import java.io.{FileInputStream, InputStream}
+
 object Load {
   type Effect = Reader[Graphics.Config, XorT[GL.GL.DSL, GL.GLError, Unit]]
 
@@ -71,12 +73,25 @@ trait LoadFunctions {
   def load(t: Texture.Instance, d: GL.Texture.Data): GFX =
     lift(PutTexture(t, d))
 
-  def load(i: Texture.Image, b: Bitmap[_]): GFX =
-    lift(PutImage(i, GL.Texture.SingleData(b.dimensions, b.pixels)))
+  def load[A](name: String, b: Bitmap[A])(implicit format: GL.GLTextureFormat[A]): GFX =
+    lift(PutImage(Texture.Image(name, format.format), GL.Texture.SingleData(b.dimensions, b.pixels)))
 
   def load(r: Renderbuffer.Instance): GFX =
     lift(PutRenderbuffer(r))
 
   def load(f: Framebuffer.Instance): GFX =
     lift(PutFramebuffer(f))
+
+
+  def loadFile(name: String): Xor[GraphicsError, BitVector] =
+    try {
+      val stream: InputStream = new FileInputStream(name)
+      BitVector.fromInputStream(stream).right
+    } catch {
+      case e: java.io.FileNotFoundException => FileNotFoundError(name).left
+    }
+
+  def decodePNG[A](bitVector: BitVector)(implicit decoder: PNGDecoder[A]): Xor[GraphicsError, Bitmap[A]] =
+    decoder.decode(bitVector).toXor.map(_.value)
+      .leftMap(PNGDecodeError).leftWiden[GraphicsError]
 }

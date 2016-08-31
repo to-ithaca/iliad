@@ -74,7 +74,7 @@ class ConstructTests extends FunSuite with Matchers {
 
     val viewport = v"256 256"
     val fixedViewportTexture = txt("fixed-viewport",
-          TextureFormat.rgba,
+          GL.Texture.Format.rgba,
           viewport)
 
     val fixedViewportDraw = offScreenDraw("fixed-viewport",

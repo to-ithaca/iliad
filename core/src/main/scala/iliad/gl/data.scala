@@ -247,6 +247,14 @@ object Texture {
                     pixelType: TexturePixelType,
                     bytesPerPixel: Int)
 
+  object Format {
+    val rgba: Format = Format(GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, 4)
+    val rgb: Format = Format(GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, 3)
+    val redInt: Format = Format(GL_RED_INTEGER, GL_R32I, GL_INT, 4)
+    val depth32 = Format(GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F, GL_FLOAT, 4)
+    val depth16 = Format(GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16, GL_UNSIGNED_SHORT, 2)
+  }
+
   sealed trait Constructor extends Framebuffer.AttachmentConstructor {
     def name: String
     def format: Format
