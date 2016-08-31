@@ -21,7 +21,7 @@ class MatrixTests extends FunSuite with Discipline with GeneratorDrivenPropertyC
   implicit val fuzzyAlgebraFloat: spire.std.FloatAlgebra = new spire.std.FloatAlgebra {
     override def eqv(x: Float, y: Float): Boolean = {
       val percent = Math.abs((x / 20f))
-      x === (y +- (Math.max(percent, 0.01f)))
+      x === (y +- (Math.max(percent, 0.1f)))
     }
   }
 
@@ -34,7 +34,7 @@ class MatrixTests extends FunSuite with Discipline with GeneratorDrivenPropertyC
   checkAll("Matrix[?, ?, Float]", MatrixLaws[Matrix, Float].product[nat._4, nat._3])
   checkAll("Matrix[?, ?, Float]", MatrixLaws[Matrix, Float].product[nat._4, nat._4])
   checkAll("Matrix[?, ?, Float]", MatrixLaws[Matrix, Float].square[nat._4](MatrixGen.symmetric(Arbitrary.arbitrary)))
-
+ 
   test("Matrix[2, 2, Int].context is correct") {
     val m = mat"""1 0
                   0 1"""
@@ -109,4 +109,30 @@ class MatrixTests extends FunSuite with Discipline with GeneratorDrivenPropertyC
       assert(m.pad(4, 4).isOrtho)
     }
   }
+
+  test("Matrix[3, 2].show is expected") {
+    mat"""1 2 3
+          4 5 6""".show should ===(
+s"""1 | 2 | 3
+4 | 5 | 6""")
+  }
+
+  test("Matrix[4, 4].multiply(Matrix[2, 4]) is expected") {
+    val m1 = mat"""1 0 0 0
+                   2 0 0 0
+                   3 0 0 0
+                   4 0 0 0""".map(_.toFloat)
+
+
+    val m2 = mat"""1 2
+                   3 4
+                   5 6
+                   7 8""".map(_.toFloat)
+    (m1 * m2) should === (mat"""1  2
+                                2  4
+                                3  6
+                                4  8""".map(_.toFloat))
+  }
+
+
 }

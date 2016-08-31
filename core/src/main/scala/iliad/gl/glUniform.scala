@@ -1,7 +1,7 @@
 package iliad
 package gl
 
-import iliad.syntax.all._
+import iliad.algebra._
 import iliad.std.all._
 
 import simulacrum.typeclass

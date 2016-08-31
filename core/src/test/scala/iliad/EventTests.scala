@@ -1,12 +1,15 @@
 package iliad
 
-import iliad.syntax.all._
+import iliad.algebra._
+import iliad.algebra.syntax.vector._
 
 import org.scalatest._
 import org.scalatest.prop._
 
 import cats.data._
 import cats.implicits._
+
+import spire.implicits._
 
 import arbitrary._
 

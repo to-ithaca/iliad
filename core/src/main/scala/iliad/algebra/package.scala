@@ -15,6 +15,8 @@ package object algebra {
   type Mat3f = Mat3[Float]
   type Mat4f = Mat4[Float]
 
+  type OMat4[A] = OrthoMatrix[nat._4, nat._4, A]
+
   type Vec2[A] = Vector[nat._2, A]
   type Vec3[A] = Vector[nat._3, A]
   type Vec4[A] = Vector[nat._4, A]
@@ -28,4 +30,9 @@ package object algebra {
   type Vec3d = Vec3[Double]
   type Vec4d = Vec4[Double]
 
+  type X = nat._0
+  type Y = nat._1
+  type Z = nat._2
+
+  type _3D = nat._3
 }

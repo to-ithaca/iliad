@@ -2,7 +2,8 @@ package iliad
 package gfx
 
 import iliad._
-import iliad.implicits._
+import iliad.algebra._
+import iliad.algebra.syntax.vector._
 
 import org.scalatest._
 import org.scalatest.prop._

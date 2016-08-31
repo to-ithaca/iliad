@@ -1,8 +1,9 @@
 package iliad
 package gfx
 
-import iliad.syntax.vectord._
-import iliad.syntax.matrixd._
+import iliad.algebra._
+import iliad.algebra.syntax.vector._
+import iliad.algebra.syntax.matrix._
 
 import shapeless._
 
@@ -23,14 +24,14 @@ case class AxisAngle[A: Trig: Ring](axis: Vec3[A], θ: A) {
     val z = axis.z
 
     RotationMatrix[A](
-        m"""${c0 + x * x * c1}   ${x * y * c1 - z * c2} ${x * z * c1 + y * c2} $zero
+        mat"""${c0 + x * x * c1}   ${x * y * c1 - z * c2} ${x * z * c1 + y * c2} $zero
         ${x * y * c1 + z * c2} ${c0 + y * y * c1}   ${y * z * c1 - x * c2} $zero
         ${x * z * c1 - y * c2} ${z * y * c1 + x * c2} ${c0 + z * z * c1}   $zero
         $zero            $zero            $zero            $one"""
     )
   }
 
-  def rotate(v: Vec3[A])(implicit MA: MatrixAlgebra[nat._4, A]): Vec3[A] =
+  def rotate(v: Vec3[A])(implicit MM: MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, A]): Vec3[A] =
     matrix.rotate(v)
 
   def fraction(f: A): AxisAngle[A] =
@@ -40,16 +41,20 @@ case class AxisAngle[A: Trig: Ring](axis: Vec3[A], θ: A) {
 object AxisAngle {
   def apply[A: Trig: Ring](v: Vec4[A]): AxisAngle[A] =
     AxisAngle(v.dropUntil(3), v.w)
+
+  def apply[A](from: Vec3[A], to: Vec3[A])(implicit R: Ring[A], E: Eq[A], T: Trig[A], 
+    N: NormedVectorSpace[Vec3[A], A]): AxisAngle[A] = {
+    val a = from × to
+    val n = a.norm
+    val axis = if (n === R.zero) Vector.basis[Z, _3D, A] else a :/ n
+    val θ = T.acos(from ⋅ to)
+    AxisAngle(axis, θ)
+  }
 }
 
 case class RotationMatrix[A: AdditiveMonoid](matrix: Mat4[A]) {
-  def rotate(v: Vec3[A])(implicit MA: MatrixAlgebra[nat._4, A]): Vec3[A] =
-    matrix.times(v.padZero(4)).dropUntil(3)
-}
-
-case class TransformationMatrix[A: Ring](matrix: Mat4[A]) {
-  def transform(v: Vec3[A])(implicit MA: MatrixAlgebra[nat._4, A]): Vec4[A] =
-    matrix.times(v.padOne(4))
+  def rotate(v: Vec3[A])(implicit MM: MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, A]): Vec3[A] =
+    (matrix * v.padZero(4)).dropUntil(3)
 }
 
 /** Sign is in a right handed rotation system */

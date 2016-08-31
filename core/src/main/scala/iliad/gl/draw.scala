@@ -1,7 +1,8 @@
 package iliad
 package gl
 
-import iliad.syntax.vectord._
+import iliad.algebra._
+import iliad.algebra.syntax.vector._
 
 import cats._
 import cats.free._

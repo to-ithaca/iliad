@@ -34,6 +34,15 @@ final class Vector[N <: Nat, A](val repr: SVector[A]) extends AnyVal {
   def map2[B, C](that: Vector[N, B])(f: (A, B) => C): Vector[N, C] = 
     that.ap(map(f.curried))
 
+  def updated(i: Nat, a: A)(implicit ev: i.N < N,
+                           toInt: ToInt[i.N]): Vector[N, A] =
+    updated[i.N](a)
+
+  def updated[NN <: Nat](a: A)(implicit ev: NN < N,
+                           toInt: ToInt[NN]): Vector[N, A] =
+    new Vector(repr.updated(toInt(), a))
+
+
   def exists(f: A => Boolean): Boolean = repr.exists(f)
 
   def forall(f: A => Boolean): Boolean = repr.forall(f)
@@ -74,7 +83,7 @@ final class Vector[N <: Nat, A](val repr: SVector[A]) extends AnyVal {
   def :+(a: A): Vector[Succ[N], A] = new Vector(repr :+ a)
 
 
-  private def pad[D <: Nat](n: Nat, a: A)(
+  def pad[D <: Nat](n: Nat, a: A)(
       implicit DD: Diff.Aux[n.N, N, D],
       toIntD: ToInt[D]): Vector[n.N, A] =
     new Vector[n.N, A](repr ++ SVector.fill(toIntD())(a))
@@ -111,7 +120,10 @@ final class Vector[N <: Nat, A](val repr: SVector[A]) extends AnyVal {
   override def toString: String = repr.toString
 }
 
-object Vector {
+object Vector extends VectorInstances {
+
+  import LT._
+
   def fill[N <: Nat, A](a: A)(implicit toInt: ToInt[N]): Vector[N, A] = new Vector(SVector.fill(toInt())(a))
   def fill[A](n: Nat)(a: A)(implicit toInt: ToInt[n.N]): Vector[n.N, A] = fill[n.N, A](a)
   def zero[N <: Nat, A](implicit G: AdditiveGroup[A], toInt: ToInt[N]): Vector[N, A] = fill[N, A](G.zero)
@@ -122,6 +134,12 @@ object Vector {
     new Vector(repr)
   }
   def sized[A](n: Nat)(repr: SVector[A])(implicit toInt: ToInt[n.N]): Vector[n.N, A] = sized[n.N, A](repr)
+
+  def basis[B <: Nat, N <: Nat, A](implicit R: Ring[A], ev: B < N, toIntB: ToInt[B], toIntN: ToInt[N]): Vector[N, A] = 
+    zero[N, A].updated[B](R.one)
+
+  def basis[A](b: Nat, n: Nat)(implicit R: Ring[A], ev: b.N < n.N, toIntB: ToInt[b.N], toIntN: ToInt[n.N]): Vector[n.N, A] =
+    basis[b.N, n.N, A]
 }
 
 private[algebra] sealed trait VectorEq[N <: Nat, A] extends Eq[Vector[N, A]] {
@@ -129,7 +147,46 @@ private[algebra] sealed trait VectorEq[N <: Nat, A] extends Eq[Vector[N, A]] {
   def eqv(x: Vector[N, A], y: Vector[N, A]): Boolean = x === y
 }
 
-private[algebra] sealed trait VectorInnerProduceSpace[N <: Nat, A] extends InnerProductSpace[Vector[N, A], A] {
+abstract class VectorInstances extends VectorInstances0 {
+  implicit def vectorEq[N <: Nat, A](implicit E: Eq[A]): Eq[Vector[N, A]] = new VectorEq[N, A] {
+    def EqA = E
+  }
+
+  implicit lazy val vec2fNormedVectorSpace: NormedVectorSpace[Vec2f, Float] = vec2fInnerProductSpace.normed
+  implicit lazy val vec3fNormedVectorSpace: NormedVectorSpace[Vec3f, Float] = vec3fInnerProductSpace.normed
+  implicit lazy val vec2dNormedVectorSpace: NormedVectorSpace[Vec2d, Double] = vec2dInnerProductSpace.normed
+  implicit lazy val vec3dNormedVectorSpace: NormedVectorSpace[Vec3d, Double] = vec3dInnerProductSpace.normed
+}
+
+sealed trait VectorInstances0 {
+
+  implicit lazy val vec2fInnerProductSpace: InnerProductSpace[Vec2f, Float] = 
+    new VectorInnerProductSpace[nat._2, Float] {
+      def scalar = FloatAlgebra
+      def toInt = ToInt[nat._2]
+    }
+
+  implicit lazy val vec3fInnerProductSpace: InnerProductSpace[Vec3f, Float] = 
+    new VectorInnerProductSpace[nat._3, Float] {
+      def scalar = FloatAlgebra
+      def toInt = ToInt[nat._3]
+    }
+
+  implicit lazy val vec2dInnerProductSpace: InnerProductSpace[Vec2d, Double] = 
+    new VectorInnerProductSpace[nat._2, Double] {
+      def scalar = DoubleAlgebra
+      def toInt = ToInt[nat._2]
+    }
+
+  implicit lazy val vec3dInnerProductSpace: InnerProductSpace[Vec3d, Double] = 
+    new VectorInnerProductSpace[nat._3, Double] {
+      def scalar = DoubleAlgebra
+      def toInt = ToInt[nat._3]
+    }
+}
+
+
+private[algebra] sealed trait VectorInnerProductSpace[N <: Nat, A] extends InnerProductSpace[Vector[N, A], A] {
 
   implicit def toInt: ToInt[N]
 

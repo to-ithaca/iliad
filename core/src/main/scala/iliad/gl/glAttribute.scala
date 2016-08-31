@@ -1,7 +1,7 @@
 package iliad
 package gl
 
-import iliad.syntax.all._
+import iliad.algebra._
 import iliad.std.all._
 
 import simulacrum.typeclass
@@ -33,18 +33,18 @@ trait GLAttribute[A] {
 
 object GLAttribute {
   implicit val floatIsAttribute: GLAttribute[Float] = new NumberIsAttribute
-  implicit val vec2fIsAttribute: GLAttribute[Vec2f] = new VectorIsAttribute
-  implicit val vec3fIsAttribute: GLAttribute[Vec3f] = new VectorIsAttribute
-  implicit val vec4fIsAttribute: GLAttribute[Vec4f] = new VectorIsAttribute
+  implicit val vec2fIsAttribute: GLAttribute[Vec2f] = new VectorIsAttribute[nat._2, Float]
+  implicit val vec3fIsAttribute: GLAttribute[Vec3f] = new VectorIsAttribute[nat._3, Float]
+  implicit val vec4fIsAttribute: GLAttribute[Vec4f] = new VectorIsAttribute[nat._4, Float]
 
   implicit val intIsAttribute: GLAttribute[Int] = new NumberIsAttribute
-  implicit val vec2iIsAttribute: GLAttribute[Vec2i] = new VectorIsAttribute
-  implicit val vec3iIsAttribute: GLAttribute[Vec3i] = new VectorIsAttribute
-  implicit val vec4iIsAttribute: GLAttribute[Vec4i] = new VectorIsAttribute
+  implicit val vec2iIsAttribute: GLAttribute[Vec2i] = new VectorIsAttribute[nat._2, Int]
+  implicit val vec3iIsAttribute: GLAttribute[Vec3i] = new VectorIsAttribute[nat._3, Int]
+  implicit val vec4iIsAttribute: GLAttribute[Vec4i] = new VectorIsAttribute[nat._4, Int]
 }
 
 private final class VectorIsAttribute[N <: Nat: ToInt, A: AttribTypeOf: SizeOf]
-    extends GLAttribute[VectorD[N, A]] {
+    extends GLAttribute[Vector[N, A]] {
   val n = ToInt[N].apply()
   def attribute(name: String): Attribute.Constructor =
     Attribute

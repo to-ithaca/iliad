@@ -1,6 +1,7 @@
 package iliad
 
-import iliad.implicits._
+import iliad.algebra._
+import iliad.algebra.syntax.vector._
 
 import scodec._
 import scodec.bits._
