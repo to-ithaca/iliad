@@ -11,14 +11,20 @@ import spire.algebra._
 import spire.math._
 import spire.implicits._
 
-import arbitrary._
-
 import shapeless._
 import shapeless.ops.nat._
 
 import org.scalacheck._
 
-class Line3Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChecks with Inside { 
+import org.typelevel.discipline.scalatest._
+import cats.laws.discipline.FunctorTests
+
+import arbitrary._
+
+class Line3Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChecks 
+    with Inside with Discipline {
+
+  checkAll("Line3[Float]", FunctorTests[Line3].functor[Float, Float, Float])
 
   //TODO: check if contains method is in use
   ignore("should contain points on the line") {

@@ -65,6 +65,9 @@ final class Line2[A](val p0: Vec2[A], val direction: Vec2[A]) {
 
   def ===(that: Line2[A])(implicit ea: Eq[A]): Boolean =
     p0 === that.p0 && direction === that.direction
+
+  def map[B](f: A => B): Line2[B] = 
+    Line2(p0.map(f), direction.map(f))
 }
 
 object Line2 {
@@ -77,6 +80,10 @@ object Line2 {
 
   implicit def line2Eq[A](implicit ea: Eq[A]): Eq[Line2[A]] = new Line2Eq[A] {
     val EA = ea
+  }
+
+  implicit lazy val line2Functor: cats.Functor[Line2] = new cats.Functor[Line2] {
+    def map[A, B](fa: Line2[A])(f: A => B): Line2[B] = fa.map(f)
   }
 }
 
@@ -96,10 +103,6 @@ final class LineSegment2[A](val start: Vec2[A], val end: Vec2[A]) {
 
   def map[B](f: A => B): LineSegment2[B] =
     new LineSegment2(start.map(f), end.map(f))
-
-  def cmap[B: ConvertableTo](
-      implicit F: ConvertableFrom[A]): LineSegment2[B] =
-    map(F.toType[B])
 
   def length(implicit G: AdditiveGroup[A], N: NormedVectorSpace[Vec2[A], A]): A = (end - start).norm
 
@@ -181,6 +184,10 @@ object LineSegment2 {
     new LineSegment2Eq[A] {
       val EA = ea
     }
+
+  implicit lazy val lineSegment2Functor: cats.Functor[LineSegment2] = new cats.Functor[LineSegment2] {
+    def map[A, B](fa: LineSegment2[A])(f: A => B): LineSegment2[B] = fa.map(f)
+  }
 }
 
 private[algebra] sealed trait LineSegment2Eq[A] extends Eq[LineSegment2[A]] {

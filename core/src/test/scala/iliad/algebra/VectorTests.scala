@@ -13,8 +13,9 @@ import org.scalacheck._
 import shapeless._
 
 import spire.laws.GroupLaws
-
 import spire.implicits.{FloatAlgebra => _, _}
+
+import cats.laws.discipline.FunctorTests
 
 class VectorTests extends FunSuite with Discipline with GeneratorDrivenPropertyChecks with Matchers {
   implicit val fuzzyAlgebraFloat: spire.std.FloatAlgebra = new spire.std.FloatAlgebra {
@@ -27,6 +28,8 @@ class VectorTests extends FunSuite with Discipline with GeneratorDrivenPropertyC
   implicit val arbFloat: Arbitrary[Float] = Arbitrary {
     Gen.choose(-100f, 100f)
   }
+
+  checkAll("Vector[nat._4, Int]", FunctorTests[Vector[nat._4, ?]].functor[Int, Int, Int])
 
   test("Vector[3, 3].cross.dot === 0") {
     forAll { (v1: Vec3f, v2: Vec3f) =>
@@ -49,5 +52,9 @@ class VectorTests extends FunSuite with Discipline with GeneratorDrivenPropertyC
 
   test("padOne pads a vector with 1") {
     v"0 0".padOne(3) should ===(v"0 0 1")
+  }
+
+  test("Vector[2, Int].cmap[Double] is expected") {
+    v"1 2".cmap[Double] should ===(v"1.0 2.0")
   }
 }

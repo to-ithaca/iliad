@@ -26,6 +26,8 @@ final class Plane3[A](val p0: Vec3[A], val normal: Vec3[A]) {
 
   def ===(that: Plane3[A])(implicit ea: Eq[A]): Boolean =
     p0 === that.p0 && normal === that.normal
+
+  def map[B](f: A => B): Plane3[B] = Plane3(p0.map(f), normal.map(f))
 }
 
 object Plane3 {
@@ -34,6 +36,10 @@ object Plane3 {
 
   implicit def plane3Eq[A](implicit ea: Eq[A]): Eq[Plane3[A]] = new Plane3Eq[A] {
     val EA = ea
+  }
+
+  implicit lazy val plane3Functor: cats.Functor[Plane3] = new cats.Functor[Plane3] {
+    def map[A, B](fa: Plane3[A])(f: A => B): Plane3[B] = fa.map(f)
   }
 }
 
@@ -71,6 +77,9 @@ final class PlaneSegment3[A](val x0y0: Vec3[A],
 
   def ===(that: PlaneSegment3[A])(implicit ea: Eq[A]): Boolean =
     x0y0 === that.x0y0 && x1y0 === that.x1y0 && x0y1 === that.x0y1
+
+  def map[B](f: A => B): PlaneSegment3[B] =
+    PlaneSegment3(x0y0.map(f), x0y1.map(f), x1y0.map(f))
 }
 
 object PlaneSegment3 {
@@ -87,6 +96,10 @@ object PlaneSegment3 {
     new PlaneSegment3Eq[A] {
       val EA = ea
     }
+
+  implicit lazy val planeSegment3Functor: cats.Functor[PlaneSegment3] = new cats.Functor[PlaneSegment3] {
+    def map[A, B](fa: PlaneSegment3[A])(f: A => B): PlaneSegment3[B] = fa.map(f)
+  }
 }
 
 private[algebra] sealed trait PlaneSegment3Eq[A] extends Eq[PlaneSegment3[A]] {

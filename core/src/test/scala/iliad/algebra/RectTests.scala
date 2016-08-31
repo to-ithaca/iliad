@@ -11,15 +11,20 @@ import spire.algebra._
 import spire.math._
 import spire.implicits._
 
-import arbitrary._
-
 import shapeless._
 import shapeless.ops.nat._
 
 import org.scalacheck._
 
-class RectTests extends FunSuite with Matchers with GeneratorDrivenPropertyChecks with Inside { 
+import org.typelevel.discipline.scalatest._
+import cats.laws.discipline.FunctorTests
 
+import arbitrary._
+
+class RectTests extends FunSuite with Matchers with GeneratorDrivenPropertyChecks 
+    with Inside with Discipline {
+
+  checkAll("Rect[Int]", FunctorTests[Rect].functor[Int, Int, Int])
 
   def internalPoints: Gen[(Rect[Int], Vec2i)] = for {
     r <- RectGen.gen(Arbitrary.arbitrary[Int])

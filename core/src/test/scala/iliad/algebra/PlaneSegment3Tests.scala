@@ -12,14 +12,20 @@ import spire._
 import spire.algebra._
 import spire.implicits._
 
-import arbitrary._
-
 import shapeless._
 import shapeless.ops.nat._
 
 import org.scalacheck._
 
-class PlaneSegment3Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChecks with Inside {
+import org.typelevel.discipline.scalatest._
+import cats.laws.discipline.FunctorTests
+
+import arbitrary._
+
+class PlaneSegment3Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChecks 
+    with Inside with Discipline{
+
+  checkAll("PlaneSegment3[Int]", FunctorTests[PlaneSegment3].functor[Int, Int, Int])
 
   test("plane normal is calculated by x cross y") {
     val p = PlaneSegment3(v"0.0 0.0 0.0", v"0.0 1.0 0.0", v"1.0 0.0 0.0")
