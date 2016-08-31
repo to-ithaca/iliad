@@ -40,30 +40,6 @@ object Sampler {
     Sampler(name, GL.Sampler.Constructor.image)
 }
 
-object TextureFormat {
-  val rgba = GL.Texture.Format(
-      GL.GL_RGBA,
-      GL.GL_RGBA,
-      GL.GL_UNSIGNED_BYTE,
-      4
-  )
-
-  val rgb = GL.Texture.Format(
-    GL.GL_RGB,
-    GL.GL_RGB,
-    GL.GL_UNSIGNED_BYTE,
-    3
-  )
-
-  val redInt = GL.Texture.Format(GL.GL_RED_INTEGER, GL.GL_R32I, GL.GL_INT, 4)
-  val depth32 = GL.Texture
-    .Format(GL.GL_DEPTH_COMPONENT, GL.GL_DEPTH_COMPONENT32F, GL.GL_FLOAT, 4)
-  val depth16 = GL.Texture.Format(GL.GL_DEPTH_COMPONENT,
-                                  GL.GL_DEPTH_COMPONENT16,
-                                  GL.GL_UNSIGNED_SHORT,
-                                  2)
-}
-
 case class DataRefs(
     constructorName: String,
     attributes: List[Attribute],
