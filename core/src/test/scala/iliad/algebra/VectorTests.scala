@@ -14,8 +14,7 @@ import shapeless._
 
 import spire.laws.GroupLaws
 
-import spire.std.int._
-
+import spire.implicits.{FloatAlgebra => _, _}
 
 class VectorTests extends FunSuite with Discipline with GeneratorDrivenPropertyChecks with Matchers {
   implicit val fuzzyAlgebraFloat: spire.std.FloatAlgebra = new spire.std.FloatAlgebra {
@@ -31,7 +30,7 @@ class VectorTests extends FunSuite with Discipline with GeneratorDrivenPropertyC
 
   test("Vector[3, 3].cross.dot === 0") {
     forAll { (v1: Vec3f, v2: Vec3f) =>
-      assert(((v1 × v2) ⋅ v1) === (0f +- 0.1f))
+      assert(((v1.normalize × v2.normalize) ⋅ v1.normalize) === (0f +- 0.1f))
     }
   }
   test("Vector[3, 3].cross is distributive") {
