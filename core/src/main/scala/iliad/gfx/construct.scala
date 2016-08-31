@@ -1,7 +1,9 @@
 package iliad
 package gfx
 
-import iliad.implicits._
+import iliad.algebra._
+import iliad.std.list._
+import iliad.std.set._
 import iliad.{gl => GL}
 
 import cats._

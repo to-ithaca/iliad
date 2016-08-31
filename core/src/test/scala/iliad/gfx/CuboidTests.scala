@@ -1,7 +1,8 @@
 package iliad
 package gfx
 
-import iliad.implicits._
+import iliad.algebra._
+import iliad.algebra.syntax.vector._
 
 import spire.implicits._
 

@@ -64,9 +64,9 @@ import breeze.linalg.DenseMatrix
   private def vector(N: Int, M: Int)(dm: DenseMatrix[Float]): SVector[Float] = {
     val builder = SVector.newBuilder[Float]
     builder.sizeHint(N * M)
-    (0 until N).foreach { i =>
-      (0 until M).foreach { j =>
-        builder += dm(j, i)
+    (0 until M).foreach { i =>
+      (0 until N).foreach { j =>
+        builder += dm(i, j)
       }
     }
     val v = builder.result()
@@ -77,14 +77,14 @@ import breeze.linalg.DenseMatrix
   def product[N1 <: Nat](x: Mat4f, y: Matrix[N1, nat._4, Float])(implicit toInt: ToInt[N1]): Matrix[N1, nat._4, Float] = {
     val N1 = toInt()
     require(N1 < 5 && N1 > 0, s"not implemented multiplication greater than 4, found $N1")
-    val dmy = DenseMatrix.create(4, N1, y.repr.toArray)
-    val dmx = DenseMatrix.create(4, 4, x.repr.toArray)
+    val dmx = DenseMatrix.create(4, 4, x.repr.toArray, 0, 4, true)
+    val dmy = DenseMatrix.create(4, N1, y.repr.toArray, 0, N1, true)
     val rdm = dmx * dmy
     new Matrix(vector(N1, 4)(rdm))
   }
 
   def inverse(x: Mat4f): Mat4f = {
-    val idm = breeze.linalg.inv[DenseMatrix[Float], DenseMatrix[Float]](DenseMatrix.create(4, 4, x.repr.toArray))
+    val idm = breeze.linalg.inv[DenseMatrix[Float], DenseMatrix[Float]](DenseMatrix.create(4, 4, x.repr.toArray, 0, 4, true))
     new Matrix(vector(4, 4)(idm))
   }
 #-desktop
@@ -337,6 +337,12 @@ final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: SVector[A]) e
     new Vector((this * new Matrix[nat._1, N, A](v.repr)).repr)
 
 
+
+  def show(implicit toIntN: ToInt[N]): String =
+    repr.sliding(n, n)
+      .map(row => row.mkString(" | "))
+      .mkString(System.lineSeparator)
+  
   //TODO: Change this
   override def toString: String = repr.toString
 

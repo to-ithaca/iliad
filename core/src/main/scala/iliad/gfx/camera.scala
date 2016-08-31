@@ -1,8 +1,11 @@
 package iliad
 package gfx
 
-import iliad.syntax.vectord._
-import iliad.syntax.matrixd._
+import shapeless.nat
+
+import iliad.algebra._
+import iliad.algebra.syntax.matrix._
+import iliad.algebra.syntax.vector._
 
 import spire.math._
 import spire.algebra._
@@ -19,94 +22,105 @@ import com.typesafe.scalalogging._
 /** Perspective camera 
   * aspect is width / height
   * */
-case class Camera[A: Fractional : Trig](position: Vec3[A],
-                                        focalPoint: Vec3[A],
-                                         up: Vec3[A],
-                                         near: A,
-                                         far: A,
-                                         aspect: A,
-                                         width: A)
+case class Camera[A](position: Vec3[A],
+                     focalPoint: Vec3[A],
+                     up: Vec3[A],
+                     near: A,
+                     far: A,
+                     aspect: A,
+                     width: A)
     extends LazyLogging {
 
-  lazy val displacement: Vec3[A] = focalPoint - position
-  lazy val tanFov = width / radius
-  lazy val fov = Trig[A].atan(tanFov)
+  def displacement(implicit G: AdditiveGroup[A]): Vec3[A] = focalPoint - position
+  def tanFov(implicit F: Fractional[A], N: NormedVectorSpace[Vec3[A], A]) = width / radius
+  def fov(implicit F: Fractional[A], T: Trig[A], N: NormedVectorSpace[Vec3[A], A]) = T.atan(tanFov)
 
-  lazy val direction: Vec3[A] = displacement.normalize
-  lazy val radiusVector: Vec3[A] = - displacement
-  lazy val radial: Vec3[A] = - direction
-  lazy val radius: A = radiusVector.norm
-  lazy val sightDistance: A = far - near
-  lazy val xAxis: Vec3[A] = direction cross up
+  def direction(implicit G: AdditiveGroup[A], N: NormedVectorSpace[Vec3[A], A]): Vec3[A] = displacement.normalize
+  def radiusVector(implicit G: AdditiveGroup[A]): Vec3[A] = - displacement
+  def radial(implicit G: AdditiveGroup[A], N: NormedVectorSpace[Vec3[A], A]): Vec3[A] = - direction
+  def radius(implicit G: AdditiveGroup[A], N: NormedVectorSpace[Vec3[A], A]): A = radiusVector.norm
+  def sightDistance(implicit G: AdditiveGroup[A]): A = far - near
+  def xAxis(implicit G: Rng[A], N: NormedVectorSpace[Vec3[A], A]): Vec3[A] = direction × up
   lazy val zAxis: Vec3[A] = up
-  lazy val yAxis: Vec3[A] = direction
+  def yAxis(implicit G: AdditiveGroup[A], N: NormedVectorSpace[Vec3[A], A]): Vec3[A] = direction
 
-  private val zero = Field[A].zero
-  private val one = Field[A].one
+  def zero(implicit R: Ring[A]) = R.zero
+  def one(implicit R: Ring[A]) = R.one
 
-  val nearOffset: A = radius + near
-  val farOffset: A = radius + far
+  def nearOffset(implicit G: AdditiveGroup[A], N: NormedVectorSpace[Vec3[A], A]): A = radius + near
+  def farOffset(implicit G: AdditiveGroup[A], N: NormedVectorSpace[Vec3[A], A]): A = radius + far
 
-  private lazy val translateZ = -Field[A]
-      .fromInt(2) * farOffset * nearOffset / (farOffset - nearOffset)
-  private lazy val scaleZ = (farOffset + nearOffset) / (farOffset - nearOffset)
+  private def translateZ(implicit F: Fractional[A], N: NormedVectorSpace[Vec3[A], A]) = 
+    - F.fromInt(2) * farOffset * nearOffset / (farOffset - nearOffset)
 
-  private lazy val perspective: Mat4[A] = {
+  private def scaleZ(implicit F: Fractional[A], N: NormedVectorSpace[Vec3[A], A]) = 
+    (farOffset + nearOffset) / (farOffset - nearOffset)
+
+  private def perspective(implicit F: Fractional[A], T: Trig[A], N: NormedVectorSpace[Vec3[A], A]): Mat4[A] = {
     val sw = one / tanFov
     val sh = sw * aspect
 
-    m"""$sw    $zero  $zero   $zero
-        $zero  $sh    $zero   $zero
-        $zero  $zero  $scaleZ $translateZ
-        $zero  $zero  $one    $zero"""
+    mat"""$sw    $zero  $zero   $zero
+          $zero  $sh    $zero   $zero
+          $zero  $zero  $scaleZ $translateZ
+          $zero  $zero  $one    $zero"""
   }
 
-  private lazy val translate: Mat4[A] = m"""$one  $zero $zero ${-position.x}
+  def translate(implicit R: Ring[A]): Mat4[A] = 
+    mat"""$one  $zero $zero ${-position.x}
           $zero $one  $zero ${-position.y}
           $zero $zero $one  ${-position.z}
           $zero $zero $zero $one"""
 
-  private def rotate: Mat4[A] = {
-    val right = up.cross(direction).normalize
-    val top = direction.cross(right).normalize
+  def rotate(implicit R: Ring[A], N: NormedVectorSpace[Vec3[A], A]): Mat4[A] = {
+    val right = (up × direction).normalize
+    val top = (direction × right).normalize
 
-    m"""${right.x}      ${right.y}      ${right.z}      $zero
+    mat"""${right.x}      ${right.y}      ${right.z}      $zero
         ${top.x}        ${top.y}        ${top.z}        $zero
         ${direction.x}  ${direction.y}  ${direction.z}  $zero
         $zero           $zero           $zero           $one"""
   }
 
-  private def invertX: Mat4[A] =
-    m"""${-one} $zero  $zero   $zero
+  def invertX(implicit R: Ring[A]): Mat4[A] =
+    mat"""${-one} $zero  $zero   $zero
         $zero   $one   $zero   $zero
         $zero   $zero  $one    $zero
         $zero   $zero  $zero   $one"""
 
-  def matrix(implicit S: Mat4Algebra[A]): Mat4[A] =
-    invertX.times(perspective.times(rotate.times(translate)))
+  def matrix(implicit F: Fractional[A], T: Trig[A], 
+    N: NormedVectorSpace[Vec3[A], A], S: MultiplicativeSemigroup[Mat4[A]]): Mat4[A] =
+    invertX * (perspective * (rotate * translate))
 
-  def peek(p: Vec3[A])(implicit MA: Mat4Algebra[A]): Vec3[A] = {
-    val p1 = TransformationMatrix(matrix).transform(p)
+  def peek(p: Vec3[A])(implicit F: Fractional[A], T: Trig[A], 
+    N: NormedVectorSpace[Vec3[A], A], MA: MultiplicativeSemigroup[Mat4[A]],
+MM: MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, A]): Vec3[A] = {
+    val p1 = matrix * p.padOne(4)
     p1.dropUntil(3) :/ p1.w
   }
 
-  def screenToWorld(p: Vec3[A])(implicit MA: Mat4Algebra[A]): Vec3[A] = {
+  def screenToWorld(p: Vec3[A])(implicit F: Fractional[A], T: Trig[A], 
+    N: NormedVectorSpace[Vec3[A], A], MA: SquareMatrixMultiplicativeGroup[Mat4[A], A], 
+    MM: MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, A]): Vec3[A] = {
     val w = translateZ / (p.z - scaleZ)
-    (matrix.inverse.times(w *: p.padOne(4))).dropUntil(3)
+    (matrix.inverse * (w *: p.padOne(4))).dropUntil(3)
   }
 
   def screenToWorld(p: Vec2[A])(
-      implicit MA: Mat4Algebra[A],
-      P: spire.algebra.PartialOrder[A]): BoundedLine[A] = {
+      implicit F: Fractional[A], T: Trig[A], 
+    N: NormedVectorSpace[Vec3[A], A], MA: SquareMatrixMultiplicativeGroup[Mat4[A], A], 
+    MM: MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, A]
+): LineSegment3[A] = {
     val pFar = v"${p.x} ${p.y} $one"
     val pNear = v"${p.x} ${p.y} ${-one}"
-    BoundedLine(screenToWorld(pNear), screenToWorld(pFar))
+    LineSegment3(screenToWorld(pNear), screenToWorld(pFar))
   }
 
   def screenToWorld(p: InputEvent.Point)(
-      implicit MA: Mat4Algebra[A],
-      P: spire.algebra.PartialOrder[A]): BoundedLine[A] = 
-    screenToWorld(p.windowCoord.as[A])
+      implicit F: Fractional[A], T: Trig[A], 
+    N: NormedVectorSpace[Vec3[A], A], MA: SquareMatrixMultiplicativeGroup[Mat4[A], A],
+MM: MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, A]): LineSegment3[A] = 
+    screenToWorld(p.windowCoord.cmap[A])
 }
 
 case class CameraFunction[A](dt: Option[A], _apply: (A, Camera[A]) => Camera[A]) {
@@ -145,33 +159,33 @@ sealed trait CameraFunctions {
   private def _up[A: Trig: Fractional]: Lens[Camera[A], Vec3[A]] = GenLens[Camera[A]](_.up)
 
   def panAroundZ[A: Trig: Fractional](speed: A, rotation: Rotation)
-    (implicit MA: Mat4Algebra[A]): CameraFunction[A] =
+    (implicit MA: MultiplicativeSemigroup[Mat4[A]], MM: MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, A]): CameraFunction[A] =
     CameraFunction.unbounded((t: A, c0: Camera[A]) => {
       val dθ = speed * t * rotation.sign
-      val p = AxisAngle(VectorD.zAxis[A], dθ).rotate(c0.radiusVector) + c0.focalPoint
+      val p = AxisAngle(Vector.basis[Z, _3D, A], dθ).rotate(c0.radiusVector) + c0.focalPoint
       c0 &|-> _position set p
     })
 
 
   def scrollAroundZ[A: Trig: Fractional](s0: A, rotation: Rotation, λ: A)
-    (implicit MA: Mat4Algebra[A]): CameraFunction[A] =
+    (implicit MA: MultiplicativeSemigroup[Mat4[A]], MM: MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, A]): CameraFunction[A] =
     CameraFunction.unbounded((t: A, c0: Camera[A]) => {
       val dθ = s0 / λ * (Field[A].one - (-λ * t).exp) * rotation.sign
-      val p = AxisAngle(VectorD.zAxis[A], dθ).rotate(c0.radiusVector) + c0.focalPoint
+      val p = AxisAngle(Vector.basis[Z, _3D, A], dθ).rotate(c0.radiusVector) + c0.focalPoint
       c0 &|-> _position set p
     })
 
   def panVerticallyBy[A: Trig: Fractional](speed: A, θ: A)
-    (implicit MA: Mat4Algebra[A]): CameraFunction[A] = 
+    (implicit MA: MultiplicativeSemigroup[Mat4[A]], N: NormedVectorSpace[Vec3[A], A], MM: MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, A]): CameraFunction[A] = 
     CameraFunction(Some(θ.abs / speed), (t: A, c0: Camera[A]) => {
-      val axis = (c0.radial cross VectorD.zAxis[A]).normalize
+      val axis = (c0.radial × Vector.basis[Z, _3D, A]).normalize
       val dθ = speed * t * θ.sign
       val p = AxisAngle(axis, dθ).rotate(c0.radiusVector) + c0.focalPoint
       c0 &|-> _position set p
     })
 
   def zoom[A: Trig: Fractional](dt: A, rEnd: A)
-    (implicit MA: Mat4Algebra[A]): CameraFunction[A] =
+    (implicit MA: MultiplicativeSemigroup[Mat4[A]], N: NormedVectorSpace[Vec3[A], A]): CameraFunction[A] =
     CameraFunction(Some(dt), (t: A, c: Camera[A]) => {
         val dr = (rEnd - c.radius) * t / dt
         val p = c.position - (c.direction :* dr)
@@ -179,10 +193,10 @@ sealed trait CameraFunctions {
       })
 
   def interpolate[A: Trig: Fractional](dt: A, pEnd: Vec3[A], upEnd: Vec3[A], fEnd: Vec3[A])
-    (implicit M: Mat4Algebra[A]): CameraFunction[A] =
+    (implicit M: MultiplicativeSemigroup[Mat4[A]], N: NormedVectorSpace[Vec3[A], A], MM: MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, A]): CameraFunction[A] =
     CameraFunction(Some(dt), (t: A, c: Camera[A]) => {
       val f = t / dt
-      val up = AxisAngle(c.up.rotate(upEnd)).fraction(f).rotate(c.up)
+      val up = AxisAngle(c.up, upEnd).fraction(f).rotate(c.up)
       val position = c.position + ((pEnd - c.position) :* f)
       val focalPoint = c.focalPoint + ((fEnd - c.focalPoint) :* f)
       ((_position[A] set position) compose

@@ -39,4 +39,16 @@ class VectorTests extends FunSuite with Discipline with GeneratorDrivenPropertyC
       assert(v1 × (v2 + v3) === ((v1 × v2) + (v1 × v3)))
     }
   }
+
+  test("Vector basis[2, 3] is the z axis in 3D") {
+    Vector.basis[Z, _3D, Int] should ===(v"0 0 1")
+  }
+
+  test("cross product follows right hand rule") {
+    (v"1f 0f 0f" × v"0f 1f 0f") should ===(v"0f 0f 1f") 
+  }
+
+  test("padOne pads a vector with 1") {
+    v"0 0".padOne(3) should ===(v"0 0 1")
+  }
 }

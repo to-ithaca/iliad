@@ -82,5 +82,5 @@ private[iliad] final class MatrixContextMacro(val c: whitebox.Context) {
   }
 
   def matrix_impl[A](args: c.Expr[A]*): Tree = sized_impl(q"_root_.iliad.algebra.Matrix.sized")(args)
-  def ortho_matrix_impl[A](args: c.Expr[A]*): Tree = sized_impl(q"_root_.iliad.algebra.Matrix.sized")(args)
+  def ortho_matrix_impl[A](args: c.Expr[A]*): Tree = sized_impl(q"_root_.iliad.algebra.OrthoMatrix.sized")(args)
 }

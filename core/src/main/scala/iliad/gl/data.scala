@@ -1,10 +1,11 @@
 package iliad
 package gl
 
-import iliad.std.list._
-import iliad.syntax.vectord._
+import iliad.algebra._
+import iliad.algebra.Rect
 
-import java.nio.Buffer
+import iliad.std.list._
+import iliad.algebra.syntax.vector._
 
 import cats.data._
 import cats.implicits._

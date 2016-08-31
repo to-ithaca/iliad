@@ -1,6 +1,7 @@
 package iliad
 
-import iliad.implicits._
+import iliad.algebra._
+import iliad.algebra.syntax.vector._
 
 import fs2._
 import fs2.util._

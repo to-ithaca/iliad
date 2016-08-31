@@ -1,9 +1,10 @@
 package iliad
 package gfx
 
-import iliad.syntax.vectord._
+import iliad.algebra._
+import iliad.algebra.syntax.vector._
 
-import spire.algebra.{Trig, Sign}
+import spire.algebra._
 import spire.implicits._
 
 import cats.implicits._
@@ -27,6 +28,34 @@ class CameraTests extends FunSuite with GeneratorDrivenPropertyChecks with Match
 
   val horizontalBound = width
   val verticalBound = width * camera.aspect
+
+  test("the camera is pointing forwards") {
+    camera.direction should ===(v"0f 1f 0f")
+  }
+
+  test("Camera#nearOffset is the distance of the near clip plane from the position") {
+    camera.nearOffset should ===(1.01f)
+  }
+
+  test("Camera#farOffset is the distance of the far clip plane from the position") {
+    camera.farOffset should ===(11f)
+  }
+
+  test("translation matrix is orthogonal") {
+    camera.translate.isOrtho should be(true)
+  }
+
+  test("rotation matrix is orthogonal") {
+    camera.rotate.isOrtho should be(true)
+  }
+
+  test("invese matrix is orthogonal") {
+    camera.invertX.isOrtho should be(true)
+  }
+
+  test("transformation matrix is orthogonal") {
+    (camera.rotate * camera.translate) * v"0f 2f 0f 1f" should ===(v"0f 0f 2f 1f")
+  }
 
   test("a point between the near and far clip planes should always be on screen") { 
     forAll(Gen.choose(camera.nearOffset, camera.farOffset)) { d => 

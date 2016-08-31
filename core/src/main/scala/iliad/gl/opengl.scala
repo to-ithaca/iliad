@@ -1,10 +1,12 @@
 package iliad
 package gl
 
+import iliad.algebra._
+import iliad.algebra.syntax.vector._
+import iliad.algebra.syntax.matrix._
+
 import iliad.std.int._
 import iliad.std.list._
-import iliad.syntax.vectord._
-import iliad.syntax.matrixd._
 
 import cats._
 import cats.data._

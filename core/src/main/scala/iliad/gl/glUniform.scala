@@ -1,6 +1,7 @@
 package iliad
 package gl
 
+import iliad.algebra._
 import iliad.syntax.all._
 import iliad.std.all._
 

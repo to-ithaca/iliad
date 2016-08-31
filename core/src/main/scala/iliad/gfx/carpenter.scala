@@ -1,37 +1,39 @@
 package iliad
 package gfx
 
-import iliad.syntax.vectord._
+import iliad.algebra._
+import iliad.algebra.syntax.vector._
 
 import cats.Functor
 import cats.data.Xor
 import cats.implicits._
 
-import spire.{algebra => spa, math => spm}
+import spire.algebra._
+import spire.math._
 import spire.implicits._
 
 object Carpenter {
   case class Vertex[A](index: Int, xSeg: Int, ySeg: Int, v: Vec2[A])
 
-  def cuboid[A: spm.Fractional]: CuboidCarpenter[A] = new CuboidCarpenter[A]
+  def cuboid[A: Fractional]: CuboidCarpenter[A] = new CuboidCarpenter[A]
   def unitCube[A](
-      implicit F: spm.Fractional[A]): Panel[(Vec3[A], CuboidSurface)] =
+      implicit F: Fractional[A]): Panel[(Vec3[A], CuboidSurface)] =
     cuboid.shape(F.one, 1, F.one, 1, F.one, 1)
 
-  def plane[A: spm.Fractional]: PlaneCarpenter[A] = new PlaneCarpenter[A]
-  def unitPlane[A](implicit F: spm.Fractional[A]): Panel[Vec2[A]] =
+  def plane[A: Fractional]: PlaneCarpenter[A] = new PlaneCarpenter[A]
+  def unitPlane[A](implicit F: Fractional[A]): Panel[Vec2[A]] =
     plane.shape(F.one, 1, F.one, 1)
 
-  def fromRect[A: spm.Fractional](r: Rect[A]): Panel[Vec2[A]] =
+  def fromRect[A: Fractional](r: Rect[A])(implicit N: NormedVectorSpace[Vec2[A], A]): Panel[Vec2[A]] =
     plane.shape(r.width, 1, r.height, 1).map(_ + r.midpoint)
 
-  def prism[A: spm.Fractional]: PrismCarpenter[A] = new PrismCarpenter[A]
+  def prism[A: Fractional]: PrismCarpenter[A] = new PrismCarpenter[A]
   def unitPrism[A](
-      implicit F: spm.Fractional[A]): Panel[(Vec3[A], PrismSurface)] =
+      implicit F: Fractional[A]): Panel[(Vec3[A], PrismSurface)] =
     prism.shape(F.one, 1, 1, F.one, 1)
 }
 
-class Carpenter[A: spm.Fractional] {
+class Carpenter[A: Fractional] {
   import Carpenter._
 
   private def panelVertices(dx: A,
@@ -42,8 +44,8 @@ class Carpenter[A: spm.Fractional] {
       xSeg <- 0 to xSegments
       ySeg <- 0 to ySegments
     } yield {
-      val x = spa.Field[A].fromInt(xSeg) * dx
-      val y = spa.Field[A].fromInt(ySeg) * dy
+      val x = Field[A].fromInt(xSeg) * dx
+      val y = Field[A].fromInt(ySeg) * dy
       (xSeg, ySeg) -> v"$x $y"
     }
     vs.zipWithIndex.map {
@@ -128,7 +130,7 @@ object CuboidSurface {
   case object Right extends CuboidSurface
 }
 
-class CuboidCarpenter[A: spm.Fractional] {
+class CuboidCarpenter[A: Fractional] {
   import CuboidSurface._
   private case class Blueprint(x: A,
                                xSegments: Int,
@@ -136,12 +138,12 @@ class CuboidCarpenter[A: spm.Fractional] {
                                ySegments: Int,
                                z: A,
                                zSegments: Int) {
-    val dx: A = x / spa.Field[A].fromInt(xSegments)
-    val xOffset: A = x / spa.Field[A].fromInt(2)
-    val dy: A = y / spa.Field[A].fromInt(ySegments)
-    val yOffset: A = y / spa.Field[A].fromInt(2)
-    val dz: A = z / spa.Field[A].fromInt(zSegments)
-    val zOffset: A = z / spa.Field[A].fromInt(2)
+    val dx: A = x / Field[A].fromInt(xSegments)
+    val xOffset: A = x / Field[A].fromInt(2)
+    val dy: A = y / Field[A].fromInt(ySegments)
+    val yOffset: A = y / Field[A].fromInt(2)
+    val dz: A = z / Field[A].fromInt(zSegments)
+    val zOffset: A = z / Field[A].fromInt(2)
   }
 
   private val carpenter: Carpenter[A] = new Carpenter
@@ -201,15 +203,15 @@ class CuboidCarpenter[A: spm.Fractional] {
   }
 }
 
-class PlaneCarpenter[A: spm.Fractional] {
+class PlaneCarpenter[A: Fractional] {
 
   private val carpenter = new Carpenter[A]
 
   private case class Blueprint(x: A, xSegments: Int, y: A, ySegments: Int) {
-    val dx: A = x / spa.Field[A].fromInt(xSegments)
-    val xOffset: A = x / spa.Field[A].fromInt(2)
-    val dy: A = y / spa.Field[A].fromInt(ySegments)
-    val yOffset: A = y / spa.Field[A].fromInt(2)
+    val dx: A = x / Field[A].fromInt(xSegments)
+    val xOffset: A = x / Field[A].fromInt(2)
+    val dy: A = y / Field[A].fromInt(ySegments)
+    val yOffset: A = y / Field[A].fromInt(2)
   }
 
   def shape(x: A, xSegments: Int, y: A, ySegments: Int): Panel[Vec2[A]] = {
@@ -237,7 +239,7 @@ object PrismSurface {
   case object Back extends PrismSurface
 }
 
-class PrismCarpenter[A: spm.Fractional] {
+class PrismCarpenter[A: Fractional] {
   import PrismSurface._
   private val carpenter = new Carpenter[A]
 
@@ -246,11 +248,11 @@ class PrismCarpenter[A: spm.Fractional] {
                                lSegments: Int,
                                z: A,
                                zSegments: Int) {
-    val l: A = x * spa.Field[A].fromDouble(Math.sqrt(2.0))
-    val dx: A = x / spa.Field[A].fromInt(xSegments)
-    val dl: A = l / spa.Field[A].fromInt(lSegments)
-    val dz: A = z / spa.Field[A].fromInt(zSegments)
-    val zOffset: A = z / spa.Field[A].fromInt(2)
+    val l: A = x * Field[A].fromDouble(Math.sqrt(2.0))
+    val dx: A = x / Field[A].fromInt(xSegments)
+    val dl: A = l / Field[A].fromInt(lSegments)
+    val dz: A = z / Field[A].fromInt(zSegments)
+    val zOffset: A = z / Field[A].fromInt(2)
   }
 
   private def fixX(
@@ -260,7 +262,7 @@ class PrismCarpenter[A: spm.Fractional] {
       .map(_.map { v =>
         val y = v(0)
         val z = v(1)
-        (v"${spa.Field[A].zero} $y ${z - b.zOffset}", AlongY)
+        (v"${Field[A].zero} $y ${z - b.zOffset}", AlongY)
       })
 
   private def fixY(
@@ -270,12 +272,12 @@ class PrismCarpenter[A: spm.Fractional] {
       .map(_.map { v =>
         val x = v(0)
         val z = v(1)
-        (v"$x ${spa.Field[A].zero} ${z - b.zOffset}", AlongX)
+        (v"$x ${Field[A].zero} ${z - b.zOffset}", AlongX)
       })
 
   private def fixL(
       b: Blueprint): MissingElementError Xor Panel[(Vec3[A], PrismSurface)] = {
-    val factor = spm.Fractional[A].fromDouble(Math.cos(Math.PI / 4.0))
+    val factor = Fractional[A].fromDouble(Math.cos(Math.PI / 4.0))
     carpenter
       .panel(b.dl, b.lSegments, b.dz, b.zSegments)
       .map(_.map { v =>
@@ -288,9 +290,9 @@ class PrismCarpenter[A: spm.Fractional] {
   }
 
   private def triangle(b: Blueprint, z: A, s: PrismSurface) =
-    Panel[Vec3[A]](List(v"${spa.Field[A].zero} ${spa.Field[A].zero} $z",
-                        v"${b.x}               ${spa.Field[A].zero} $z",
-                        v"${spa.Field[A].zero} ${b.x}               $z"),
+    Panel[Vec3[A]](List(v"${Field[A].zero} ${Field[A].zero} $z",
+                        v"${b.x}               ${Field[A].zero} $z",
+                        v"${Field[A].zero} ${b.x}               $z"),
                    List(0, 1, 2)).map(_ -> s)
 
   def shape(x: A,

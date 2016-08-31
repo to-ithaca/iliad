@@ -1,7 +1,8 @@
 package iliad
 package gfx
 
-import iliad.syntax.vectord._
+import iliad.algebra._
+import iliad.algebra.syntax.vector._
 
 import spire.implicits._
 
@@ -13,7 +14,7 @@ class AxisAngleTests extends FunSuite {
 
   test("a rotation of zero should give the identity matrix") {
     val axis = v"1f 0f 0f"
-    assert(AxisAngle(axis, 0f).matrix.matrix === MatrixD.id4f)
+    assert(AxisAngle(axis, 0f).matrix.matrix === Matrix.id[Float](4))
   }
 }
 
@@ -21,6 +22,6 @@ class RotationMatrixTests extends FunSuite {
 
   test("an rotation of identity should leave a vector unchanged") {
     val v = v"0f 1f 0f"
-    assert(RotationMatrix(MatrixD.id4f).rotate(v) === v)
+    assert(RotationMatrix(Matrix.id[Float](4)).rotate(v) === v)
   }
 }

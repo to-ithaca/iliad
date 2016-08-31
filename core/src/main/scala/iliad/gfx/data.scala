@@ -2,7 +2,7 @@ package iliad
 package gfx
 
 import iliad.{gl => GL}
-import iliad.syntax.all._
+import iliad.algebra._
 import iliad.std.list._
 import iliad.std.set._
 
@@ -18,6 +18,8 @@ import monocle.macros._
 
 import com.typesafe.scalalogging._
 
+import scala.{Vector => SVector}
+
 object Graph extends LazyLogging {
   type Constructor = quiver.Graph[Node.Constructor, String, Link]
   type QInstance = quiver.Graph[Node.Instance, String, Unit]
@@ -26,7 +28,7 @@ object Graph extends LazyLogging {
     quiver.empty[Node.Constructor, String, Link]
 
   case class Constructed(
-      nodes: Vector[Node.Constructed],
+      nodes: SVector[Node.Constructed],
       links: Set[Link],
       start: Set[Node.Constructed],
       end: Set[Node.Constructed],
@@ -59,8 +61,8 @@ object Graph extends LazyLogging {
     }
 
     private[gfx] def nodes(scopes: UniformCache.Values)
-      : Reader[GraphTraversal, GraphicsError Xor Vector[Node.Drawable]] =
-      Reader[GraphTraversal, GraphicsError Xor Vector[Node.Drawable]] { f =>
+      : Reader[GraphTraversal, GraphicsError Xor SVector[Node.Drawable]] =
+      Reader[GraphTraversal, GraphicsError Xor SVector[Node.Drawable]] { f =>
         val ops = f(this)
         ops.traverse {
           case c: Clear.Instance => c.right
