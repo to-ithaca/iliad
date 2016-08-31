@@ -1,7 +1,5 @@
 package iliad
 
-import iliad.syntax.all._
-
 import org.scalacheck._
 
 import shapeless._
