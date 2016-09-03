@@ -21,32 +21,32 @@ object Load {
     LoadProgram(vs, fs).free
 
   def create(ref: VertexData.Ref,
-             data: BitVector,
+             data: ByteVector,
              pageSize: Int,
              b: VertexBuffer.Constructor): DSL[VertexBuffer.Update] =
     LoadCreateVertexBuffer(ref, data, pageSize, b).free
   def create(ref: ElementData.Ref,
-             data: BitVector,
+             data: ByteVector,
              pageSize: Int,
              b: ElementBuffer.Constructor): DSL[ElementBuffer.Update] =
     LoadCreateElementBuffer(ref, data, pageSize, b).free
   def insert(ref: VertexData.Ref,
-             data: BitVector,
+             data: ByteVector,
              pageSize: Int,
              b: VertexBuffer.Loaded): DSL[VertexBuffer.Update] =
     LoadInsertVertexBuffer(ref, data, pageSize, b).free
   def insert(ref: ElementData.Ref,
-             data: BitVector,
+             data: ByteVector,
              pageSize: Int,
              b: ElementBuffer.Loaded): DSL[ElementBuffer.Update] =
     LoadInsertElementBuffer(ref, data, pageSize, b).free
   def copy(ref: VertexData.Ref,
-           data: BitVector,
+           data: ByteVector,
            pageSize: Int,
            b: VertexBuffer.Loaded): DSL[VertexBuffer.Update] =
     LoadCopyVertexBuffer(ref, data, pageSize, b).free
   def copy(ref: ElementData.Ref,
-           data: BitVector,
+           data: ByteVector,
            pageSize: Int,
            b: ElementBuffer.Loaded): DSL[ElementBuffer.Update] =
     LoadCopyElementBuffer(ref, data, pageSize, b).free
@@ -73,32 +73,32 @@ case class LoadProgram(vs: VertexShader.Compiled, fs: FragmentShader.Compiled)
     extends Load[Program.Linked]
 
 case class LoadCreateVertexBuffer(ref: VertexData.Ref,
-                                  data: BitVector,
+                                  data: ByteVector,
                                   pageSize: Int,
                                   b: VertexBuffer.Constructor)
     extends Load[VertexBuffer.Update]
 case class LoadCreateElementBuffer(ref: ElementData.Ref,
-                                   data: BitVector,
+                                   data: ByteVector,
                                    pageSize: Int,
                                    b: ElementBuffer.Constructor)
     extends Load[ElementBuffer.Update]
 case class LoadInsertVertexBuffer(ref: VertexData.Ref,
-                                  data: BitVector,
+                                  data: ByteVector,
                                   pageSize: Int,
                                   b: VertexBuffer.Loaded)
     extends Load[VertexBuffer.Update]
 case class LoadInsertElementBuffer(ref: ElementData.Ref,
-                                   data: BitVector,
+                                   data: ByteVector,
                                    pageSize: Int,
                                    b: ElementBuffer.Loaded)
     extends Load[ElementBuffer.Update]
 case class LoadCopyVertexBuffer(ref: VertexData.Ref,
-                                data: BitVector,
+                                data: ByteVector,
                                 pageSize: Int,
                                 b: VertexBuffer.Loaded)
     extends Load[VertexBuffer.Update]
 case class LoadCopyElementBuffer(ref: ElementData.Ref,
-                                 data: BitVector,
+                                 data: ByteVector,
                                  pageSize: Int,
                                  b: ElementBuffer.Loaded)
     extends Load[ElementBuffer.Update]

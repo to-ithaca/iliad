@@ -57,16 +57,12 @@ object Program {
     private def uniforms: List[Uniform.Loaded] =
       unlinked.uniforms.map(u => Uniform.Loaded(u, uniformNames(u.name)))
 
-    private def loaded(a: Attribute.Constructor): Option[Attribute.Loaded] =
-      attributes.find(_._1 == a.name).map {
-        case (_, location) => Attribute.Loaded(a, location)
-      }
-
-    def loaded(as: List[Attribute.Constructor])
-      : UndefinedAttributeError Xor Attribute.LoadedAttributes =
-      as.traverse(a =>
-              loaded(a).toRightXor(UndefinedAttributeError(unlinked, a)))
-        .map(Attribute.LoadedAttributes)
+    def loaded(as: List[Attribute.Offset]): UndefinedAttributeError Xor Attribute.LoadedAttributes =
+      attributes.traverse {
+        case (name, location) => 
+          as.find(_.constructor.name == name).map(Attribute.Loaded(_, location))
+            .toRightXor(UndefinedAttributeError(unlinked, as, name))
+      }.map(Attribute.LoadedAttributes)
 
     def textureUniforms(ts: Map[String, Texture.Constructor])
       : UnsetTextureUniformError Xor List[TextureUniform] =
@@ -104,20 +100,21 @@ object Attribute {
                          byteSize: Int,
                          elementSize: Int,
                          `type`: VertexAttribType)
-  case class Loaded(constructor: Constructor, location: Int)
 
-  case class Offset(loaded: Loaded, offset: Int)
+  case class Offset(constructor: Constructor, offset: Int)
 
-  case class LoadedAttributes(attributes: List[Loaded]) {
-    val stride: Int = attributes.map(_.constructor.byteSize).sum
-    def offsets(base: Int): List[Offset] =
-      attributes
+  def stride(attributes: List[Constructor]): Int = 
+    attributes.map(_.byteSize).sum
+
+  def offsets(base: Int, attributes: List[Constructor]): List[Offset] =
+     attributes
         .foldLeft(base -> List.empty[Offset])({
           case ((offset, acc), a) =>
-            (offset + a.constructor.byteSize, (Offset(a, offset) :: acc))
-        })
-        ._2
-  }
+            (offset + a.byteSize, (Offset(a, offset) :: acc))
+        })._2
+
+  case class Loaded(offset: Offset, location: Int)
+  case class LoadedAttributes(attributes: List[Loaded])
 }
 
 object Uniform {
@@ -239,8 +236,8 @@ object Texture {
 
   sealed trait Data
   case class Empty(dim: Vec2i) extends Data
-  case class SingleData(dim: Vec2i, pixels: BitVector) extends Data
-  case class GroupData(subData: Map[Rect[Int], BitVector], dim: Vec2i) extends Data
+  case class SingleData(dim: Vec2i, pixels: ByteVector) extends Data
+  case class GroupData(subData: Map[Rect[Int], ByteVector], dim: Vec2i) extends Data
 
   case class Format(pixel: TextureFormat,
                     internal: TextureInternalFormat,

@@ -44,9 +44,9 @@ object Load {
 sealed trait Load
 
 private case class PutProgram(p: GL.Program.Unlinked) extends Load
-private case class PutVertices(r: GL.VertexData.Ref, d: BitVector)
+private case class PutVertices(r: GL.VertexData.Ref, d: ByteVector)
     extends Load
-private case class PutElements(r: GL.ElementData.Ref, d: BitVector)
+private case class PutElements(r: GL.ElementData.Ref, d: ByteVector)
     extends Load
 private case class PutTexture(t: Texture.Instance, d: GL.Texture.Data)
     extends Load
@@ -64,10 +64,10 @@ trait LoadFunctions {
     lift(PutProgram(GL.Program.Unlinked(v, f)))
   }
 
-  def load(r: GL.VertexData.Ref, d: BitVector): GFX =
+  def load(r: GL.VertexData.Ref, d: ByteVector): GFX =
     lift(PutVertices(r, d))
 
-  def load(r: GL.ElementData.Ref, d: BitVector): GFX =
+  def load(r: GL.ElementData.Ref, d: ByteVector): GFX =
     lift(PutElements(r, d))
 
   def load(t: Texture.Instance, d: GL.Texture.Data): GFX =

@@ -37,6 +37,9 @@ trait InstantiateFunctions {
     Model.Instance(name, Model.Constructor(constructorName), m)
   }
 
+  def image[A](name: String)(implicit f: GL.GLTextureFormat[A]): Texture.Image =
+    Texture.Image(name, f.format)
+
   def drawInstance(
       model: Model.Instance,
       cons: Draw.Constructor,

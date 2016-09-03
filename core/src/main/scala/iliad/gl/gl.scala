@@ -96,7 +96,7 @@ object GL {
     } yield ()
 
   private def loadVertices(r: VertexData.Ref,
-                           d: BitVector,
+                           d: ByteVector,
                            pageSize: Int): DSL[Unit] =
     Cache.get(r.buffer).expand[GL] flatMap {
       case Some(prev) =>
@@ -118,7 +118,7 @@ object GL {
     }
 
   def load(r: VertexData.Ref,
-           d: BitVector,
+           d: ByteVector,
            pageSize: Int): DSL[VertexDataAlreadyLoaded Xor Unit] =
     Cache.get(r).expand[GL] flatMap {
       case Some(_) => Free.pure(VertexDataAlreadyLoaded(r).left)
@@ -132,7 +132,7 @@ object GL {
     } yield ()
 
   private def loadElements(r: ElementData.Ref,
-                           d: BitVector,
+                           d: ByteVector,
                            pageSize: Int): DSL[Unit] =
     Cache.get(r.buffer).expand[GL] flatMap {
       case Some(prev) =>
@@ -154,7 +154,7 @@ object GL {
     }
 
   def load(r: ElementData.Ref,
-           d: BitVector,
+           d: ByteVector,
            pageSize: Int): DSL[ElementDataAlreadyLoaded Xor Unit] =
     Cache.get(r).expand[GL] flatMap {
       case Some(_) => Free.pure(ElementDataAlreadyLoaded(r).left)
@@ -340,8 +340,9 @@ object GL {
       ed <- ensure(
                Cache.get(draw.elementData),
                ElementDataNotLoadedError(draw.elementData)).leftWiden[GLError]
-      as <- XorT.fromXor[DSL](p.loaded(draw.attributes)).leftWiden[GLError]
-      _ <- xort(Draw.enable(as, vd.offset(draw.vertexModel)).expand[GL])
+      as <- XorT.fromXor[DSL](p.loaded(Attribute.offsets(vd.offset(draw.vertexModel), draw.attributes)))
+        .leftWiden[GLError]
+      _ <- xort(Draw.enable(as, Attribute.stride(draw.attributes)).expand[GL])
       _ <- xort(Draw(ed.offset(draw.elementModel)).expand[GL])
       _ <- XorT(flip(fl)).leftWiden[GLError]
     } yield ()).value

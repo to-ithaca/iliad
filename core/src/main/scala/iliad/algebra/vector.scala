@@ -152,8 +152,10 @@ abstract class VectorInstances extends VectorInstances0 {
 
   implicit lazy val vec2fNormedVectorSpace: NormedVectorSpace[Vec2f, Float] = vec2fInnerProductSpace.normed
   implicit lazy val vec3fNormedVectorSpace: NormedVectorSpace[Vec3f, Float] = vec3fInnerProductSpace.normed
+  implicit lazy val vec4fNormedVectorSpace: NormedVectorSpace[Vec4f, Float] = vec4fInnerProductSpace.normed
   implicit lazy val vec2dNormedVectorSpace: NormedVectorSpace[Vec2d, Double] = vec2dInnerProductSpace.normed
   implicit lazy val vec3dNormedVectorSpace: NormedVectorSpace[Vec3d, Double] = vec3dInnerProductSpace.normed
+  implicit lazy val vec4dNormedVectorSpace: NormedVectorSpace[Vec4d, Double] = vec4dInnerProductSpace.normed
 
   implicit def vectorFunctor[N <: Nat]: cats.Functor[Vector[N, ?]] = new cats.Functor[Vector[N, ?]] {
     def map[A, B](fa: Vector[N, A])(f: A => B): Vector[N, B] = fa.map(f)
@@ -174,6 +176,12 @@ sealed trait VectorInstances0 {
       def toInt = ToInt[nat._3]
     }
 
+  implicit lazy val vec4fInnerProductSpace: InnerProductSpace[Vec4f, Float] = 
+    new VectorInnerProductSpace[nat._4, Float] {
+      def scalar = FloatAlgebra
+      def toInt = ToInt[nat._4]
+    }
+
   implicit lazy val vec2dInnerProductSpace: InnerProductSpace[Vec2d, Double] = 
     new VectorInnerProductSpace[nat._2, Double] {
       def scalar = DoubleAlgebra
@@ -184,6 +192,12 @@ sealed trait VectorInstances0 {
     new VectorInnerProductSpace[nat._3, Double] {
       def scalar = DoubleAlgebra
       def toInt = ToInt[nat._3]
+    }
+
+  implicit lazy val vec4dInnerProductSpace: InnerProductSpace[Vec4d, Double] = 
+    new VectorInnerProductSpace[nat._4, Double] {
+      def scalar = DoubleAlgebra
+      def toInt = ToInt[nat._4]
     }
 }
 

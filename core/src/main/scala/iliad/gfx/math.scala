@@ -36,13 +36,15 @@ case class AxisAngle[A: Trig: Ring](axis: Vec3[A], θ: A) {
 
   def fraction(f: A): AxisAngle[A] =
     AxisAngle(axis, θ * f)
+
+  def orientation: Vec4[A] = axis.pad(4, θ)
 }
 
 object AxisAngle {
   def apply[A: Trig: Ring](v: Vec4[A]): AxisAngle[A] =
     AxisAngle(v.dropUntil(3), v.w)
 
-  def apply[A](from: Vec3[A], to: Vec3[A])(implicit R: Ring[A], E: Eq[A], T: Trig[A], 
+  def between[A](from: Vec3[A], to: Vec3[A])(implicit R: Ring[A], E: Eq[A], T: Trig[A], 
     N: NormedVectorSpace[Vec3[A], A]): AxisAngle[A] = {
     val a = from × to
     val n = a.norm
@@ -50,6 +52,8 @@ object AxisAngle {
     val θ = T.acos(from ⋅ to)
     AxisAngle(axis, θ)
   }
+  def between2D[A](from: Vec2[A], to: Vec2[A])(implicit R: Ring[A], E: Eq[A], T: Trig[A], 
+    N: NormedVectorSpace[Vec3[A], A]): AxisAngle[A] = between(from.padZero(3), to.padZero(3))
 }
 
 case class RotationMatrix[A: AdditiveMonoid](matrix: Mat4[A]) {

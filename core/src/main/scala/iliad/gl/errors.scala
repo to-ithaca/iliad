@@ -54,9 +54,10 @@ case class UnsetUniformError(p: Program.Unlinked, unform: Uniform.Constructor)
 }
 
 case class UndefinedAttributeError(p: Program.Unlinked,
-                                   a: Attribute.Constructor)
+                                   as: List[Attribute.Offset],
+                                   a: String)
     extends GLError {
-  override def toString: String = s"Attribute $a is not defined in program $p"
+  override def toString: String = s"Attribute [ $a ] for program [ $p ] is not defined in provided attributes [ $as ]"
 }
 case class CallFailedError(method: String, code: ErrorCode) extends GLError {
   override def toString: String = s"GL method $method failed with error code $code"

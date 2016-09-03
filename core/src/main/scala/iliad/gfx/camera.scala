@@ -196,7 +196,7 @@ sealed trait CameraFunctions {
     (implicit M: MultiplicativeSemigroup[Mat4[A]], N: NormedVectorSpace[Vec3[A], A], MM: MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, A]): CameraFunction[A] =
     CameraFunction(Some(dt), (t: A, c: Camera[A]) => {
       val f = t / dt
-      val up = AxisAngle(c.up, upEnd).fraction(f).rotate(c.up)
+      val up = AxisAngle.between(c.up, upEnd).fraction(f).rotate(c.up)
       val position = c.position + ((pEnd - c.position) :* f)
       val focalPoint = c.focalPoint + ((fEnd - c.focalPoint) :* f)
       ((_position[A] set position) compose
