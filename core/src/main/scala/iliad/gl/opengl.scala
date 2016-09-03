@@ -116,23 +116,23 @@ object OpenGL {
     } yield id
 
   private def makeBuffer(target: BufferTarget,
-                         data: BitVector,
+                         data: ByteVector,
                          capacity: Int): DSL[Int] =
     for {
       id <- makeEmptyBuffer(target, capacity)
       _ <- GLBufferSubData(target, 0, data).free
     } yield id
 
-  def makeVertexBuffer(data: BitVector, capacity: Int): DSL[Int] =
+  def makeVertexBuffer(data: ByteVector, capacity: Int): DSL[Int] =
     makeBuffer(GL_ARRAY_BUFFER, data, capacity)
 
-  def makeElementBuffer(data: BitVector, capacity: Int): DSL[Int] =
+  def makeElementBuffer(data: ByteVector, capacity: Int): DSL[Int] =
     makeBuffer(GL_ELEMENT_ARRAY_BUFFER, data, capacity)
 
   private def insertInBuffer(target: BufferTarget,
                              buffer: Int,
                              offset: Int,
-                             data: BitVector): DSL[Unit] =
+                             data: ByteVector): DSL[Unit] =
     for {
       _ <- GLBindBuffer(target, buffer).free
       _ <- GLBufferSubData(target, offset, data).free
@@ -140,18 +140,18 @@ object OpenGL {
 
   def insertVertices(buffer: Int,
                      offset: Int,
-                     data: BitVector): DSL[Unit] =
+                     data: ByteVector): DSL[Unit] =
     insertInBuffer(GL_ARRAY_BUFFER, buffer, offset, data)
 
   def insertElements(buffer: Int,
                      offset: Int,
-                     data: BitVector): DSL[Unit] =
+                     data: ByteVector): DSL[Unit] =
     insertInBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer, offset, data)
 
   private def copyToNewBuffer(oldId: Int,
                               target: BufferTarget,
                               offset: Int,
-                              data: BitVector,
+                              data: ByteVector,
                               capacity: Int): DSL[Int] =
     for {
       id <- makeEmptyBuffer(target, capacity)
@@ -162,13 +162,13 @@ object OpenGL {
 
   def copyVertices(oldId: Int,
                    offset: Int,
-                   data: BitVector,
+                   data: ByteVector,
                    capacity: Int): DSL[Int] =
     copyToNewBuffer(oldId, GL_ARRAY_BUFFER, offset, data, capacity)
 
   def copyElements(oldId: Int,
                    offset: Int,
-                   data: BitVector,
+                   data: ByteVector,
                    capacity: Int): DSL[Int] =
     copyToNewBuffer(oldId,
                     GL_ELEMENT_ARRAY_BUFFER,
@@ -211,7 +211,7 @@ object OpenGL {
 
   private def texImage2D(t: Texture.Constructor, 
     id: Int, dimensions: Vec2i, 
-    data: Option[BitVector]): DSL[Unit] =
+    data: Option[ByteVector]): DSL[Unit] =
     for {
       _ <- GLBindTexture(id).free
       _ <- GLTexImage2D(t.format.internal,
@@ -225,7 +225,7 @@ object OpenGL {
   private def texSubImage2D(t: Texture.Constructor,
                           id: Int,
                           rect: Rect[Int],
-                          data: BitVector): DSL[Unit] =
+                          data: ByteVector): DSL[Unit] =
     for {
       _ <- GLTexSubImage2D(rect.bottomLeft.x,
                            rect.bottomLeft.y,
@@ -409,7 +409,7 @@ GLClearColor(red, green, blue, alpha).free
     GLDrawElements(GL_TRIANGLES,
                    end / SizeOf[Int].byteSize - start / SizeOf[Int].byteSize,
                    GL_UNSIGNED_INT,
-                   start * SizeOf[Int].byteSize).free
+                   start).free
 }
 
 sealed trait OpenGL[A]
@@ -439,12 +439,12 @@ case class GLGenBuffers(number: Int) extends OpenGL[Set[Int]]
 case class GLBindBuffer(target: BufferTarget, buffer: Int) extends OpenGL[Unit]
 case class GLBufferData(target: BufferTarget,
                         size: Int,
-                        data: Option[BitVector],
+                        data: Option[ByteVector],
                         usage: BufferUsage)
     extends OpenGL[Unit]
 case class GLBufferSubData(target: BufferTarget,
                            offset: Int,
-                           data: BitVector)
+                           data: ByteVector)
     extends OpenGL[Unit]
 case class GLCopyBufferSubData(read: BufferTarget,
                                write: BufferTarget,
@@ -460,7 +460,7 @@ case class GLTexImage2D(internalFormat: TextureInternalFormat,
                         height: Int,
                         format: TextureFormat,
                         pixelType: TexturePixelType,
-                        data: Option[BitVector])
+                        data: Option[ByteVector])
     extends OpenGL[Unit]
 case class GLTexSubImage2D(xOffset: Int,
                            yOffset: Int,
@@ -468,7 +468,7 @@ case class GLTexSubImage2D(xOffset: Int,
                            height: Int,
                            format: TextureFormat,
                            pixelType: TexturePixelType,
-                           data: BitVector)
+                           data: ByteVector)
 extends OpenGL[Unit]
 
 case class GLGenRenderbuffers(number: Int) extends OpenGL[Set[Int]]

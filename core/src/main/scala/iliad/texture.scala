@@ -21,7 +21,7 @@ object TextureFormat {
   trait RGBA
 }
 
-final class Bitmap[F](val dimensions: Vec2i, val pixels: BitVector)
+final class Bitmap[F](val dimensions: Vec2i, val pixels: ByteVector)
 
 sealed trait PNGDecoder[F] extends Decoder[Bitmap[F]]
 
@@ -41,7 +41,7 @@ private final class PNGDecoderRGB extends PNGDecoder[TextureFormat.RGB] {
     Attempt.fromXor(for {
       i <- DecodeUtil.read(bitVector)
       _ <- DecodeUtil.checkType(i, TYPE_3BYTE_BGR, "3BYTE_BGR")
-    } yield DecodeUtil.bitmap[TextureFormat.RGB](i, _.swizzleZYX))
+    } yield DecodeUtil.bitmap[TextureFormat.RGB](i, _.swizzleZYX.reverseColumns(i.getHeight, i.getWidth * 3)))
 }
 
 private final class PNGDecoderRGBA extends PNGDecoder[TextureFormat.RGBA] {
@@ -50,7 +50,7 @@ private final class PNGDecoderRGBA extends PNGDecoder[TextureFormat.RGBA] {
     Attempt.fromXor(for {
       i <- DecodeUtil.read(bitVector)
       _ <- DecodeUtil.checkType(i, TYPE_4BYTE_ABGR, "4BYTE_ABGR")
-    } yield DecodeUtil.bitmap[TextureFormat.RGBA](i, identity))
+    } yield DecodeUtil.bitmap[TextureFormat.RGBA](i, _.swizzleZYXW.reverseColumns(i.getHeight, i.getWidth * 4)))
 }
 
 
@@ -74,7 +74,7 @@ private object DecodeUtil {
   def bitmap[F](i: BufferedImage, f: BitVector => BitVector): DecodeResult[Bitmap[F]] = {
     val data = i.getRaster.getDataBuffer()
       .asInstanceOf[java.awt.image.DataBufferByte].getData()
-    val pixels = f(BitVector(data))
+    val pixels = f(BitVector(data)).toByteVector
     val dimensions = v"${i.getWidth} ${i.getHeight}"
     val bitmap = new Bitmap[F](dimensions, pixels)
     DecodeResult(bitmap, BitVector.empty)

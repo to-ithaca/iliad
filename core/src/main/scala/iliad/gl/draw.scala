@@ -35,8 +35,8 @@ object Draw {
     BindUniform(uniform, value).free
   def bind(v: VertexBuffer.Loaded): DSL[Unit] = BindVertexBuffer(v).free
   def bind(e: ElementBuffer.Loaded): DSL[Unit] = BindElementBuffer(e).free
-  def enable(as: Attribute.LoadedAttributes, baseOffset: Int): DSL[Unit] =
-    EnableAttributes(as, baseOffset).free
+  def enable(as: Attribute.LoadedAttributes, stride: Int): DSL[Unit] =
+    EnableAttributes(as, stride).free
   def apply(range: DataRange): DSL[Unit] = DrawTriangleModel(range).free
 }
 
@@ -59,7 +59,7 @@ case class BindTextureUniform(unit: TextureUnit,
 case class BindUniform(u: Uniform.Loaded, v: Uniform.Value) extends Draw[Unit]
 case class BindVertexBuffer(v: VertexBuffer.Loaded) extends Draw[Unit]
 case class BindElementBuffer(e: ElementBuffer.Loaded) extends Draw[Unit]
-case class EnableAttributes(as: Attribute.LoadedAttributes, baseOffset: Int)
+case class EnableAttributes(as: Attribute.LoadedAttributes, stride: Int)
     extends Draw[Unit]
 
 case class DrawTriangleModel(range: DataRange) extends Draw[Unit]
@@ -67,20 +67,20 @@ case class DrawTriangleModel(range: DataRange) extends Draw[Unit]
 object DrawParser extends (Draw ~> OpenGL.DSL) {
 
   private def enableAttribute(stride: Int)(
-      a: Attribute.Offset): OpenGL.DSL[Unit] =
-    a.loaded.constructor.`type` match {
+      a: Attribute.Loaded): OpenGL.DSL[Unit] =
+    a.offset.constructor.`type` match {
       case it: VertexAttribIType =>
-        OpenGL.enableAttributeI(a.loaded.location,
-                                a.loaded.constructor.elementSize,
+        OpenGL.enableAttributeI(a.location,
+                                a.offset.constructor.elementSize,
                                 it,
                                 stride,
-                                a.offset)
+                                a.offset.offset)
       case t: VertexAttribType =>
-        OpenGL.enableAttribute(a.loaded.location,
-                               a.loaded.constructor.elementSize,
-                               a.loaded.constructor.`type`,
+        OpenGL.enableAttribute(a.location,
+                               a.offset.constructor.elementSize,
+                               a.offset.constructor.`type`,
                                stride,
-                               a.offset)
+                               a.offset.offset)
     }
 
   def apply[A](draw: Draw[A]): OpenGL.DSL[A] = draw match {
@@ -106,8 +106,8 @@ object DrawParser extends (Draw ~> OpenGL.DSL) {
       value.bind(uniform.location)
     case BindVertexBuffer(v) => OpenGL.bindVertexBuffer(v.id)
     case BindElementBuffer(e) => OpenGL.bindElementBuffer(e.id)
-    case EnableAttributes(as, baseOffset) =>
-      as.offsets(baseOffset).traverse(enableAttribute(as.stride)).map(_ => ())
+    case EnableAttributes(as, stride) =>
+      as.attributes.traverse(enableAttribute(stride)).map(_ => ())
     case DrawTriangleModel(range: DataRange) =>
       OpenGL.drawTriangles(range.start, range.end)
   }

@@ -20,8 +20,10 @@ import ScodecExtra._
 final class BitVectorOps(val bitVector: BitVector) extends AnyVal {
   def toDirectByteBuffer: ByteBuffer = bitVector.toByteVector.toDirectByteBuffer
 
-  //TODO: perhaps this should be a reverse, which chunks into 3, and reverses each triple?
   def swizzleZYX: BitVector = bitVector.toByteVector.swizzleZYX.toBitVector
+  def swizzleZYXW: BitVector = bitVector.toByteVector.swizzleZYXW.toBitVector
+  def reverseColumns(nrows: Int, ncols: Int): BitVector = 
+    bitVector.toByteVector.reverseColumns(nrows, ncols).toBitVector
 }
 
 final class ByteVectorOps(val byteVector: ByteVector) extends AnyVal {
@@ -39,6 +41,22 @@ final class ByteVectorOps(val byteVector: ByteVector) extends AnyVal {
   def swizzleZYX: ByteVector =
     ByteVector.viewAt({(i: Long) => 
       val j = i + 2 - 2 * (i % 3)
+      byteVector.apply(j)
+    }, byteVector.size)
+
+  def swizzleZYXW: ByteVector =
+    ByteVector.viewAt({(i: Long) => 
+      val m = i % 4
+      val j = if(m == 3) i else i + 2 - 2 * m
+      byteVector.apply(j)
+    }, byteVector.size)
+
+  def reverseColumns(nrows: Int, ncols: Int): ByteVector =
+    ByteVector.viewAt({(i: Long) => 
+      val x = i % ncols
+      val y = (i - x) / ncols
+      val yNext = nrows - y - 1
+      val j = yNext * ncols + x
       byteVector.apply(j)
     }, byteVector.size)
 }

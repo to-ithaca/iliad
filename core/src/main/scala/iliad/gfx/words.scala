@@ -41,7 +41,6 @@ object Sampler {
 }
 
 case class DataRefs(
-    constructorName: String,
     attributes: List[Attribute],
     elementBuffer: String,
     vertexDataName: String,
@@ -60,6 +59,6 @@ case class DataRefs(
   private val eModel: GL.Model.ElementRef =
     gfx.eModelRef(elementDataRef, 0 -> elementSize)
 
-  def model(name: String): Model.Instance =
-    gfx.model(name, constructorName, vModel, eModel)
+  def model(cons: String, name: String): Model.Instance =
+    gfx.model(name, cons, vModel, eModel)
 }
