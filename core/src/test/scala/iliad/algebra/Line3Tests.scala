@@ -24,6 +24,8 @@ import arbitrary._
 class Line3Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChecks 
     with Inside with Discipline {
 
+  implicit val floatArbitrary: Arbitrary[Float] = Arbitrary { Gen.choose(-100f, 100f).filter(_ != 0f) }
+
   checkAll("Line3[Float]", FunctorTests[Line3].functor[Float, Float, Float])
 
   //TODO: check if contains method is in use
