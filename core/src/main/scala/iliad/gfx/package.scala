@@ -10,10 +10,11 @@ package object gfx
     extends LoadFunctions
     with ActionFunctions
     with UniformCacheFunctions
-    with AnimationFunctions
     with ConstructFunctions
     with InstantiateFunctions
-    with ShaderFunctions {
+    with ShaderFunctions 
+    with Update.ToUpdateOps 
+    with Render.ToRenderOps {
 
   type GraphTraversal = Graph.Instance => Vector[Node.Instance]
 
