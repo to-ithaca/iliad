@@ -25,6 +25,8 @@ import arbitrary._
 
 class Line2Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChecks with Inside with Discipline {
 
+  implicit val floatArbitrary: Arbitrary[Float] = Arbitrary { Gen.choose(-100f, 100f).filter(_ != 0f) }
+
   checkAll("Line2[Float]", FunctorTests[Line2].functor[Float, Float, Float])
 
   val θ = 0.0872665 //5 degrees
