@@ -50,7 +50,6 @@ trait ConstructFunctions {
   def draw(name: String,
            v: GL.VertexShader.Source,
            f: GL.FragmentShader.Source,
-           model: String,
            drawType: DrawType,
            dimension: Dimension): Draw.Constructor =
     Draw.Constructor(
@@ -61,14 +60,12 @@ trait ConstructFunctions {
         GL.ColorMask.none,
         None,
         false,
-        Model.Constructor(model),
         Framebuffer.OnScreen
     )
 
   def alphaDraw(name: String,
            v: GL.VertexShader.Source,
            f: GL.FragmentShader.Source,
-           model: String,
            drawType: DrawType,
            dimension: Dimension): Draw.Constructor =
     Draw.Constructor(
@@ -79,7 +76,6 @@ trait ConstructFunctions {
         GL.ColorMask.none,
         Some(GL.Blend.alpha),
         false,
-        Model.Constructor(model),
         Framebuffer.OnScreen
     )
 
@@ -92,7 +88,6 @@ trait ConstructFunctions {
       name: String,
       v: GL.VertexShader.Source,
       f: GL.FragmentShader.Source,
-      model: String,
       drawType: DrawType,
       dimension: Dimension,
       outputs: (GL.FramebufferAttachment, Framebuffer.OutputConstructor)*)
@@ -105,7 +100,6 @@ trait ConstructFunctions {
         GL.ColorMask.none,
         None,
         false,
-        Model.Constructor(model),
         Framebuffer.OffScreenConstructor(outputs.toList)
     )
 
@@ -126,7 +120,6 @@ trait ConstructFunctions {
         GL.ColorMask.none,
         Some(GL.Blend.alpha),
         false,
-        Model.Constructor(model),
         Framebuffer.OffScreenConstructor(outputs.toList)
     )
 

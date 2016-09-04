@@ -8,40 +8,39 @@ import cats._
 import cats.data._
 import cats.implicits._
 
+import scodec.bits._
+
 trait InstantiateFunctions {
 
-  def vDataRef(name: String, attributes: Attribute*): GL.VertexData.Ref = {
-    val vb = GL.VertexBuffer.Constructor(attributes.toList.map(_.attribute))
-    GL.VertexData.Ref(name, vb)
-  }
+  def vertexBuffer(name: String, attributes: Attribute*): VertexBuffer =
+    VertexBuffer(GL.VertexBuffer.Constructor(name, attributes.toList.map(_.attribute)))
 
-  def vModelRef(vr: GL.VertexData.Ref, range: (Int, Int)): GL.Model.VertexRef = {
-    val (s, e) = range
-    GL.Model.VertexRef(vr, GL.DataRange(s, e))
-  }
+  def elementBuffer(name: String): ElementBuffer =
+    ElementBuffer(GL.ElementBuffer.Constructor(name))
 
-  def eDataRef(name: String, bufferName: String): GL.ElementData.Ref =
-    GL.ElementData.Ref(name, GL.ElementBuffer.Constructor(bufferName))
+  def vertexRef(name: String, data: ByteVector, buffer: VertexBuffer): VertexRef =
+    VertexRef(GL.Model.VertexRef(
+      GL.VertexData.Ref(name, buffer.buffer),
+      GL.DataRange(0, data.size.toInt)
+    ))
 
-  def eModelRef(er: GL.ElementData.Ref,
-                range: (Int, Int)): GL.Model.ElementRef = {
-    val (s, e) = range
-    GL.Model.ElementRef(er, GL.DataRange(s, e))
-  }
+  def elementRef(name: String, data: ByteVector, buffer: ElementBuffer): ElementRef =
+    ElementRef(GL.Model.ElementRef(
+      GL.ElementData.Ref(name, buffer.buffer),
+      GL.DataRange(0, data.size.toInt)
+    ))
 
-  def model(name: String,
-            constructorName: String,
-            vdata: GL.Model.VertexRef,
-            edata: GL.Model.ElementRef): Model.Instance = {
-    val m = GL.Model(vdata, edata)
-    Model.Instance(name, Model.Constructor(constructorName), m)
-  }
+  def model(name: String, vertexRef: VertexRef, elementRef: ElementRef): Model =
+    Model(name, GL.Model(
+      vertexRef.ref,
+      elementRef.ref
+    ))
 
   def image[A](name: String)(implicit f: GL.GLTextureFormat[A]): Texture.Image =
     Texture.Image(name, f.format)
 
   def drawInstance(
-      model: Model.Instance,
+      model: Model,
       cons: Draw.Constructor,
       uniforms: Map[String, UniformScope],
       textureUniforms: (String, Texture.Uniform)*): Draw.Instance =

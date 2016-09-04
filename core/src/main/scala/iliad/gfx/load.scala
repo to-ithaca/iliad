@@ -64,11 +64,11 @@ trait LoadFunctions {
     lift(PutProgram(GL.Program.Unlinked(v, f)))
   }
 
-  def load(r: GL.VertexData.Ref, d: ByteVector): GFX =
-    lift(PutVertices(r, d))
+  def load(r: VertexRef, d: ByteVector): GFX =
+    lift(PutVertices(r.ref.ref, d))
 
-  def load(r: GL.ElementData.Ref, d: ByteVector): GFX =
-    lift(PutElements(r, d))
+  def load(r: ElementRef, d: ByteVector): GFX =
+    lift(PutElements(r.ref.ref, d))
 
   def load(t: Texture.Instance, d: GL.Texture.Data): GFX =
     lift(PutTexture(t, d))

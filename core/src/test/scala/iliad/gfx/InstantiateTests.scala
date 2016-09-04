@@ -10,6 +10,10 @@ import cats._
 import cats.data._
 import cats.implicits._
 
+import scodec._
+import scodec.codecs._
+import scodec.bits._
+
 class InstantiateTests extends FunSuite with Matchers {
 
   private def validate(x: Xor[NonEmptyList[GraphicsError], Unit]): Unit = 
@@ -21,8 +25,7 @@ class InstantiateTests extends FunSuite with Matchers {
   private val exampleVertexShader: GL.VertexShader.Source = vertexShader(
       "some text here",
         Attribute[Vec3f]("position"),
-        Attribute[Vec3f]("normal"),
-        Attribute[Int]("index")
+        Attribute[Vec3f]("normal")
     )
 
   private val exampleFragmentShader: GL.FragmentShader.Source = fragmentShader(
@@ -34,7 +37,6 @@ class InstantiateTests extends FunSuite with Matchers {
       "basic-draw",
       exampleVertexShader,
       exampleFragmentShader,
-      "basic-3D model",
       DrawType.Triangles,
       Dimension._3D
     )
@@ -43,19 +45,29 @@ class InstantiateTests extends FunSuite with Matchers {
     val graph: Xor[NonEmptyList[GraphicsError], Graph.Constructed] = 
       Construct.validate(put(exampleDrawConstructor))
 
-    val animalVref = vDataRef("animal-vdata", 
-            Attribute[Vec3f]("position"),
-      Attribute[Vec3f]("normal"),
-      Attribute[Int]("index")
+    val vb = vertexBuffer("animal-vb",             
+      Attribute[Vec3f]("position"),
+      Attribute[Vec3f]("normal")
     )
-    val hedgehogVData = vModelRef(animalVref, 12 -> 36)
 
-    val animalEref = eDataRef("animal-edata", "elements")
-    val hedgehogEData = eModelRef(animalEref, 12 -> 24)
+    val eb = elementBuffer("animal-eb")
 
-    val hedgehogModel = model(
-      "hedgehog-model", "basic-3D-model",
-      hedgehogVData, hedgehogEData)
+    val vertexData: ByteVector = list(floatL).encode(List(
+      0f, 0f, 0f,
+      0f, 1f, 0f,
+
+      0f, 1f, 0f,
+      0f, 1f, 0f,
+
+      1f, 0f, 0f,
+      0f, 1f, 0f
+    )).toOption.get.toByteVector
+
+    val elementData: ByteVector = list(int32L).encode(List(0, 1, 2)).toOption.get.toByteVector
+
+    val hedgehogVref = vertexRef("hedgehog-vertices", vertexData, vb)
+    val hedgehogEref = elementRef("hedgehog-elements", elementData, eb)
+    val hedgehogModel = model("hedgehog", hedgehogVref, hedgehogEref)
 
     val hedgehogImage = Texture.Image("hedgehog-spikes", GL.Texture.Format.rgba)
     val hedgehogDraw = drawInstance(
