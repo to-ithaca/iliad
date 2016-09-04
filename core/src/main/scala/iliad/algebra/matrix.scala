@@ -214,7 +214,7 @@ final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: SVector[A]) e
   def map2[B, C](that: Matrix[N, M, B])(f: (A, B) => C): Matrix[N, M, C] = 
     that.ap(this.map(f.curried))
 
-  def ortho(implicit G0: SquareMatrixMultiplicativeGroup[Matrix[N, N, A], A], G1: MatrixMultiplicativeGroup[Matrix, M, N, A], toIntN: ToInt[N], toIntM: ToInt[M], EqA: Eq[A], ev: N =:= M): Option[OrthoMatrix[N, M, A]] = {
+  def ortho(implicit G0: SquareMatrixMultiplicativeGroup[Matrix[N, N, A], A], G1: MatrixMultiplicativeGroup[Matrix, M, N, A], toIntN: ToInt[N], toIntM: ToInt[M], EqA: Eq[A], ev: N =:= M): Option[OrthoMatrix[N, A]] = {
     if((transpose * this) === G0.id)
       Some(new OrthoMatrix(repr))
     else
@@ -224,14 +224,16 @@ final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: SVector[A]) e
   def isOrtho(implicit G0: SquareMatrixMultiplicativeGroup[Matrix[N, N, A], A], G1: MatrixMultiplicativeGroup[Matrix, M, N, A], toIntN: ToInt[N], toIntM: ToInt[M], ev: N =:= M, EqA: Eq[A]): Boolean =
     ortho.isDefined
 
-  def +(that: OrthoMatrix[N, M, A])(implicit G: AdditiveSemigroup[A]): Matrix[N, M, A] = 
-    map2(that.matrix)(_ + _)
+  def square(implicit ev: N =:= M): Matrix[N, N, A] = new Matrix(repr)
+
+  def +(that: OrthoMatrix[N, A])(implicit G: AdditiveSemigroup[A], ev: N =:= M): Matrix[N, N, A] = 
+    square.map2(that.matrix)(_ + _)
   def +(that: Matrix[N, M, A])(implicit G: AdditiveSemigroup[A], ev: DummyImplicit): Matrix[N, M, A] = 
     map2(that)(_ + _)
   def +(a: A)(implicit G: AdditiveSemigroup[A]): Matrix[N, M, A] = map(_ + a)
 
 
-  def -(that: OrthoMatrix[N, M, A])(implicit G: AdditiveGroup[A]): Matrix[N, M, A] = map2(that.matrix)(_ - _)
+  def -(that: OrthoMatrix[N, A])(implicit G: AdditiveGroup[A], ev: N =:= M): Matrix[N, N, A] = square.map2(that.matrix)(_ - _)
   def -(that: Matrix[N, M, A])(implicit G: AdditiveGroup[A], ev: DummyImplicit): Matrix[N, M, A] =
     map2(that)(_ - _)
   def -(a: A)(implicit G: AdditiveGroup[A]): Matrix[N, M, A] = map(_ - a)
@@ -240,13 +242,13 @@ final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: SVector[A]) e
 
   def *:(a: A)(implicit G: MultiplicativeSemigroup[A]): Matrix[N, M, A] = map(_ * a)
 
-  def *(that: OrthoMatrix[N, M, A])(implicit G: MultiplicativeSemigroup[Matrix[N, M, A]]): Matrix[N, M, A] = 
-    G.times(this, that.matrix)
+  def *(that: OrthoMatrix[N, A])(implicit G: MultiplicativeSemigroup[Matrix[N, N, A]], ev: N =:= M): Matrix[N, N, A] = 
+    G.times(this.square, that.matrix)
   def *(that: Matrix[N, M, A])(implicit G: MultiplicativeSemigroup[Matrix[N, M, A]], ev: DummyImplicit): Matrix[N, M, A] = 
     G.times(this, that)
   def *[N1 <: Nat](that: Matrix[N1, N, A])(implicit G: MatrixMultiplicativeGroup[Matrix, N, M, A], toInt: ToInt[N1]) =
     G.product(this, that)
-  def *[N1 <: Nat: ToInt](that: OrthoMatrix[N1, N, A])(implicit G: MatrixMultiplicativeGroup[Matrix, N, M, A], ev: DummyImplicit) =
+  def *(that: OrthoMatrix[N, A])(implicit G: MatrixMultiplicativeGroup[Matrix, N, M, A], ev: DummyImplicit, toInt: ToInt[N]) =
     G.product(this, that.matrix)
   def /:(a: A)(implicit G: MultiplicativeGroup[A]): Matrix[N, M, A] = map(_ / a)
 
@@ -440,72 +442,73 @@ object Matrix extends MatrixInstances {
 
 object OrthoMatrix {
 
-  private[algebra] def apply[A, N <: Nat, M <: Nat](matrix: Matrix[N, M, A]): OrthoMatrix[N, M, A] = new OrthoMatrix(matrix.repr)  
-  def id[A, N <: Nat](implicit toInt: ToInt[N], R: Ring[A]): OrthoMatrix[N, N, A] = apply(Matrix.id[A, N])
-  def id[A](n: Nat)(implicit toInt: ToInt[n.N], R: Ring[A]): OrthoMatrix[n.N, n.N, A] = id[A, n.N]
+  private[algebra] def apply[A, N <: Nat](matrix: Matrix[N, N, A]): OrthoMatrix[N, A] = new OrthoMatrix(matrix.repr)  
+  def id[A, N <: Nat](implicit toInt: ToInt[N], R: Ring[A]): OrthoMatrix[N, A] = apply(Matrix.id[A, N])
+  def id[A](n: Nat)(implicit toInt: ToInt[n.N], R: Ring[A]): OrthoMatrix[n.N, A] = id[A, n.N]
 
-  def sized[A, N <: Nat, M <: Nat](v: SVector[A])(implicit toIntN: ToInt[N], toIntM: ToInt[M]): OrthoMatrix[N, M, A] = apply(Matrix.sized[A, N, M](v))
+  def sized[A, N <: Nat](v: SVector[A])(implicit toIntN: ToInt[N]): OrthoMatrix[N, A] = apply(Matrix.sized[A, N, N](v))
 
 
-  def sized[A](n: Nat, m: Nat)(v: SVector[A])(implicit toIntN: ToInt[n.N], toIntM: ToInt[m.N]): OrthoMatrix[n.N, m.N, A] =
-    sized[A, n.N, m.N](v)
+  def sized[A](n: Nat)(v: SVector[A])(implicit toIntN: ToInt[n.N]): OrthoMatrix[n.N, A] =
+    sized[A, n.N](v)
 
 
 }
 
 /** Orthogonal matrix */ //TODO: What to do in the case of 
-final class OrthoMatrix[N <: Nat, M <: Nat, A] private[iliad](val repr: SVector[A]) extends AnyVal {
+final class OrthoMatrix[N <: Nat, A] private[iliad](val repr: SVector[A]) extends AnyVal {
 
-  def map[B](f: A => B): OrthoMatrix[N, M, B] = OrthoMatrix(matrix.map(f))
-  def ap[B](ff: OrthoMatrix[N, M, A => B]): OrthoMatrix[N, M, B] =
+  def map[B](f: A => B): OrthoMatrix[N, B] = OrthoMatrix(matrix.map(f))
+  def ap[B](ff: OrthoMatrix[N, A => B]): OrthoMatrix[N, B] =
     OrthoMatrix(matrix.ap(ff.matrix))
-  def map2[B, C](that: OrthoMatrix[N, M, B])(f: (A, B) => C): OrthoMatrix[N, M, C] = 
+  def map2[B, C](that: OrthoMatrix[N, B])(f: (A, B) => C): OrthoMatrix[N, C] = 
     OrthoMatrix(matrix.map2(that.matrix)(f))
   
-  def +(that: OrthoMatrix[N, M, A])(implicit G: AdditiveSemigroup[A]): Matrix[N, M, A] = 
+  def +(that: OrthoMatrix[N, A])(implicit G: AdditiveSemigroup[A]): Matrix[N, N, A] = 
     map2(that)(_ + _).matrix
-  def +(that: Matrix[N, M, A])(implicit G: AdditiveSemigroup[A], ev: DummyImplicit): Matrix[N, M, A] = 
+  def +(that: Matrix[N, N, A])(implicit G: AdditiveSemigroup[A], ev: DummyImplicit): Matrix[N, N, A] = 
     matrix.map2(that)(_ + _)
-  def +(a: A)(implicit G: AdditiveSemigroup[A]): OrthoMatrix[N, M, A] = map(_ + a)
+  def +(a: A)(implicit G: AdditiveSemigroup[A]): OrthoMatrix[N, A] = map(_ + a)
 
 
-  def -(that: OrthoMatrix[N, M, A])(implicit G: AdditiveGroup[A]): Matrix[N, M, A] = map2(that)(_ - _).matrix
-  def -(that: Matrix[N, M, A])(implicit G: AdditiveGroup[A], ev: DummyImplicit): Matrix[N, M, A] =
+  def -(that: OrthoMatrix[N, A])(implicit G: AdditiveGroup[A]): Matrix[N, N, A] = map2(that)(_ - _).matrix
+  def -(that: Matrix[N, N, A])(implicit G: AdditiveGroup[A], ev: DummyImplicit): Matrix[N, N, A] =
     matrix.map2(that)(_ - _)
-  def -(a: A)(implicit G: AdditiveGroup[A]): OrthoMatrix[N, M, A] = map(_ - a)
+  def -(a: A)(implicit G: AdditiveGroup[A]): OrthoMatrix[N, A] = map(_ - a)
 
-  def unary_-(implicit G: AdditiveGroup[A]): OrthoMatrix[N, M, A] = map(-_)
+  def unary_-(implicit G: AdditiveGroup[A]): OrthoMatrix[N, A] = map(-_)
 
-  def *:(a: A)(implicit G: MultiplicativeSemigroup[A]): OrthoMatrix[N, M, A] = map(_ * a)
+  def *:(a: A)(implicit G: MultiplicativeSemigroup[A]): OrthoMatrix[N, A] = map(_ * a)
 
-  def *(that: OrthoMatrix[N, M, A])(implicit G: MultiplicativeSemigroup[OrthoMatrix[N, M, A]]): OrthoMatrix[N, M, A] = 
-    G.times(this, that)
-  def *(that: Matrix[N, M, A])(implicit G: MultiplicativeSemigroup[Matrix[N, M, A]], ev: DummyImplicit): Matrix[N, M, A] = 
-    matrix * that
-  def *[N1 <: Nat: ToInt](that: OrthoMatrix[N1, N, A])(implicit G: MatrixMultiplicativeGroup[OrthoMatrix, N, M, A]) =
-    G.product(this, that)
-  def *[N1 <: Nat: ToInt](that: Matrix[N1, N, A])(implicit G: MatrixMultiplicativeGroup[Matrix, N, M, A], ev: DummyImplicit) =
+  def *(that: OrthoMatrix[N, A])(implicit G: MultiplicativeSemigroup[Matrix[N, N, A]]): OrthoMatrix[N, A] = 
+    new OrthoMatrix((G.times(this.matrix, that.matrix)).repr)
+  def *(that: Matrix[N, N, A])(implicit G: MultiplicativeSemigroup[Matrix[N, N, A]], ev: DummyImplicit): Matrix[N, N, A] = 
     matrix * that
 
-  def /:(a: A)(implicit G: MultiplicativeGroup[A]): OrthoMatrix[N, M, A] = map(_ / a)
+  def *(that: Vector[N, A])(implicit G: MatrixMultiplicativeGroup[Matrix, N, N, A], ev1: DummyImplicit, ev2: DummyImplicit): Vector[N, A] =
+    matrix * that
+
+  def *[N1 <: Nat: ToInt](that: Matrix[N1, N, A])(implicit G: MatrixMultiplicativeGroup[Matrix, N, N, A], ev: DummyImplicit) =
+    matrix * that
+
+  def /:(a: A)(implicit G: MultiplicativeGroup[A]): OrthoMatrix[N, A] = map(_ / a)
 
   //TODO: LU decomp
-  def det(implicit G: SquareMatrixMultiplicativeGroup[OrthoMatrix[N, M, A], A]): A =
+  def det(implicit G: SquareMatrixMultiplicativeGroup[OrthoMatrix[N, A], A]): A =
     G.det(this)
 
-  def inverse(implicit G: SquareMatrixMultiplicativeGroup[OrthoMatrix[N, M, A], A]): OrthoMatrix[N, M, A] = G.inverse(this)
+  def inverse(implicit G: SquareMatrixMultiplicativeGroup[OrthoMatrix[N, A], A]): OrthoMatrix[N, A] = G.inverse(this)
 
-  def transpose(implicit toIntN: ToInt[N]): OrthoMatrix[M, N, A] = new OrthoMatrix(matrix.transpose.repr)
+  def transpose(implicit toIntN: ToInt[N]): OrthoMatrix[N, A] = new OrthoMatrix(matrix.transpose.repr)
 
-  def trace(implicit G: AdditiveMonoid[A], toIntN: ToInt[N], ev: N =:= M): A = matrix.trace
+  def trace(implicit G: AdditiveMonoid[A], toIntN: ToInt[N]): A = matrix.trace
 
-  def matrix: Matrix[N, M, A] = new Matrix(repr)
+  def matrix: Matrix[N, N, A] = new Matrix(repr)
 
-  def ===(that: OrthoMatrix[N, M, A])(implicit eqA: Eq[A]): Boolean = that.repr === repr
+  def ===(that: OrthoMatrix[N, A])(implicit eqA: Eq[A]): Boolean = that.repr === repr
 
   def toArray(implicit classTag: ClassTag[A]): Array[A] = repr.toArray
 
-  def symmetric(implicit eqA: Eq[A], ev: N =:= M): Boolean = matrix.symmetric
-
+  def symmetric(implicit eqA: Eq[A]): Boolean = matrix.symmetric
 }
 
