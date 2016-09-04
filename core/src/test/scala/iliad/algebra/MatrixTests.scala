@@ -161,4 +161,15 @@ s"""1 | 2 | 3
                    2.0 3.0"""
     m1 should ===(m2)
   }
+
+  test("OrthoMatrix[4, Float].multiply is orthogonal") {
+    forAll(MatrixGen.rotation[nat._2, Float](Gen.choose(0f, (2f * Math.PI.toFloat))), Arbitrary.arbitrary[Vec4f], Arbitrary.arbitrary[Vec4f]) { (m: Mat2f, v1: Vec4f, v2: Vec4f) =>
+      val om = m.pad(4, 4).ortho.get
+      val u1 = om * v1
+      val u2 = om * v2
+      val n1 = (v1 - v2).norm
+      val n2 = (u1 - u2).norm
+      n1 should === (n1 +- 0.0001f)
+    }
+  }
 }

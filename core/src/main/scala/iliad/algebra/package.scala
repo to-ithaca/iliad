@@ -19,7 +19,8 @@ package object algebra {
   type Mat4d = Mat4[Double]
 
 
-  type OMat4[A] = OrthoMatrix[nat._4, nat._4, A]
+  type OMat4[A] = OrthoMatrix[nat._4, A]
+  type OMat3[A] = OrthoMatrix[nat._3, A]
 
   type Vec2[A] = Vector[nat._2, A]
   type Vec3[A] = Vector[nat._3, A]
@@ -33,6 +34,8 @@ package object algebra {
   type Vec2d = Vec2[Double]
   type Vec3d = Vec3[Double]
   type Vec4d = Vec4[Double]
+
+  type AxisAngle[A] = (A, Vec3[A])
 
   type X = nat._0
   type Y = nat._1

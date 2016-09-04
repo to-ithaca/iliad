@@ -56,7 +56,7 @@ object MatrixGen {
 }
 
 object OrthoMatrixGen {
-  def gen[N <: Nat, M <: Nat, A](genA: Gen[A])(implicit toIntN: ToInt[N], toIntM: ToInt[M]): Gen[OrthoMatrix[N, M , A]] = MatrixGen.gen[N, M, A](genA).map(OrthoMatrix(_))
+  def gen[N <: Nat, A](genA: Gen[A])(implicit toIntN: ToInt[N]): Gen[OrthoMatrix[N, A]] = MatrixGen.gen[N, N, A](genA).map(OrthoMatrix(_))
 }
 
 object VectorGen {
