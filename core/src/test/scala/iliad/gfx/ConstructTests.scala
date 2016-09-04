@@ -35,7 +35,6 @@ class ConstructTests extends FunSuite with Matchers {
       "basic-draw",
       exampleVertexShader,
       exampleFragmentShader,
-      "basic-3D model",
       DrawType.Triangles,
       Dimension._3D
     )
@@ -80,7 +79,6 @@ class ConstructTests extends FunSuite with Matchers {
     val fixedViewportDraw = offScreenDraw("fixed-viewport",
       fixedViewportVertexShader,
       fixedViewportFragmentShader,
-      "basic-3D-model",
         DrawType.Triangles,
       Dimension._3D,
         GL.GL_COLOR_ATTACHMENT0 -> fixedViewportTexture
@@ -103,7 +101,6 @@ class ConstructTests extends FunSuite with Matchers {
       "screen-draw",
       screenVertexShader,
       screenFragmentShader,
-      "screen-square",
       DrawType.Triangles,
       Dimension._2D
     )

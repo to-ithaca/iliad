@@ -110,7 +110,6 @@ object Draw {
       colorMask: GL.ColorMask,
       blend: Option[GL.Blend],
       isInstanced: Boolean,
-      model: Model.Constructor,
       framebuffer: Framebuffer.Constructor
   ) extends Node.Constructor
 
@@ -123,7 +122,7 @@ object Draw {
       constructor: Constructor,
       textureUniforms: Map[String, Texture.Uniform],
       uniformScopes: Map[String, UniformScope],
-      model: Model.Instance,
+      model: Model,
       framebuffer: Framebuffer.Instance,
       numInstances: Int
   ) extends Node.Instance {
@@ -241,11 +240,13 @@ object Framebuffer {
       extends Instance
 }
 
-object Model {
-  case class Constructor(name: String)
-  case class Instance(name: String, constructor: Constructor, model: GL.Model) {
-    def scope: UniformScope = UniformScope(s"model-$this")
-  }
+case class VertexBuffer(buffer: GL.VertexBuffer.Constructor)
+case class ElementBuffer(buffer: GL.ElementBuffer.Constructor)
+case class VertexRef(ref: GL.Model.VertexRef)
+case class ElementRef(ref: GL.Model.ElementRef)
+
+case class Model(name: String, model: GL.Model) {
+  def scope: UniformScope = UniformScope(s"model-$this")
 }
 
 case class UniformScope(name: String)

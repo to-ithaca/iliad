@@ -127,7 +127,7 @@ object Uniform {
 }
 
 object VertexBuffer {
-  case class Constructor(attributes: List[Attribute.Constructor])
+  case class Constructor(name: String, attributes: List[Attribute.Constructor])
   case class Loaded(id: Int,
                     filled: Int,
                     capacity: Int,

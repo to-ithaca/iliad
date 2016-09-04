@@ -24,6 +24,8 @@ import arbitrary._
 
 class Plane3Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChecks with Inside with Discipline { 
 
+  implicit val floatArbitrary: Arbitrary[Float] = Arbitrary { Gen.choose(-100f, 100f).filter(_ != 0f) }
+
   checkAll("Plane3[Float]", FunctorTests[Plane3].functor[Float, Float, Float])
 
   test("line intersects with plane within acceptance angle") {
