@@ -51,33 +51,21 @@ object CachedFunction {
   }
 }
 
-trait AnimationFunctions {
-  def animation[A](value: A)(
-      implicit G: GL.GLUniform[A]): CachedFunction.UniformFunction[A] =
-    CachedFunction.Constant(value, G)
-
-  def animation[A](f: Long => A)(
-      implicit G: GL.GLUniform[A]): CachedFunction.UniformFunction[A] =
-    CachedFunction.Time(f, G)
-}
-
 object UniformCache {
   type State = Map[UniformScope, Map[String, CachedFunction]]
   type Values = Map[UniformScope, Map[String, GL.Uniform.Value]]
   type Effect = StateT[GraphicsError Xor ?, State, Unit]
 
   private val root = Iso.id[State]
+  private val innerRoot = Iso.id[Map[String, CachedFunction]]
 
   private[gfx] def apply(a: UniformCache): Effect = a match {
-    case UniformPut(scope, fs) =>
-      StateT.modifyF(s => (s + (scope -> fs)).right)
-    case UniformUpdate(scope, name, f) =>
-      StateT.modifyF(
-          s =>
-            s.get(scope)
-              .toRightXor(UnsetScopeError(scope, s.keySet))
-              .map(_ => (root ^|-? index(scope) ^|-> at(name) set Some(f))(s)))
-    case UniformFold(scope, name, f) =>
+    case UniformPut(ScopeProperty(name, scope), f) => StateT.modifyF { s => 
+      val props = s.getOrElse(scope, Map.empty)
+      val next = (innerRoot ^|-> at(name) set Some(f))(props)
+      ((root ^|-> at(scope) set Some(next))(s)).right
+    }
+    case UniformModify(ScopeProperty(name, scope), f) =>
       StateT.modifyF { (fs: State) =>
         for {
           us <- fs.get(scope).toRightXor(UnsetScopeError(scope, fs.keySet))
@@ -125,18 +113,11 @@ object UniformCache {
 }
 
 sealed trait UniformCache
-
-private case class UniformPut(s: UniformScope, fs: Map[String, CachedFunction])
+private case class UniformPut(property: ScopeProperty, f: CachedFunction) 
     extends UniformCache
-private case class UniformFold[A](s: UniformScope,
-                                  name: String,
+private case class UniformModify[A](property: ScopeProperty,
                                   f: (Long,
                                       A) => CachedFunction.UniformFunction[A])
-    extends UniformCache
-
-private case class UniformUpdate(s: UniformScope,
-                                 name: String,
-                                 f: CachedFunction)
     extends UniformCache
 
 trait UniformCacheFunctions {
@@ -144,14 +125,17 @@ trait UniformCacheFunctions {
   private def lift(a: UniformCache): GFX =
     shapeless.Coproduct[GFX](a)
 
-  def putScope(s: UniformScope, fs: (String, CachedFunction)*): GFX =
-    lift(UniformPut(s, fs.toMap))
+  def putUniform[A](s: ScopeProperty, value: A)(implicit G: GL.GLUniform[A]): GFX =
+    lift(UniformPut(s, CachedFunction.Constant(value, G)))
 
-  def foldUniform[A](s: UniformScope,
-                     name: String,
-                     f: (Long, A) => CachedFunction.UniformFunction[A]): GFX =
-    lift(UniformFold(s, name, f))
+  def putUniform[A](s: ScopeProperty, f: Long => A)(implicit G: GL.GLUniform[A]): GFX =
+    lift(UniformPut(s, CachedFunction.Time(f, G)))
 
-  def updateUniform(s: UniformScope, name: String, f: CachedFunction): GFX =
-    lift(UniformUpdate(s, name, f))
+  def modifyUniformFunc[A](property: ScopeProperty,
+                     f: (Long, A) => (Long => A))(implicit G: GL.GLUniform[A]): GFX =
+    lift(UniformModify(property, (at: Long, a: A) => CachedFunction.Time(f(at, a), G)))
+
+  def modifyUniformConst[A](property: ScopeProperty,
+                     f: (Long, A) => A)(implicit G: GL.GLUniform[A]): GFX =
+    lift(UniformModify(property, (at: Long, a: A) => CachedFunction.Constant(f(at, a), G)))
 }

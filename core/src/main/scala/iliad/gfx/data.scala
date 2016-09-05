@@ -67,13 +67,12 @@ object Graph extends LazyLogging {
         ops.traverse {
           case c: Clear.Instance => c.right
           case d: Draw.Instance =>
-            d.uniformScopes.toList.traverse {
-              case (name, scope) =>
+            d.scopes.traverse { p =>
                 for {
                   us <- scopes
-                         .get(scope)
-                         .toRightXor(UnsetScopeError(scope, scopes.keySet))
-                  v <- us.get(name).toRightXor(UnsetUniformError(name, scope))
+                         .get(p.scope)
+                         .toRightXor(UnsetScopeError(p.scope, scopes.keySet))
+                  v <- us.get(p.name).toRightXor(UnsetUniformError(p.name, p.scope))
                 } yield v
             }.map(Draw.Drawable(d, _))
         }
@@ -121,7 +120,7 @@ object Draw {
   case class Instance(
       constructor: Constructor,
       textureUniforms: Map[String, Texture.Uniform],
-      uniformScopes: Map[String, UniformScope],
+      scopes: List[ScopeProperty],
       model: Model,
       framebuffer: Framebuffer.Instance,
       numInstances: Int
@@ -249,6 +248,7 @@ case class Model(name: String, model: GL.Model) {
   def scope: UniformScope = UniformScope(s"model-$this")
 }
 
-case class UniformScope(name: String)
+case class UniformScope(name: String) extends AnyVal
+case class ScopeProperty(name: String, scope: UniformScope) 
 //TODO: find out what to do with this
 //case class Valve(start: Node.Draw, links: List[Link.Pipe])

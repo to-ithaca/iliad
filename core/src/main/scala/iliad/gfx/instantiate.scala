@@ -42,7 +42,7 @@ trait InstantiateFunctions {
   def drawInstance(
       model: Model,
       cons: Draw.Constructor,
-      uniforms: Map[String, UniformScope],
+      uniforms: List[ScopeProperty],
       textureUniforms: (String, Texture.Uniform)*): Draw.Instance =
     Draw.Instance(cons,
                   textureUniforms.toMap,

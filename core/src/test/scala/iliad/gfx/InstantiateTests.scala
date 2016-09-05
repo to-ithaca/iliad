@@ -73,7 +73,7 @@ class InstantiateTests extends FunSuite with Matchers {
     val hedgehogDraw = drawInstance(
       hedgehogModel,
       exampleDrawConstructor,
-      Map.empty,
+      List.empty,
       "image" -> hedgehogImage)
 
     val result = for {

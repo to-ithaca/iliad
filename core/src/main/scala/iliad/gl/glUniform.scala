@@ -3,8 +3,12 @@ package gl
 
 import iliad.algebra._
 import iliad.std.all._
+import iliad.implicits._
 
 import simulacrum.typeclass
+
+import cats.functor._
+import cats.implicits._
 
 @typeclass
 trait GLUniform[A] {
@@ -12,17 +16,32 @@ trait GLUniform[A] {
 }
 
 object GLUniform {
-  implicit val intIsUniform: GLUniform[Int] = new IntIsUniform
-  implicit val floatIsUniform: GLUniform[Float] = new FloatIsUniform
-  implicit val vec2iIsUniform: GLUniform[Vec2i] = new Vec2iIsUniform
-  implicit val vec2fIsUniform: GLUniform[Vec2f] = new Vec2fIsUniform
-  implicit val vec3iIsUniform: GLUniform[Vec3i] = new Vec3iIsUniform
-  implicit val vec3fIsUniform: GLUniform[Vec3f] = new Vec3fIsUniform
-  implicit val vec4iIsUniform: GLUniform[Vec4i] = new Vec4iIsUniform
-  implicit val vec4fIsUniform: GLUniform[Vec4f] = new Vec4fIsUniform
-  implicit val mat2fIsUniform: GLUniform[Mat2f] = new Mat2fIsUniform
-  implicit val mat3fIsUniform: GLUniform[Mat3f] = new Mat3fIsUniform
-  implicit val mat4fIsUniform: GLUniform[Mat4f] = new Mat4fIsUniform
+
+  implicit lazy val glUniformContravariant: Contravariant[GLUniform] = new GLUniformContravariant
+
+  implicit lazy val intIsUniform: GLUniform[Int] = new IntIsUniform
+  implicit lazy val vec2iIsUniform: GLUniform[Vec2i] = new Vec2iIsUniform
+  implicit lazy val vec3iIsUniform: GLUniform[Vec3i] = new Vec3iIsUniform
+  implicit lazy val vec4iIsUniform: GLUniform[Vec4i] = new Vec4iIsUniform
+
+  implicit lazy val floatIsUniform: GLUniform[Float] = new FloatIsUniform
+  implicit lazy val vec2fIsUniform: GLUniform[Vec2f] = new Vec2fIsUniform
+  implicit lazy val vec3fIsUniform: GLUniform[Vec3f] = new Vec3fIsUniform
+  implicit lazy val vec4fIsUniform: GLUniform[Vec4f] = new Vec4fIsUniform
+
+  implicit lazy val doubleIsUniform: GLUniform[Double] = floatIsUniform.contramap(_.toFloat)
+  implicit lazy val vec2dIsUniform: GLUniform[Vec2d] = vec2fIsUniform.contramap(_.cmap)
+  implicit lazy val vec3dIsUniform: GLUniform[Vec3d] = vec3fIsUniform.contramap(_.cmap)
+  implicit lazy val vec4dIsUniform: GLUniform[Vec4d] = vec4fIsUniform.contramap(_.cmap)
+
+  implicit lazy val mat2fIsUniform: GLUniform[Mat2f] = new Mat2fIsUniform
+  implicit lazy val mat3fIsUniform: GLUniform[Mat3f] = new Mat3fIsUniform
+  implicit lazy val mat4fIsUniform: GLUniform[Mat4f] = new Mat4fIsUniform
+
+  implicit lazy val mat2dIsUniform: GLUniform[Mat2d] = mat2fIsUniform.contramap(_.cmap)
+  implicit lazy val mat3dIsUniform: GLUniform[Mat3d] = mat3fIsUniform.contramap(_.cmap)
+  implicit lazy val mat4dIsUniform: GLUniform[Mat4d] = mat4fIsUniform.contramap(_.cmap)
+
 }
 
 private final class IntIsUniform extends GLUniform[Int] {
@@ -78,4 +97,11 @@ private final class Mat3fIsUniform extends GLUniform[Mat3f] {
 private final class Mat4fIsUniform extends GLUniform[Mat4f] {
   def uniform(name: String, value: Mat4f): Uniform.Value =
     Uniform(name, OpenGL.bindUniformMatrix4f(_, value))
+}
+
+private final class GLUniformContravariant extends Contravariant[GLUniform] {
+  def contramap[A, B](fa: GLUniform[A])(f: B => A): GLUniform[B] = new GLUniform[B] {
+    def uniform(name: String, value: B): Uniform.Value = 
+      fa.uniform(name, f(value))
+  }
 }
