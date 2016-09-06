@@ -55,8 +55,16 @@ object MatrixGen {
   }
 }
 
-object OrthoMatrixGen {
+//TODO: needs a better generator
+/*object OrthoMatrixGen {
   def gen[N <: Nat, A](genA: Gen[A])(implicit toIntN: ToInt[N]): Gen[OrthoMatrix[N, A]] = MatrixGen.gen[N, N, A](genA).map(OrthoMatrix(_))
+}*/
+
+object AxisAngleGen {
+  def gen[A](genA: Gen[A])(implicit G: Fractional[A], N: NormedVectorSpace[Vector[nat._3, A], A]): Gen[AxisAngle[A]] = for {
+    e <- VectorGen.normalGen[nat._3, A](genA)
+    θ <- genA
+  } yield (θ, e)
 }
 
 object VectorGen {

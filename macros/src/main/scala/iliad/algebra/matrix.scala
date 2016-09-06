@@ -63,7 +63,7 @@ private[iliad] final class MatrixContextMacro(val c: whitebox.Context) {
     pargs
   }
 
-  def sized_impl[A](method: Tree)(args: Seq[c.Expr[A]]): Tree = {
+  def sized_impl[A](args: Seq[c.Expr[A]])(cons: (Tree, Int, Int) => Tree): Tree = {
     c.prefix.tree match {
       case q"""$_[$_](scala.StringContext.apply(..$ps))""" =>
         val raw = ps.map((c.eval[String] _) compose (c.Expr[String] _))
@@ -72,15 +72,29 @@ private[iliad] final class MatrixContextMacro(val c: whitebox.Context) {
         val m = t.size
         val n = width(t)
         val pargs = extractPArgs(args.toList)(t)
-        val matrix = TermName(c.freshName())
-        q"""
-        {          
-          val $matrix = $method($n, $m)(_root_.scala.Vector(..$pargs))
-          $matrix
-        }"""
+        cons(q"""_root_.scala.Vector(..$pargs)""", n, m)
     }
   }
 
-  def matrix_impl[A](args: c.Expr[A]*): Tree = sized_impl(q"_root_.iliad.algebra.Matrix.sized")(args)
-  def ortho_matrix_impl[A](args: c.Expr[A]*): Tree = sized_impl(q"_root_.iliad.algebra.OrthoMatrix.sized")(args)
+  def matrix_impl[A](args: c.Expr[A]*): Tree = sized_impl(args) { (repr, n, m) =>
+    val matrix = TermName(c.freshName())
+    q"""
+    {
+       val $matrix = _root_.iliad.algebra.Matrix.sized($n, $m)($repr)
+       $matrix
+    }"""
+  }
+  def ortho_matrix_impl[A](args: c.Expr[A]*): Tree = {
+    sized_impl(args) { (repr, n, m) =>
+      val matrix = TermName(c.freshName())
+      if(n != m)
+        c.abort(c.enclosingPosition, "orthogonal matrix must have same number of rows and columns")
+      q"""
+      {
+         val $matrix = _root_.iliad.algebra.OrthoMatrix.sized($n)($repr)
+         $matrix
+      } 
+      """
+    }
+  }
 }
