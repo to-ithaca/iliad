@@ -21,6 +21,7 @@ package object algebra {
 
   type OMat4[A] = OrthoMatrix[nat._4, A]
   type OMat3[A] = OrthoMatrix[nat._3, A]
+  type OMat2[A] = OrthoMatrix[nat._2, A]
 
   type Vec2[A] = Vector[nat._2, A]
   type Vec3[A] = Vector[nat._3, A]

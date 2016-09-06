@@ -223,7 +223,7 @@ class CameraFunctionTests extends FunSuite with GeneratorDrivenPropertyChecks wi
   }
   
   test("camera should pan around z with a constant radius") {
-    val f = Camera.start(t0, camera, Camera.panAroundZ(speed, Rotation.Anticlockwise))
+    val f = Camera.start(t0, camera, Camera.panAroundZ(speed, Camera.Anticlockwise))
     val expectedR = radius(camera)
     forAll(Gen.choose(t0, t0 + 10000L)) { t => 
       radius(f(t)) should equal (expectedR +- 0.1f)
@@ -231,28 +231,28 @@ class CameraFunctionTests extends FunSuite with GeneratorDrivenPropertyChecks wi
   }
 
   test("camera should pan around z with a constant z") {
-    val f = Camera.start(t0, camera, Camera.panAroundZ(speed, Rotation.Anticlockwise))
+    val f = Camera.start(t0, camera, Camera.panAroundZ(speed, Camera.Anticlockwise))
     forAll(Gen.choose(t0, t0 + 10000L)) { t =>
       f(t).position.z should equal (camera.position.z+- 0.1f)
     }
   }
 
   test("camera should pan around z with the same starting position") {
-    val f = Camera.start(t0, camera, Camera.panAroundZ(speed, Rotation.Anticlockwise))
+    val f = Camera.start(t0, camera, Camera.panAroundZ(speed, Camera.Anticlockwise))
     assert(f(t0).position === camera.position)
   }
 
   test("camera should pan around z with the correct rotation") {
     val dt = 100L
     val speed = (Math.PI.toFloat / 2f) / dt.toFloat
-    val f = Camera.start(t0, camera, Camera.panAroundZ(speed, Rotation.Anticlockwise))
+    val f = Camera.start(t0, camera, Camera.panAroundZ(speed, Camera.Anticlockwise))
     val p = f(t0 + dt).position
     p.x should equal (1f +- 0.0001f)
     p.y should equal (0f +- 0.0001f)
   }
 
   test("camera should scroll around z with a constant radius") {
-    val f = Camera.start(t0, camera, Camera.scrollAroundZ(speed, Rotation.Anticlockwise, λ))
+    val f = Camera.start(t0, camera, Camera.scrollAroundZ(speed, Camera.Anticlockwise, λ))
     val expectedR = radius(camera)
     forAll(Gen.choose(t0, t0 + 10000L)) { t => 
       radius(f(t)) should equal (expectedR +- 0.1f)
@@ -260,14 +260,14 @@ class CameraFunctionTests extends FunSuite with GeneratorDrivenPropertyChecks wi
   }
   
   test("camera should scroll around z with a constant z") {
-    val f = Camera.start(t0, camera, Camera.scrollAroundZ(speed, Rotation.Anticlockwise, λ))
+    val f = Camera.start(t0, camera, Camera.scrollAroundZ(speed, Camera.Anticlockwise, λ))
     forAll(Gen.choose(t0, t0 + 10000L)) { t =>
       f(t).position.z should equal (camera.position.z+- 0.1f)
     }
   }
 
   test("camera should scroll around z with the same start position") {
-    val f = Camera.start(t0, camera, Camera.scrollAroundZ(speed, Rotation.Anticlockwise, λ))
+    val f = Camera.start(t0, camera, Camera.scrollAroundZ(speed, Camera.Anticlockwise, λ))
     assert(f(t0).position === camera.position)
   }
 

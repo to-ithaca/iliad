@@ -55,6 +55,29 @@ private[algebra] final class Matrix4dAlgebra(floatAlgebra: Matrix4fAlgebra) exte
   def inverse(x: Mat4d): Mat4d = floatAlgebra.inverse(x.cmap[Float]).cmap[Double]
 }
 
+private[algebra] final class Matrix3fAlgebra(G: Matrix4fAlgebra) 
+    extends SquareMatrixMultiplicativeGroup[Mat3f, Float]
+    with MatrixMultiplicativeGroup[Matrix, nat._3, nat._3, Float] {
+  val scalar = spire.std.float.FloatAlgebra
+
+  def negate(x: Mat3f): Mat3f = -x
+  val zero: Mat3f = Matrix.zero
+  val id: Mat3f = Matrix.id
+  def plus(x: Mat3f, y: Mat3f): Mat3f = x + y
+  def transpose(x: Mat3f): Mat3f = x.transpose
+  def timesl(r: Float, v: Mat3f): Mat3f = r *: v
+  def trace(x: Mat3f): Float = x.trace
+  def det(x: Mat3f): Float = ???
+  def symmetric(x: Mat3f): Boolean = x.symmetric
+  
+  def product[N1 <: Nat](x: Mat3f, y: Matrix[N1, nat._3, Float])(implicit toInt: ToInt[N1]): Matrix[N1, nat._3, Float] =
+    G.product(x.pad(4, 4), y.pad(4, 4)).pad[N1, nat._3]
+
+  def times(x: Mat3f, y: Mat3f): Mat3f = product(x, y)
+  def inverse(x: Mat3f): Mat3f = G.inverse(x.pad(4, 4)).pad(3, 3)
+
+}
+
 private[algebra] final class Matrix4fAlgebra 
     extends SquareMatrixMultiplicativeGroup[Mat4f, Float]
     with MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, Float] {
@@ -274,16 +297,18 @@ final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: SVector[A]) e
     new Matrix(v)
   }
 
+  //TODO: separate out to those which don't need a Ring
   def pad(n: Nat, m: Nat)(implicit G: Ring[A], 
-    ev: (N < n.N) || (M < m.N), 
     toIntN: ToInt[N], 
     toIntNN: ToInt[n.N], 
     toIntM: ToInt[m.N]): Matrix[n.N, m.N, A] =
     pad[n.N, m.N]
 
-  def pad[N1 <: Nat, M1 <: Nat](implicit G: Ring[A], ev: (N < N1) || (M < M1), toIntN: ToInt[N], toIntN1: ToInt[N1], toIntM1: ToInt[M1]): Matrix[N1, M1, A] = {
+  def pad[N1 <: Nat, M1 <: Nat](implicit G: Ring[A], toIntN: ToInt[N], toIntN1: ToInt[N1], toIntM1: ToInt[M1]): Matrix[N1, M1, A] = {
     val N = toIntN()
     val M = repr.size / N
+    val N1 = toIntN1()
+    val M1 = toIntM1()
     
     val builder = SVector.newBuilder[A]
 
@@ -307,23 +332,27 @@ final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: SVector[A]) e
       }
     }
 
-    (ev.a.isDefined, ev.b.isDefined) match {
+    (N < N1, M < M1) match {
       case (true, true) =>
-        val N1 = toIntN1()
-        val M1 = toIntM1()
         builder.sizeHint(N1 * M1)
         padN(N1)
         padM(N1, M1)
       case (true, false) =>
-        val N1 = toIntN1()
         builder.sizeHint(N1 * M)
         padN(N1)
       case (false, true) =>   
-        val M1 = toIntM1()
         builder.sizeHint(N * M1)
         builder ++= repr
         padM(N, M1)
-      case _ => sys.error(s"impossible situation, type evidence is not working!")   
+      case (false, false) =>
+        val M1 = toIntM1()
+        builder.sizeHint(N1 * M1)
+        (0 until M1).foreach { i =>
+          (0 until N1).foreach { j =>
+            val idx = i * N
+            builder ++= repr.slice(idx, idx + N1)
+          }
+        }
     }
 
     val v = builder.result()
@@ -377,6 +406,9 @@ final class Matrix[N <: Nat, M <: Nat, A] private[iliad](val repr: SVector[A]) e
 abstract class MatrixInstances {
   implicit lazy val Matrix4fAlgebra: SquareMatrixMultiplicativeGroup[Mat4f, Float] 
       with MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, Float] = new Matrix4fAlgebra
+
+  implicit lazy val Matrix3fAlgebra: SquareMatrixMultiplicativeGroup[Mat3f, Float]
+      with MatrixMultiplicativeGroup[Matrix, nat._3, nat._3, Float] = new Matrix3fAlgebra(new Matrix4fAlgebra)
 
   implicit lazy val Matrix4DAlgebra: SquareMatrixMultiplicativeGroup[Mat4d, Double] 
       with MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, Double] = new Matrix4dAlgebra(new Matrix4fAlgebra)
@@ -457,6 +489,11 @@ object OrthoMatrix {
 
 /** Orthogonal matrix */ //TODO: What to do in the case of 
 final class OrthoMatrix[N <: Nat, A] private[iliad](val repr: SVector[A]) extends AnyVal {
+
+  def pad[N1 <: Nat](implicit G: Ring[A], toIntN1: ToInt[N1], toIntN: ToInt[N]): OrthoMatrix[N, A] = 
+    new OrthoMatrix(matrix.pad[N1, N1].repr)
+
+  def pad(n: Nat)(implicit G: Ring[A], toIntN1: ToInt[n.N], toIntN: ToInt[N]): OrthoMatrix[N, A] = pad[n.N]
 
   def map[B](f: A => B): OrthoMatrix[N, B] = OrthoMatrix(matrix.map(f))
   def ap[B](ff: OrthoMatrix[N, A => B]): OrthoMatrix[N, B] =

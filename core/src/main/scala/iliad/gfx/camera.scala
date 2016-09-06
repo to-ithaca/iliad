@@ -6,6 +6,7 @@ import shapeless.nat
 import iliad.algebra._
 import iliad.algebra.syntax.matrix._
 import iliad.algebra.syntax.vector._
+import iliad.algebra.syntax.axisAngle._
 
 import spire.math._
 import spire.algebra._
@@ -152,35 +153,38 @@ object Camera extends LazyLogging with CameraFunctions {
 
 sealed trait CameraFunctions {
 
+  val Anticlockwise = Sign.Positive
+  val Clockwise = Sign.Negative
+
   private def _position[A: Trig : Fractional]: Lens[Camera[A], Vec3[A]] = GenLens[Camera[A]](_.position)
   private def _focalPoint[A: Trig : Fractional]: Lens[Camera[A], Vec3[A]] = GenLens[Camera[A]](_.focalPoint)
   private def _near[A: Trig: Fractional]: Lens[Camera[A], A] = GenLens[Camera[A]](_.near)
   private def _far[A: Trig: Fractional]: Lens[Camera[A], A] = GenLens[Camera[A]](_.far)
   private def _up[A: Trig: Fractional]: Lens[Camera[A], Vec3[A]] = GenLens[Camera[A]](_.up)
 
-  def panAroundZ[A: Trig: Fractional](speed: A, rotation: Rotation)
-    (implicit MA: MultiplicativeSemigroup[Mat4[A]], MM: MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, A]): CameraFunction[A] =
+  def panAroundZ[A: Trig: Fractional](speed: A, rotation: Sign)
+    (implicit MA: MultiplicativeSemigroup[Mat4[A]], MM: MatrixMultiplicativeGroup[Matrix, nat._3, nat._3, A]): CameraFunction[A] =
     CameraFunction.unbounded((t: A, c0: Camera[A]) => {
-      val dθ = speed * t * rotation.sign
-      val p = AxisAngle(Vector.basis[Z, _3D, A], dθ).rotate(c0.radiusVector) + c0.focalPoint
+      val dθ = speed * t * rotation
+      val p = (dθ, Vector.basis[Z, _3D, A]) * c0.radiusVector + c0.focalPoint
       c0 &|-> _position set p
     })
 
 
-  def scrollAroundZ[A: Trig: Fractional](s0: A, rotation: Rotation, λ: A)
-    (implicit MA: MultiplicativeSemigroup[Mat4[A]], MM: MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, A]): CameraFunction[A] =
+  def scrollAroundZ[A: Trig: Fractional](s0: A, rotation: Sign, λ: A)
+    (implicit MA: MultiplicativeSemigroup[Mat3[A]], MM: MatrixMultiplicativeGroup[Matrix, nat._3, nat._3, A]): CameraFunction[A] =
     CameraFunction.unbounded((t: A, c0: Camera[A]) => {
-      val dθ = s0 / λ * (Field[A].one - (-λ * t).exp) * rotation.sign
-      val p = AxisAngle(Vector.basis[Z, _3D, A], dθ).rotate(c0.radiusVector) + c0.focalPoint
+      val dθ = s0 / λ * (Field[A].one - (-λ * t).exp) * rotation
+      val p = AxisAngle(dθ, Vector.basis[Z, _3D, A]) * c0.radiusVector + c0.focalPoint
       c0 &|-> _position set p
     })
 
   def panVerticallyBy[A: Trig: Fractional](speed: A, θ: A)
-    (implicit MA: MultiplicativeSemigroup[Mat4[A]], N: NormedVectorSpace[Vec3[A], A], MM: MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, A]): CameraFunction[A] = 
+    (implicit MA: MultiplicativeSemigroup[Mat3[A]], N: NormedVectorSpace[Vec3[A], A], MM: MatrixMultiplicativeGroup[Matrix, nat._3, nat._3, A]): CameraFunction[A] = 
     CameraFunction(Some(θ.abs / speed), (t: A, c0: Camera[A]) => {
       val axis = (c0.radial × Vector.basis[Z, _3D, A]).normalize
       val dθ = speed * t * θ.sign
-      val p = AxisAngle(axis, dθ).rotate(c0.radiusVector) + c0.focalPoint
+      val p = (dθ, axis) * c0.radiusVector + c0.focalPoint
       c0 &|-> _position set p
     })
 
@@ -193,10 +197,10 @@ sealed trait CameraFunctions {
       })
 
   def interpolate[A: Trig: Fractional](dt: A, pEnd: Vec3[A], upEnd: Vec3[A], fEnd: Vec3[A])
-    (implicit M: MultiplicativeSemigroup[Mat4[A]], N: NormedVectorSpace[Vec3[A], A], MM: MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, A]): CameraFunction[A] =
+    (implicit M: MultiplicativeSemigroup[Mat4[A]], N: NormedVectorSpace[Vec3[A], A], MM: MatrixMultiplicativeGroup[Matrix, nat._3, nat._3, A]): CameraFunction[A] =
     CameraFunction(Some(dt), (t: A, c: Camera[A]) => {
       val f = t / dt
-      val up = AxisAngle.between(c.up, upEnd).fraction(f).rotate(c.up)
+      val up = (f *: AxisAngle.rotation(c.up, upEnd)) * c.up
       val position = c.position + ((pEnd - c.position) :* f)
       val focalPoint = c.focalPoint + ((fEnd - c.focalPoint) :* f)
       ((_position[A] set position) compose
@@ -204,3 +208,4 @@ sealed trait CameraFunctions {
       (_up[A] set up))(c)
     })
 }
+ 
