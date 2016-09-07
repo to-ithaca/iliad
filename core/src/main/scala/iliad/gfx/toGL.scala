@@ -51,7 +51,7 @@ object ToGL {
       f <- apply(n.instance.framebuffer)
       tus <- apply(n.instance.textureUniforms)
     } yield
-      GL.DrawOp(n.instance.model.model,
+      GL.DrawOp(n.instance.model,
                 n.instance.constructor.program,
                 tus,
                 n.uniforms,

@@ -26,4 +26,10 @@ package object gfx
   }
 
   type GFX = UniformCache :+: Load :+: Action :+: CNil
+
+  type VertexBuffer = GL.VertexBuffer.Constructor
+  type ElementBuffer = GL.ElementBuffer.Constructor
+  type VertexRef = GL.Model.VertexRef
+  type ElementRef = GL.Model.ElementRef
+  type Model = GL.Model
 }

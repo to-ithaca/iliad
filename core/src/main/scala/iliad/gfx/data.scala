@@ -129,7 +129,7 @@ object Draw {
     private[gfx] def vertexAttribs: List[GL.Attribute.Constructor] =
       constructor.program.vertex.attributes
     private[gfx] def modelAttribs: List[GL.Attribute.Constructor] =
-      model.model.vertex.ref.buffer.attributes
+      model.vertex.ref.buffer.attributes
   }
 
   case class Drawable(
@@ -239,16 +239,7 @@ object Framebuffer {
       extends Instance
 }
 
-case class VertexBuffer(buffer: GL.VertexBuffer.Constructor)
-case class ElementBuffer(buffer: GL.ElementBuffer.Constructor)
-case class VertexRef(ref: GL.Model.VertexRef)
-case class ElementRef(ref: GL.Model.ElementRef)
+case class ScopeProperty(name: String, scope: String) 
 
-case class Model(name: String, model: GL.Model) {
-  def scope: UniformScope = UniformScope(s"model-$this")
-}
-
-case class UniformScope(name: String) extends AnyVal
-case class ScopeProperty(name: String, scope: UniformScope) 
 //TODO: find out what to do with this
 //case class Valve(start: Node.Draw, links: List[Link.Pipe])

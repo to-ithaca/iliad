@@ -78,6 +78,31 @@ private[algebra] final class Matrix3fAlgebra(G: Matrix4fAlgebra)
 
 }
 
+private[algebra] final class Matrix3dAlgebra(G: Matrix3fAlgebra) 
+    extends SquareMatrixMultiplicativeGroup[Mat3d, Double]
+    with MatrixMultiplicativeGroup[Matrix, nat._3, nat._3, Double] {
+   
+  val scalar = spire.std.double.DoubleAlgebra
+
+  def negate(x: Mat3d): Mat3d = -x
+
+  val zero: Mat3d = Matrix.zero
+  val id: Mat3d = Matrix.id
+  def plus(x: Mat3d, y: Mat3d): Mat3d = x + y
+  def transpose(x: Mat3d): Mat3d = x.transpose
+  def timesl(r: Double, v: Mat3d): Mat3d = r *: v
+  def trace(x: Mat3d): Double = x.trace
+  def det(x: Mat3d): Double = ???
+  def symmetric(x: Mat3d): Boolean = x.symmetric
+  
+  def product[N1 <: Nat](x: Mat3d, y: Matrix[N1, nat._3, Double])(implicit toInt: ToInt[N1]): Matrix[N1, nat._3, Double] =
+    G.product(x.cmap[Float], y.cmap[Float]).cmap[Double]
+
+  def times(x: Mat3d, y: Mat3d): Mat3d = product(x, y)
+  def inverse(x: Mat3d): Mat3d = G.inverse(x.cmap[Float]).cmap[Double]
+}
+
+
 private[algebra] final class Matrix4fAlgebra 
     extends SquareMatrixMultiplicativeGroup[Mat4f, Float]
     with MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, Float] {
@@ -412,6 +437,10 @@ abstract class MatrixInstances {
 
   implicit lazy val Matrix4DAlgebra: SquareMatrixMultiplicativeGroup[Mat4d, Double] 
       with MatrixMultiplicativeGroup[Matrix, nat._4, nat._4, Double] = new Matrix4dAlgebra(new Matrix4fAlgebra)
+
+  implicit lazy val Matrix3DAlgebra: SquareMatrixMultiplicativeGroup[Mat3d, Double] 
+      with MatrixMultiplicativeGroup[Matrix, nat._3, nat._3, Double] = 
+    new Matrix3dAlgebra(new Matrix3fAlgebra(new Matrix4fAlgebra))
 
   implicit def matrixEq[A, N <: Nat, M <: Nat](implicit eqA: Eq[A]): Eq[Matrix[N, M, A]] = new Eq[Matrix[N, M, A]] {
     def eqv(x: Matrix[N, M, A], y: Matrix[N, M, A]): Boolean = x === y

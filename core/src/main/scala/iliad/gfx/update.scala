@@ -6,6 +6,9 @@ import simulacrum.typeclass
 import iliad._
 import iliad.{gl => GL}
 
+import cats._
+import cats.implicits._
+
 @typeclass
 trait Update[A] {
   def update(a: A): List[GFX]
@@ -44,5 +47,10 @@ object Update {
         val (prop, f) = a
         List(gfx.modifyUniformConst[A](prop, f))
       }
+    }
+
+  implicit def foldableUpdate[F[_], A](implicit U: Update[A], F: Foldable[F], FF: Functor[F]): Update[F[A]] = 
+    new Update[F[A]] {
+      def update(fa: F[A]): List[GFX] = fa.map(_.update).fold
     }
 }
