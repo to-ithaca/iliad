@@ -24,11 +24,24 @@ trait InstantiateFunctions {
       GL.DataRange(0, data.size.toInt)
     ))
 
+  def subVertexRef(ref: VertexRef, range: (Int, Int)): VertexRef = 
+    VertexRef(GL.Model.VertexRef(
+      ref.ref.ref,
+      GL.DataRange(range._1, range._2)
+    ))
+
   def elementRef(name: String, data: ByteVector, buffer: ElementBuffer): ElementRef =
     ElementRef(GL.Model.ElementRef(
       GL.ElementData.Ref(name, buffer.buffer),
       GL.DataRange(0, data.size.toInt)
     ))
+
+  def subElementRef(ref: ElementRef, range: (Int, Int)): ElementRef =
+    ElementRef(GL.Model.ElementRef(
+      ref.ref.ref,
+      GL.DataRange(range._1, range._2)
+    ))
+
 
   def model(name: String, vertexRef: VertexRef, elementRef: ElementRef): Model =
     Model(name, GL.Model(
@@ -117,7 +130,7 @@ object ValidateNodeInstance {
       n: Draw.Instance)(implicit M: ME[F]): F[Unit] =
     n.vertexAttribs.traverseUnit { a =>
       if (n.modelAttribs.contains(a)) M.pure(())
-      else M.raiseError[Unit](NonEmptyList(AttributeMissingError(a)))
+      else M.raiseError[Unit](NonEmptyList(AttributeMissingError(a, n.modelAttribs)))
     }
 
   private def pipes[F[_]](n: Draw.Instance, sources: List[Node.Instance], g: Graph.Instance)(implicit E: ME[F]): F[List[Link.Instance]] =

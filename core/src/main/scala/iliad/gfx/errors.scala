@@ -149,9 +149,12 @@ case class TextureUniformMissingError(uniform: String)
     extends InstantiationError {
   override def toString: String = s"Missing texture uniform $uniform"
 }
-case class AttributeMissingError(a: GL.Attribute.Constructor)
+case class AttributeMissingError(a: GL.Attribute.Constructor, present: List[GL.Attribute.Constructor])
     extends InstantiationError {
-  override def toString: String = s"Missing attribute: [$a]"
+  override def toString: String = 
+    s"""Missing attribute: [$a]
+Present attributes: [$present]
+"""
 }
 
 case class StartNodeMissingError(l: Link, e: Node.Instance)
