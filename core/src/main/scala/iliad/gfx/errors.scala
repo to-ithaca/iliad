@@ -4,20 +4,20 @@ package gfx
 import iliad.{gl => GL}
 
 sealed trait GraphicsError extends IliadError
-case class UnsetScopeError(s: UniformScope, existing: Set[UniformScope])
+case class UnsetScopeError(scope: String, existing: Set[String])
     extends GraphicsError {
   override def toString: String =
-    s"""UnsetScopeError: Scope $s has not been set:
-Unset scope: $s
+    s"""UnsetScopeError: Scope $scope has not been set:
+Unset scope: $scope
 Existing:
 $existing
 """
 }
 
-case class UnsetUniformError(name: String, s: UniformScope)
+case class UnsetUniformError(name: String, scope: String)
     extends GraphicsError {
   override def toString: String =
-    s"Uniform [$name] has not been set for scope [$s]"
+    s"Uniform [$name] has not been set for scope [$scope]"
 }
 
 

@@ -52,8 +52,12 @@ object CachedFunction {
 }
 
 object UniformCache {
-  type State = Map[UniformScope, Map[String, CachedFunction]]
-  type Values = Map[UniformScope, Map[String, GL.Uniform.Value]]
+
+  type Scope = String
+  type UniformName = String
+
+  type State = Map[Scope, Map[UniformName, CachedFunction]]
+  type Values = Map[Scope, Map[UniformName, GL.Uniform.Value]]
   type Effect = StateT[GraphicsError Xor ?, State, Unit]
 
   private val root = Iso.id[State]

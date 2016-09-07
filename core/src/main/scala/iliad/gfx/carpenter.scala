@@ -190,10 +190,10 @@ class CuboidCarpenter[A: Fractional] {
     val px = for {
       top <- fixZ(Top, b.zOffset, b)
       bottom <- fixZ(Bottom, -b.zOffset, b)
-      front <- fixX(Front, b.xOffset, b)
-      back <- fixX(Back, -b.xOffset, b)
-      right <- fixY(Right, b.yOffset, b)
-      left <- fixY(Left, -b.yOffset, b)
+      front <- fixY(Front, b.yOffset, b)
+      back <- fixY(Back, -b.yOffset, b)
+      right <- fixX(Right, b.xOffset, b)
+      left <- fixX(Left, -b.xOffset, b)
     } yield carpenter.join(List(top, bottom, front, back, right, left))
     px match {
       case Xor.Right(p) => p

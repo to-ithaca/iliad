@@ -65,10 +65,10 @@ trait LoadFunctions {
   }
 
   def load(r: VertexRef, d: ByteVector): GFX =
-    lift(PutVertices(r.ref.ref, d))
+    lift(PutVertices(r.ref, d))
 
   def load(r: ElementRef, d: ByteVector): GFX =
-    lift(PutElements(r.ref.ref, d))
+    lift(PutElements(r.ref, d))
 
   def load(t: Texture.Instance, d: GL.Texture.Data): GFX =
     lift(PutTexture(t, d))
