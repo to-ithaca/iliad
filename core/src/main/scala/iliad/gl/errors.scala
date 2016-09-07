@@ -4,11 +4,11 @@ package gl
 sealed trait GLError extends IliadError
 
 case class VertexDataAlreadyLoaded(r: VertexData.Ref) extends GLError {
-  def message: String = s"Vertex data has already been loaded: $r"
+  override def toString: String = s"Vertex data has already been loaded: $r"
 }
 
 case class ElementDataAlreadyLoaded(r: ElementData.Ref) extends GLError {
-  def message: String = s"Element data has already been loaded: $r"
+  override def toString: String = s"Element data has already been loaded: $r"
 }
 
 case class TextureNotLoadedError(t: Texture.Constructor) extends GLError {
@@ -49,7 +49,7 @@ case class UnsetTextureUniformError(p: Program.Unlinked, name: String)
 }
 case class UnsetUniformError(p: Program.Unlinked, unform: Uniform.Constructor)
     extends GLError {
-  def message: String =
+  override def toString: String =
     s"Uniform ${unform.name} is not suppled for program: $p"
 }
 
