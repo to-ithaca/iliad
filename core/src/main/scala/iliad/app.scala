@@ -28,6 +28,8 @@ trait GLBootstrap extends LazyLogging {
 
   def config: Config
 
+  def glRunner: GLRunner
+
   private def graphicsConfig: Task[Graphics.Config] =
     Construct
       .validate(config.graph)
@@ -35,9 +37,7 @@ trait GLBootstrap extends LazyLogging {
       .leftMap(_.unwrap.mkString("\n"))
       .bimap(s => Task.fail(new Error(s)), Task.now).merge[Task[Graphics.Config]]
 
-  /*This needs to be lazy to defer the creation of the classTag until after the $init
-   of the subclass is called */
-  private lazy val LogEGLInterpreter: EGL ~> ReaderT[Xor[EGLError, ?], EGL14.type, ?] = 
+  private val LogEGLInterpreter: EGL ~> ReaderT[Xor[EGLError, ?], EGL14.type, ?] = 
     EGL.logInterpreter
 
   private def EGLTask(window: EGL14.EGLNativeWindowType, display: EGL14.EGLNativeDisplayType)(
@@ -125,13 +125,11 @@ trait GLBootstrap extends LazyLogging {
       s: Graphics.State)
     : Error Xor (Graphics.State, XorT[GL.DSL, GLError, Unit]) =
     Graphics(gs).run(cfg).run(s).leftMap(s => new Error(s.toString))
-
+ 
   private def run[A](gl: GL.DSL[IliadError Xor A],
                      s: GL.State): Xor[Error, GL.State] = {
-    val interpreter = GL.runner(iliad.gl.OpenGL.debugLog)
-    val prg = gl.interpret(interpreter)
-    val (log, xor) = prg.run(GLES30).run(s).value.run
-    log.foreach(l => logger.debug(l))
+
+    val xor = glRunner.run(gl, s)
     xor.flatMap {
       case (nextS, xxor) => xxor.map(_ => nextS)
     }.leftMap(s => new Error(s.toString))
