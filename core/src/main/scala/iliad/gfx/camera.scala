@@ -161,6 +161,7 @@ sealed trait CameraFunctions {
   private def _near[A: Trig: Fractional]: Lens[Camera[A], A] = GenLens[Camera[A]](_.near)
   private def _far[A: Trig: Fractional]: Lens[Camera[A], A] = GenLens[Camera[A]](_.far)
   private def _up[A: Trig: Fractional]: Lens[Camera[A], Vec3[A]] = GenLens[Camera[A]](_.up)
+  private def _width[A: Trig: Fractional]: Lens[Camera[A], A] = GenLens[Camera[A]](_.width)
 
   def panAroundZ[A: Trig: Fractional](speed: A, rotation: Sign)
     (implicit MA: MultiplicativeSemigroup[Mat4[A]], MM: MatrixMultiplicativeGroup[Matrix, nat._3, nat._3, A]): CameraFunction[A] =
@@ -207,5 +208,20 @@ sealed trait CameraFunctions {
       (_focalPoint[A] set focalPoint) compose
       (_up[A] set up))(c)
     })
+
+  def interpolate[A: Trig: Fractional](dt: A, pEnd: Vec3[A], upEnd: Vec3[A], fEnd: Vec3[A], wEnd: Double)
+    (implicit M: MultiplicativeSemigroup[Mat4[A]], N: NormedVectorSpace[Vec3[A], A], MM: MatrixMultiplicativeGroup[Matrix, nat._3, nat._3, A]): CameraFunction[A] =
+    CameraFunction(Some(dt), (t: A, c: Camera[A]) => {
+      val f = t / dt
+      val up = (f *: AxisAngle.rotation(c.up, upEnd)) * c.up
+      val position = c.position + ((pEnd - c.position) :* f)
+      val focalPoint = c.focalPoint + ((fEnd - c.focalPoint) :* f)
+      val width = f * (wEnd - c.width) + c.width
+      ((_position[A] set position) compose
+      (_focalPoint[A] set focalPoint) compose
+      (_up[A] set up) compose
+      (_width[A] set width))(c)
+    })
+
 }
  

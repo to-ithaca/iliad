@@ -68,6 +68,8 @@ final class Line2[A](val p0: Vec2[A], val direction: Vec2[A]) {
 
   def map[B](f: A => B): Line2[B] = 
     Line2(p0.map(f), direction.map(f))
+
+  override def toString: String = s"Line2($p0, $direction)"
 }
 
 object Line2 {
@@ -113,7 +115,7 @@ final class LineSegment2[A](val start: Vec2[A], val end: Vec2[A]) {
     */
   def interior(ds: A)(p: Vec2[A])(implicit F: Ring[A], O: Order[A], N: NormedVectorSpace[Vec2[A], A]): Boolean = {
     val l = (p - start) ⋅ direction
-    l >= ds && l <= (length - ds)
+    l >= -ds && l <= (length + ds)
   }
 
   def parallel(d: Vec2[A], α: A)(implicit T: Trig[A],
@@ -174,6 +176,8 @@ final class LineSegment2[A](val start: Vec2[A], val end: Vec2[A]) {
   def colinearEqv(that: LineSegment2[A])(
       implicit ea: Eq[A]): Boolean =
     ===(that) || (start === that.end && end === that.start)
+
+  override def toString: String = s"LineSegment2($start, $end)"
 }
 
 object LineSegment2 {

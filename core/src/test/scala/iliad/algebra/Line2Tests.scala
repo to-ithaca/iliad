@@ -144,4 +144,8 @@ class Line2Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChec
   test("line equation for vertical line is in form [x = const]") {
     Line2(v"2.0 1.0", v"0.0 1.0").equation should be("[x = 2.0]")
   }
+
+  test("toString is expected") {
+    Line2(v"1 2", v"0 1").toString should ===("Line2(Vector(1, 2), Vector(0, 1))")
+  }
 }

@@ -46,7 +46,8 @@ class Plane3Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChe
   test("line segment intersects with plane if start and end points are on opposite sides") {
     val p = Plane3(v"0.0 0.0 0.0", v"0.0 0.0 1.0")
     val l = LineSegment3(v"0.0 0.0 1.0", v"0.0 0.0 -1.0")
-    val i = p.intersection(l, Pi / 4.0)
+    val ds = 0.0
+    val i = p.intersection(l, Pi / 4.0, ds)
     assert(i.nonEmpty)
     i.foreach { pi => assert(pi === v"0.0 0.0 0.0")}
   }
@@ -54,8 +55,12 @@ class Plane3Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChe
   test("bounded line does not intersect with plane if start and end points are on same side") {
     val p = Plane3(v"0.0 0.0 0.0", v"0.0 0.0 1.0")
     val l = LineSegment3(v"0.0 0.0 2.0", v"0.0 0.0 1.0")
-    val i = p.intersection(l, Pi / 4.0)
+    val ds = 0.0
+    val i = p.intersection(l, Pi / 4.0, ds)
     assert(i.isEmpty)
   }
 
+  test("toString is expected") {
+    Plane3(v"0 0 0", v"1 0 0").toString should ===("Plane3(Vector(0, 0, 0), Vector(1, 0, 0))")
+  }
 }
