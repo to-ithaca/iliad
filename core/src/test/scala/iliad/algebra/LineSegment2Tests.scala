@@ -26,11 +26,13 @@ import arbitrary._
 class LineSegment2Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChecks 
     with Inside with Discipline {
 
+  val doubleGen = Gen.choose(-10.0, 10.0)
+
   checkAll("LineSegment2[Int]", FunctorTests[LineSegment2].functor[Int, Int, Int])
 
   val θ = 0.0872665 //5 degrees
   val α = 0.1
-  val ds = 0.1
+  val ds = -0.1
 
 
   test("the line of a line segment represents its infinite line") {
@@ -40,6 +42,20 @@ class LineSegment2Tests extends FunSuite with Matchers with GeneratorDrivenPrope
 
   test("cmap converts between numeric types") {
    assert(LineSegment2(v"2.0 3.0", v"5.0 6.0").cmap[Int] === LineSegment2(v"2 3", v"5 6"))
+  }
+
+  test("start is within bounds") {
+    val ds = 0.1
+    forAll(LineSegment2Gen.gen(doubleGen)) { l =>
+      assert(l.interior(ds)(l.start))
+    }
+  }
+
+  test("end is within bounds") {
+    val ds = 0.1
+    forAll(LineSegment2Gen.gen(doubleGen)) { l =>
+      assert(l.interior(ds)(l.end))
+    }
   }
 
   test("line segments only intersect if the intersection point is within bounds") {
@@ -96,6 +112,10 @@ class LineSegment2Tests extends FunSuite with Matchers with GeneratorDrivenPrope
     val l1 = LineSegment2(v"3.0 3.0", v"3.0 5.0")
     l0.overlays(l1, 0.1, θ) should equal(false)
     l1.overlays(l0, 0.1, θ) should equal(false)
+  }
+
+  test("toString is expected") {
+    LineSegment2(v"1 2", v"3 4").toString should ===("LineSegment2(Vector(1, 2), Vector(3, 4))")
   }
 
 }

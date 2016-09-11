@@ -38,15 +38,27 @@ final class Rect[A](val x0y0: Vec2[A], val dimensions: Vec2[A]) {
     val dxdy = cx1y1 - cx0y0
     Rect(cx0y0, dxdy)
   }
+
+  def overlaps(that: Rect[A])(implicit F: AdditiveMonoid[A], G: PartialOrder[A], EQ: Eq[A]): Boolean =
+    (this === that) ||
+    contains(that.bottomLeft) || contains(that.topLeft) ||
+  contains(that.topRight) || contains(that.bottomRight) ||
+  that.contains(bottomLeft) || that.contains(topLeft) ||
+  that.contains(bottomRight) || that.contains(topRight)
+
   def ===(that: Rect[A])(implicit EQ: Eq[A]): Boolean =
     (x0y0 === that.x0y0) && (width === that.width) && (height === that.height)
 
   def map[B](f: A => B): Rect[B] = Rect[B](x0y0.map(f), dimensions.map(f))
+
+  override def toString: String = s"Rect($x0y0, $dimensions)"
 }
 
 object Rect extends RectInstances {
   def apply[A](bottomLeft: Vec2[A], dimensions: Vec2[A]): Rect[A] = new Rect(bottomLeft, dimensions)
   def square[A](x0y0: Vec2[A], dw: A): Rect[A] = Rect(x0y0, v"$dw $dw")
+  def centredAt[A](p: Vec2[A], dimensions: Vec2[A])(implicit F: Field[A], V: VectorSpace[Vec2[A], A]): Rect[A] = 
+    Rect(p - (dimensions :/ F.fromInt(2)), dimensions)
 
   implicit lazy val rectFunctor: cats.Functor[Rect] = new cats.Functor[Rect] {
     def map[A, B](fa: Rect[A])(f: A => B): Rect[B] = fa.map(f)

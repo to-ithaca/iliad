@@ -37,4 +37,8 @@ class Line3Tests extends FunSuite with Matchers with GeneratorDrivenPropertyChec
       l.contains(p) should be(true)
     }
   }
+
+  test("toString is expected") {
+    Line3(v"1 2 3", v"0 1 0").toString should ===("Line3(Vector(1, 2, 3), Vector(0, 1, 0))")
+  }
 }

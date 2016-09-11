@@ -15,6 +15,8 @@ final class Line3[A](val p0: Vec3[A], val direction: Vec3[A]) {
     p0 === that.p0 && direction === that.direction
 
   def map[B](f: A => B): Line3[B] = Line3(p0.map(f), direction.map(f))
+
+  override def toString: String = s"Line3($p0, $direction)"
 }
 
 object Line3 {
@@ -38,21 +40,22 @@ private[algebra] sealed trait Line3Eq[A] extends Eq[Line3[A]] {
 
 final class LineSegment3[A](val start: Vec3[A], val end: Vec3[A]) {
 
+  def vector(implicit G: AdditiveGroup[A]): Vec3[A] = end - start
+
   def line(implicit G: AdditiveGroup[A], N: NormedVectorSpace[Vec3[A], A]): Line3[A] =
-    Line3(start, (end - start).normalize)
+    Line3(start, vector.normalize)
 
-  def length(implicit G: AdditiveGroup[A], N: NormedVectorSpace[Vec3[A], A]): A = (end - start).norm
+  def length(implicit G: AdditiveGroup[A], N: NormedVectorSpace[Vec3[A], A]): A = vector.norm
 
-  def contains(p: Vec3[A])(implicit F: Fractional[A], N: NormedVectorSpace[Vec3[A], A]): Boolean =
-    line.contains(p) && interior(p)
+  def contains(ds: A)(p: Vec3[A])(implicit F: Fractional[A], N: NormedVectorSpace[Vec3[A], A]): Boolean =
+    line.contains(p) && interior(ds)(p)
 
-  def interior(p: Vec3[A])(implicit R: Ring[A], O: Order[A], N: NormedVectorSpace[Vec3[A], A]): Boolean = {
+  def interior(ds: A)(p: Vec3[A])(implicit R: Ring[A], O: Order[A], N: NormedVectorSpace[Vec3[A], A]): Boolean = {
     val l = (p - start) ⋅ direction
-    l > R.zero && l < length
+    l >= -ds && l <= (length + ds)
   }
 
   def direction(implicit G: AdditiveGroup[A], N: NormedVectorSpace[Vec3[A], A]): Vec3[A] = line.direction
-  def distance(implicit G: AdditiveGroup[A], N: NormedVectorSpace[Vec3[A], A]): A = (end - start).norm
   def midpoint(implicit R: Ring[A], N: NormedVectorSpace[Vec3[A], A]): Vec3[A] =
     (end + start) :/ R.fromInt(2)
 
@@ -61,6 +64,8 @@ final class LineSegment3[A](val start: Vec3[A], val end: Vec3[A]) {
 
   def map[B](f: A => B): LineSegment3[B] =
     LineSegment3(start.map(f), end.map(f))
+
+  override def toString: String = s"LineSegment3($start, $end)"
 }
 
 object LineSegment3 {

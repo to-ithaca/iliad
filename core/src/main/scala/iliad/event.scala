@@ -87,6 +87,8 @@ object InputEvent {
 
   case class DragFinished(points: List[InputEvent.Point]) extends InputEvent {
     lazy val recent: Long = points.head.at
+    lazy val start: Point = points.toList.last
+    lazy val end: Point = points.head
   }
 
   def distance(s: Point, e: Point): Float = {
