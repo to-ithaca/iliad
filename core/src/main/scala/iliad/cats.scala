@@ -74,6 +74,10 @@ final class SequenceOps[F[_], G[_], A](val fga: F[G[A]]) extends AnyVal {
 
 final class FunctorOps[F[_], A](val fa: F[A]) extends AnyVal {
   def widen[B >: A](implicit FF: Functor[F]): F[B] = fa.asInstanceOf[F[B]]
+
+  def void(implicit FF: Functor[F]): F[Unit] = fa.map(_ => ())
+
+  def as[B](b: B)(implicit FF: Functor[F]): F[B] = fa.map(_ => b)
 }
 
 final class StateTObjectOps(val stateT: StateT.type) extends AnyVal {
