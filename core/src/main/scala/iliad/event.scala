@@ -16,6 +16,8 @@ import com.typesafe.scalalogging._
 
 import scala.concurrent.duration._
 
+import shapeless.nat
+
 trait EventStream extends LazyLogging {
 
   private implicit val S: Strategy = Strategy.fromFixedDaemonPool(1, "worker")
@@ -40,21 +42,20 @@ sealed trait InputEvent {
 }
 
 object InputEvent {
-  case class Point(at: Long, x: Double, y: Double) {
-    def position: Vec2f = v"$x $y"
+  case class Point(at: Long, position: Vec2d) {
 
-    /** window coordinates range from -1f to 1f */
-    def windowCoord: Vec2f = (position :* 2f) - 1f
+    /** window coordinates range from -1.0 to 1.0 */
+    def windowCoord: Vec2d = (position :* 2.0) - 1.0
   }
 
   case class Tap(point: Point) extends InputEvent {
     lazy val at: Long = point.at
     lazy val recent: Long = at
     
-    def position: Vec2f = point.position
+    def position: Vec2d = point.position
 
-    /** window coordinates range from -1f to 1f */
-    def windowCoord: Vec2f = point.windowCoord
+    /** window coordinates range from -1.0 to 1.0 */
+    def windowCoord: Vec2d = point.windowCoord
   }
 
   case class DragStarted(start: Point, current: Point) extends InputEvent {
@@ -64,44 +65,42 @@ object InputEvent {
       extends InputEvent {
     lazy val recent: Long = end.at
     def start: Point = points.toList.last
+    def prev: Point = points.tail.head
     def end: Point = points.head
     def distance: Double = (end.position - start.position).norm
+
+    def isLongPress(duration: Long, deviation: Double): Boolean = 
+      (end.at - start.at) > duration && standardDeviation < deviation
+
+    def standardDeviation: Double = {
+      val average = points.map(_.position).foldLeft(Vector.zero[nat._2, Double])((p, n) => p + n) :/ points.size.toDouble
+      val sum = points.map(p => (p.position - average).norm).map(x => x * x).sum
+      Math.sqrt(sum)
+    }
   }
+
   case class DragBecameSwipe(points: List[InputEvent.Point])
       extends InputEvent {
     lazy val recent: Long = end.at
     lazy val start: Point = points.toList.last
     lazy val end: Point = points.head
-    lazy val distance: Double = {
-      val dx = (end.x - start.x).toDouble
-      val dy = (end.y - start.y).toDouble
-      Math.sqrt(dx * dx + dy * dy).toDouble
-    }
+    lazy val distance: Double = (end.position - start.position).norm
+    
     def duration: Long = end.at - start.at
-    def direction: Vec2f = (end.position - start.position).normalize
-    def isDown(acceptance: Double): Boolean = direction ⋅ v"0f -1f" > acceptance
-    def isLeft(acceptance: Double): Boolean = direction ⋅ v"-1f 0f" > acceptance
-    def isRight(acceptance: Double): Boolean = direction ⋅ v"1f 0f" > acceptance
-    def isUp(acceptance: Double): Boolean = direction ⋅ v"0f 1f" > acceptance
+    def direction: Vec2d = (end.position - start.position).normalize
+    def isDown(acceptance: Double): Boolean = direction ⋅ v"0.0 -1.0" > acceptance
+    def isLeft(acceptance: Double): Boolean = direction ⋅ v"-1.0 0.0" > acceptance
+    def isRight(acceptance: Double): Boolean = direction ⋅ v"1.0 0.0" > acceptance
+    def isUp(acceptance: Double): Boolean = direction ⋅ v"0.0 1.0" > acceptance
   }
 
   case class DragFinished(points: List[InputEvent.Point]) extends InputEvent {
     lazy val recent: Long = points.head.at
-    lazy val start: Point = points.last
+    lazy val start: Point = points.toList.last
     lazy val end: Point = points.head
   }
 
-  case class LongPress(points: List[Point]) extends InputEvent {
-    lazy val recent: Long = points.head.at
-    lazy val start: Point = ponts.last
-    lazy val end: Point = points.head
-  }
-
-  def distance(s: Point, e: Point): Double = {
-    val dx = (e.x - s.x).toDouble
-    val dy = (e.y - s.y).toDouble
-    Math.sqrt(dx * dx + dy * dy).toDouble
-  }
+  def distance(s: Point, e: Point): Double = (e.position - s.position).norm
 }
 
 import InputEvent._
@@ -145,7 +144,7 @@ object EventRecogniser {
     e.xbutton.readField("y")
     val xFraction = e.xbutton.x.toDouble / width.toDouble
     val yFraction = 1f - e.xbutton.y.toDouble / height.toDouble
-    InputEvent.Point(System.currentTimeMillis, xFraction, yFraction)
+    InputEvent.Point(System.currentTimeMillis, v"$xFraction $yFraction")
   }
 
   private def motionEvent(e: XEvent,
@@ -156,7 +155,7 @@ object EventRecogniser {
     e.xmotion.readField("y")
     val xFraction = e.xmotion.x.toDouble / width.toDouble
     val yFraction = 1f - e.xmotion.y.toDouble / height.toDouble
-    InputEvent.Point(System.currentTimeMillis, xFraction, yFraction)
+    InputEvent.Point(System.currentTimeMillis, v"$xFraction $yFraction")
   }
 
   /**Captures events without propagation */
@@ -215,7 +214,7 @@ object EventRecogniser {
         case MotionNotify =>
           logger.info("MouseDown: detected motionNotify")
           val current = motionEvent(e, width, height)
-          HoldDown(current :: List(point)) -> Some(
+          DragContinuing(current :: List(point)) -> Some(
               InputEvent.DragStarted(point, current))
         case LeaveNotify =>
           logger.warn("MouseDown: detected leaveNotity")
@@ -226,9 +225,7 @@ object EventRecogniser {
       }
   }
 
-  private val TAP_DISTANCE = 0.1
-
-  case class HoldDown(points: List[InputEvent.Point])
+  case class DragContinuing(points: List[InputEvent.Point])
       extends EventRecogniser
       with LazyLogging {
 
@@ -239,63 +236,10 @@ object EventRecogniser {
       e.`type` match {
         case ButtonRelease =>
           val end = buttonEvent(e, width, height)
-          if ( (end.position - start.position).norm  < TAP_DISTANCE) {
-            logger.info("HoldDown: detected tap")
+          if (InputEvent.distance(start, end) < 0.1) {
+            logger.info("DragContinuing: detected tap")
             Blank -> Some(InputEvent.Tap(start))
-          } else {
-            logger.info(s"HoldDown: detected drag finish")
-            Blank -> Some(InputEvent.DragFinished(end :: points))
-          }
-        case MotionNotify =>
-          logger.debug("HoldDown: detected drag")
-          val end = motionEvent(e, width, height)
-          if((end.at - points.head.at) > minDt) {
-            val allPoints = end :: points
-            val deviation = stdDev(allPoints.map(_.position))
-            if(deviation < TAP_DISTANCE) {
-              //long press
-            } else {
-              //if the average distance from the start to the end
-              //and the stddev
-              HoldDown(allPoints) -> Some(InputEvent.DragContinued(allPoints))
-            }
-          }
-          else this -> Option.empty
-        case LeaveNotify =>
-          logger.warn("HoldDown: detected leaveNotify")
-          Blank -> Option.empty
-        case ButtonPress =>
-          logger.warn("HoldDown: detected button press")
-          Blank -> Option.empty
-        case other =>
-          logger.warn("HoldDown: Unhandled event of type {}", other)
-          this -> Option.empty
-      }
-
-    private def average(ps: List[Vec2d]): Vec2d = {
-      val sum = ps.foldLeft(v"0.0 0.0") { (p, n) =>
-        p + n
-      }
-      sum :/ ps.size.toDouble
-    }
-
-    private def stdDev(ps: List[Vec2d]): Double = {
-      val a = average(ps)
-      val sum = ps.map(p => (p - a).norm).map(x => x * x).sum
-      sqrt(sum)
-    }
-  }
-
-  case class DragContinuing(points: List[InputEvent.Point]) {
-    private val start: InputEvent.Point = points.last
-    private val prev: InputEvent.Point = points.head
-
-    def handle(e: XEvent)(width: Int,
-                          height: Int): (EventRecogniser, Option[InputEvent]) =
-      e.`type` match {
-        case ButtonRelease =>
-          val end = buttonEvent(e, width, height)
-          if (end.at - prev.at <= 1L) {
+          } else if (end.at - start.at < 1000L) {
             logger.info("DragContinuing: detected swipe")
             Blank -> Some(InputEvent.DragBecameSwipe(end :: points))
           } else {
@@ -305,9 +249,8 @@ object EventRecogniser {
         case MotionNotify =>
           logger.debug("DragContinuing: detected drag")
           val end = motionEvent(e, width, height)
-          val allPoints = end :: points
-          if((end.at - recent.at) > minDt)
-            DragContinuing(allPoints) -> Some(InputEvent.DragContinued(allPoints))
+          if((end.at - points.head.at) > minDt) 
+            DragContinuing(end :: points) -> Some(InputEvent.DragContinued(end :: points))
           else this -> Option.empty
         case LeaveNotify =>
           logger.warn("DragContinuing: detected leaveNotify")
@@ -350,7 +293,7 @@ object EventHandler extends LazyLogging {
         val xFraction = Macros.GET_X_LPARAM(lParam).toDouble / width.toDouble
         val yFraction = GET_Y_LPARAM(lParam).toDouble / height.toDouble
         //TODO: windows must have a better way of getting the time
-        eventCallback(InputEvent.Tap(InputEvent.Point(System.currentTimeMillis(), xFraction, yFraction)))
+        eventCallback(InputEvent.Tap(InputEvent.Point(System.currentTimeMillis(), v"$xFraction $yFraction")))
         true
       case _ => false
     }
@@ -381,7 +324,7 @@ trait AndroidEventHandler extends GestureDetector.OnGestureListener
     return true;
   }
 
-  override def onFling(event1: MotionEvent, event2: MotionEvent, velocityX: Double, velocityY: Double): Boolean = {
+  override def onFling(event1: MotionEvent, event2: MotionEvent, velocityX: Float, velocityY: Float): Boolean = {
     logger.debug("onFling: " + event1.toString()+event2.toString());
     return true;
   }
@@ -390,7 +333,7 @@ trait AndroidEventHandler extends GestureDetector.OnGestureListener
     logger.debug("onLongPress: " + event.toString());
   }
 
-  override def onScroll(e1: MotionEvent, e2: MotionEvent, distanceX: Double, distanceY: Double): Boolean = {
+  override def onScroll(e1: MotionEvent, e2: MotionEvent, distanceX: Float, distanceY: Float): Boolean = {
     logger.debug("onScroll: " + e1.toString()+e2.toString());
     return true;
   }
@@ -418,7 +361,7 @@ trait AndroidEventHandler extends GestureDetector.OnGestureListener
     logger.debug("onSingleTapConfirmed: " + event.toString());
     val x = event.getX.toDouble / width.toDouble
     val y = event.getY.toDouble / height.toDouble
-    EventHandler.handleEvent(InputEvent.Tap(InputEvent.Point(event.getEventTime, x, y)))
+    EventHandler.handleEvent(InputEvent.Tap(InputEvent.Point(event.getEventTime, v"$x $y")))
     return true;
   }
 }
