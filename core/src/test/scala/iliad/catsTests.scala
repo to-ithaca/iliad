@@ -67,4 +67,12 @@ class CatsTests extends FunSuite with Discipline with Matchers with CatsInstance
 
     checkAll("State[String, String]" , MonadStateTests[State[String, ?], String].monadState[String, String, String])
   }
+
+  test("Functor.void is expected") {
+    List(1, 2, 3).void should ===(List((), (), ()))
+  }
+
+  test("Functor.as is expected") {
+    List(1, 2, 3).as("a") should ===(List("a", "a", "a"))
+  }
 }
