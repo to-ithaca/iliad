@@ -1,6 +1,7 @@
 package iliad
 
 import iliad.gfx._
+import iliad.algebra.syntax.vector._
 
 import scala.reflect._
 import iliad.gl._
@@ -30,10 +31,14 @@ trait GLBootstrap extends LazyLogging {
 
   def glRunner: GLRunner
 
+  def width: Int
+  def height: Int
+
   private def graphicsConfig: Task[Graphics.Config] =
     Construct
       .validate(config.graph)
-      .map(Graphics.Config(Session.pageSize, _, config.graphTraversal))
+      .map(Graphics.Config(Session.pageSize, _, config.graphTraversal, 
+        v"$width $height"))
       .leftMap(_.unwrap.mkString("\n"))
       .bimap(s => Task.fail(new Error(s)), Task.now).merge[Task[Graphics.Config]]
 
@@ -153,7 +158,7 @@ trait GLBootstrap extends LazyLogging {
       cfg <- Stream.eval(graphicsConfig)
       _ <- (graphics through aggregate(EGLStrategy))
             .mapAccumulate2(
-                (Graphics.empty(cfg.graph), GL.empty).right[Error]
+                (Graphics.empty(cfg.graph), GL.empty(cfg.dimensions)).right[Error]
             ) { (prev, t) =>
               val (at, gs) = t
               val xor = for {

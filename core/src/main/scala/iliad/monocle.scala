@@ -36,12 +36,20 @@ final class MonocleStateTOps[F[_], S, A](val s: StateT[F, S, A]) extends AnyVal 
       case (r, s) => r &|-> l set s
     })
 
+  //FIXME: this is incorrect
   def applyBack[R, SS >: S](ss: S, l: Lens[R, SS])(implicit M: Monad[F]): StateT[F, R, A] =
     s.transformS(_ => ss, {
       case (r, s) => r &|-> l set s
     })
-}
 
+  def applyOptional[R](o: Optional[R, S])(implicit M: Monad[F]): StateT[F, R, A] = 
+    s.transformS(r => o getOption r match {
+      case Some(ss) => ss
+      case None => sys.error("Invalid applyOptional on StateT")
+    }, {
+      case (r, ss) => (o set ss)(r)
+    })
+}
 
 final class LensInvariant[S] extends Invariant[Lens[S, ?]] {
   def imap[A, B](fa: Lens[S, A])(f: A => B)(g: B => A): Lens[S, B] = {

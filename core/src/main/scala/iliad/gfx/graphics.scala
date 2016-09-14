@@ -2,6 +2,7 @@ package iliad
 package gfx
 
 import iliad.{gl => GL}
+import iliad.algebra.{Vector => _, _}
 
 import cats._
 import cats.data._
@@ -15,7 +16,8 @@ object Graphics {
 
   case class Config(pageSize: Int,
                     graph: Graph.Constructed,
-                    graphTraversal: GraphTraversal)
+                    graphTraversal: GraphTraversal,
+                    dimensions: Vec2i)
 
   case class State(uniformCache: UniformCache.State, graph: Graph.Instance)
 
@@ -90,7 +92,7 @@ object Graphics {
                      .apply[IliadError, Vector[Node.Drawable]](xor))
       gls <- ReaderT { (cfg: Config) =>
               val gls: List[XorT[GL.GL.DSL, GL.GLError, Unit]] =
-                ToGL.run(ToGL(ns.toList)).run(cfg.graph)
+                ToGL.run(ToGL(ns.toList)).run(cfg)
               gls.sequenceUnit.leftWiden[IliadError]
             }
     } yield gls

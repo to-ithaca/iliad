@@ -51,6 +51,18 @@ final class Rect[A](val x0y0: Vec2[A], val dimensions: Vec2[A]) {
 
   def map[B](f: A => B): Rect[B] = Rect[B](x0y0.map(f), dimensions.map(f))
 
+  def pmap[B](f: Vec2[A] => Vec2[B])(implicit F: AdditiveMonoid[A], G: AdditiveGroup[B]): Rect[B] = {
+    val bl : Vec2[B] = f(bottomLeft)
+    val dims = f(topRight) - bl
+    Rect(bl, dims)
+  }
+
+  def scale(s: Vec2[A])(implicit F: Fractional[A]): Rect[A] = {
+    val bl = bottomLeft.map2(s)(_ * _)
+    val tr = topRight.map2(s)(_ * _)
+    Rect(bl, tr - bl)
+  }
+
   override def toString: String = s"Rect($x0y0, $dimensions)"
 }
 
