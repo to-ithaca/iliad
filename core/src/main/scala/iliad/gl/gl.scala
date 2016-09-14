@@ -24,7 +24,7 @@ object GL {
   type DSL[A] = Free[GL, A]
   type PRG[F[_], A] = ReaderT[StateT[F, State, ?], GLES30.type, A]
 
-  def empty: State = State(Cache.State.empty, Current.State.empty)
+  def empty(screenDimensions: Vec2i): State = State(Cache.State.empty, Current.State.empty(screenDimensions))
 
   val _cache: Lens[State, Cache.State] = GenLens[State](_.cache)
   val _current: Lens[State, Current.State] = GenLens[State](_.current)
@@ -240,6 +240,10 @@ object GL {
     case None => Free.pure(())
   }
 
+  private def set(viewport: Rect[Int]): DSL[Unit] = 
+    ensure(Current.contains(viewport))(Draw.bindViewport(viewport).expand[GL] >>
+      Current.set(viewport).expand[GL])
+
   private def flip(
       t: Texture.Constructor): DSL[TextureNotLoadedError Xor Unit] =
     (for {
@@ -321,6 +325,7 @@ object GL {
       _ <- xort(set(draw.capabilities))
       _ <- xort(set(draw.colorMask))
       _ <- xort(set(draw.blend))
+      _ <- xort(set(draw.viewport))
       p <- ensure(Cache.get(draw.program), ProgramNotLoadedError(draw.program))
             .leftWiden[GLError]
       _ <- xort(set(p))
@@ -353,6 +358,7 @@ object GL {
                    FramebufferNotLoadedError(c.framebuffer)).leftWiden[GLError]
       _ <- xort[Unit, GLError](set(fl))
       _ <- xort(setClearColour(c.colour))
+      _ <- xort(set(c.viewport))
       _ <- xort[Unit, GLError](Draw.clear(c.bitMask).expand[GL])
 } yield ()).value
 }

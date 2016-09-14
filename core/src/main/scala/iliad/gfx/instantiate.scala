@@ -61,10 +61,10 @@ trait InstantiateFunctions {
                   uniforms,
                   model,
                   Framebuffer.OnScreen,
-                  1)
+                  1, Viewport.full)
 
   def clearScreen(c: Clear.Constructor): Clear.Instance =
-    Clear.Instance(c, Framebuffer.OnScreen)
+    Clear.Instance(c, Framebuffer.OnScreen, Viewport.full)
 }
 
 object ValidateNodeInstance {

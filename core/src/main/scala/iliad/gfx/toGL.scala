@@ -2,6 +2,7 @@ package iliad
 package gfx
 
 import iliad.{gl => GL}
+import iliad.algebra._
 
 import cats._
 import cats.data._
@@ -11,7 +12,7 @@ import cats.implicits._
 object ToGL {
 
   type DSL[A] = Free[ToGL, A]
-  type Effect[A] = Reader[Graph.Constructed, A]
+  type Effect[A] = Reader[Graphics.Config, A]
 
   def run[A](dsl: DSL[A]): Effect[A] = dsl.foldMap(ToGLInterpreter)
 
@@ -30,6 +31,9 @@ object ToGL {
       case t: Texture.Instance => transform(t)
       case r: Renderbuffer.Instance => transform(r)
     }
+
+  private def apply(v: Viewport): DSL[Rect[Int]] = 
+    ToGLViewport(v).free
 
   def apply(f: Framebuffer.Instance): DSL[GL.Framebuffer.Constructor] =
     f match {
@@ -50,6 +54,7 @@ object ToGL {
     for {
       f <- apply(n.instance.framebuffer)
       tus <- apply(n.instance.textureUniforms)
+      v <- apply(n.instance.viewport)
     } yield
       GL.DrawOp(n.instance.model,
                 n.instance.constructor.program,
@@ -60,12 +65,14 @@ object ToGL {
                 n.instance.constructor.primitive,
                 n.instance.constructor.capabilities,
                 n.instance.constructor.blend,
+                v,
                 n.instance.numInstances)
 
  private def apply(c: Clear.Instance): DSL[GL.ClearOp] =
     for {
       f <- apply(c.framebuffer)
-} yield GL.ClearOp(c.constructor.mask, c.constructor.colour, f)
+      v <- apply(c.viewport)
+    } yield GL.ClearOp(c.constructor.mask, c.constructor.colour, f, v)
 
   def apply(
       ns: List[Node.Drawable]): DSL[List[XorT[GL.GL.DSL, GL.GLError, Unit]]] =
@@ -90,13 +97,14 @@ private case object ToGLOnScreenFramebuffer
 private case class ToGLOffScreenFramebuffer(
     as: List[(GL.FramebufferAttachment, GL.Framebuffer.AttachmentConstructor)])
     extends ToGL[GL.Framebuffer.Constructor]
+private case class ToGLViewport(viewport: Viewport) extends ToGL[Rect[Int]]
 
 object ToGLInterpreter extends (ToGL ~> ToGL.Effect) {
   def apply[A](t: ToGL[A]): ToGL.Effect[A] = t match {
     case ToGLTexture(t) =>
-      Reader { c =>
+      Reader { cfg =>
         val tt: GL.Texture.Constructor =
-          if (c.doubleTextures.contains(t.constructor)) {
+          if (cfg.graph.doubleTextures.contains(t.constructor)) {
             GL.Texture.DoubleConstructor(s"${t.name}-${t.constructor.name}",
                                          t.constructor.format)
           } else {
@@ -120,5 +128,11 @@ object ToGLInterpreter extends (ToGL ~> ToGL.Effect) {
       }
       if (isDouble) Kleisli.pure(GL.Framebuffer.DoubleConstructor(as))
       else Kleisli.pure(GL.Framebuffer.SingleConstructor(as))
+    case ToGLViewport(v) => v match {
+      case Viewport.Exact(rect) => Kleisli.pure(rect)
+      case Viewport.Fraction(fract) => Reader { cfg => 
+        fract.scale(cfg.dimensions.cmap[Double]).cmap[Int]
+      }
+    }
   }
 }

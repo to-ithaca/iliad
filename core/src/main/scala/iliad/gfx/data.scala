@@ -3,6 +3,7 @@ package gfx
 
 import iliad.{gl => GL}
 import iliad.algebra._
+import iliad.algebra.syntax.vector._
 import iliad.std.list._
 import iliad.std.set._
 
@@ -51,12 +52,8 @@ object Graph extends LazyLogging {
 
   case class Instance(constructed: Constructed, graph: QInstance) {
 
-    private[gfx] def removeNodes(
-        ns: List[Node.Instance]): State[QInstance, Unit] =
-      State.modify(_.removeNodes(ns.toSeq))
-
     private[gfx] def remove(ns: List[Node.Instance]): Instance = {
-      val next = removeNodes(ns).runS(graph).value
+      val next = graph.nfilter(n => !ns.exists(_.name == n.name))
       copy(graph = next)
     }
 
@@ -123,9 +120,10 @@ object Draw {
       scopes: List[ScopeProperty],
       model: Model,
       framebuffer: Framebuffer.Instance,
-      numInstances: Int
+      numInstances: Int,
+      viewport: Viewport
   ) extends Node.Instance {
-    def name: String = toString
+    def name: String = s"${constructor.name}-${scopes}-instance"
     private[gfx] def vertexAttribs: List[GL.Attribute.Constructor] =
       constructor.program.vertex.attributes
     private[gfx] def modelAttribs: List[GL.Attribute.Constructor] =
@@ -152,7 +150,8 @@ object Clear {
 
   case class Instance(
       constructor: Constructor,
-      framebuffer: Framebuffer.Instance
+      framebuffer: Framebuffer.Instance,
+      viewport: Viewport
   ) extends Node.Instance
       with Node.Drawable {
     def name: String = toString
@@ -240,6 +239,14 @@ object Framebuffer {
 }
 
 case class ScopeProperty(name: String, scope: String) 
+
+sealed trait Viewport
+
+object Viewport {
+  case class Fraction(rect: Rect[Double]) extends Viewport
+  case class Exact(rect: Rect[Int]) extends Viewport
+  val full: Viewport = Fraction(Rect(v"0.0 0.0", v"1.0 1.0"))
+}
 
 //TODO: find out what to do with this
 //case class Valve(start: Node.Draw, links: List[Link.Pipe])

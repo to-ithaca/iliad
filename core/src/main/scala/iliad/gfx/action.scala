@@ -28,6 +28,8 @@ trait ActionFunctions {
   def show(d: Draw.Instance, sources: Draw.Instance*): GFX =
     lift(ShowDraw(d, sources.toList))
 
+  //TODO: add link command here
+
   def show(c: Clear.Instance): GFX =
     lift(ShowClear(c))
 

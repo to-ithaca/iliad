@@ -322,6 +322,9 @@ object OpenGL {
   def blendFunc(src: BlendFactor, dest: BlendFactor): DSL[Unit] =
     GLBlendFunc(src, dest).free
 
+  def viewport(rect: Rect[Int]): DSL[Unit] =
+    GLViewport(rect).free
+
   def clear(mask: ChannelBitMask): DSL[Unit] = GLClear(mask).free
   def clearColor(red: Float, green: Float, blue: Float, alpha: Float): DSL[Unit] =
 GLClearColor(red, green, blue, alpha).free
@@ -503,6 +506,7 @@ case class GLColorMask(red: Boolean,
     extends OpenGL[Unit]
 case class GLBlendEquation(mode: BlendMode) extends OpenGL[Unit]
 case class GLBlendFunc(src: BlendFactor, dest: BlendFactor) extends OpenGL[Unit]
+case class GLViewport(rect: Rect[Int]) extends OpenGL[Unit]
 case class GLUseProgram(program: Int) extends OpenGL[Unit]
 case class GLEnableVertexAttribArray(location: Int) extends OpenGL[Unit]
 case class GLVertexAttribPointer(location: Int,

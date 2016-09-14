@@ -175,6 +175,7 @@ object GLInterpreter extends (OpenGL.Interpreter[OpenGL.NoEffect]) {
     case GLColorMask(r, g, b, a) => Reader(_.glColorMask(r, g, b, a))
     case GLBlendEquation(mode) => Reader(_.glBlendEquation(mode.value))
     case GLBlendFunc(src, dest) => Reader(_.glBlendFunc(src.value, dest.value))
+    case GLViewport(rect) => Reader(_.glViewport(rect.bottomLeft.x, rect.bottomLeft.y, rect.width, rect.height))
     case GLClearColor(r, g, b, a) => Reader(_.glClearColor(r, g, b, a))
     case GLUseProgram(program) => Reader(_.glUseProgram(program))
     case GLEnableVertexAttribArray(location) =>

@@ -31,13 +31,13 @@ object Load {
     case PutElements(r, d) =>
       liftXor(cfg => GL.GL.load(r, d, cfg.pageSize))
     case PutTexture(t, d) =>
-      lift(cfg => GL.GL.load(ToGL.run(ToGL(t)).run(cfg.graph), d))
+      lift(cfg => GL.GL.load(ToGL.run(ToGL(t)).run(cfg), d))
     case PutImage(i, d) =>
-      lift(cfg => GL.GL.load(ToGL.run(ToGL(i)).run(cfg.graph), d))
+      lift(cfg => GL.GL.load(ToGL.run(ToGL(i)).run(cfg), d))
     case PutRenderbuffer(r) =>
-      lift(cfg => GL.GL.load(ToGL.run(ToGL(r)).run(cfg.graph)))
+      lift(cfg => GL.GL.load(ToGL.run(ToGL(r)).run(cfg)))
     case PutFramebuffer(f) =>
-      liftXor(cfg => GL.GL.load(ToGL.run(ToGL(f)).run(cfg.graph)))
+      liftXor(cfg => GL.GL.load(ToGL.run(ToGL(f)).run(cfg)))
   }
 }
 

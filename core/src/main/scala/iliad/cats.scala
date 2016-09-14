@@ -41,6 +41,10 @@ trait CatsInstances extends StateTInstances1 {
 
   implicit def monadReaderInvariant[F[_]]: Invariant[MonadReader[F, ?]] =
     new MonadReaderInvariant[F]
+
+  implicit def kleisliStateMonadReaderState[R, S]: MonadReaderState[Kleisli[State[S, ?], R, ?], R, S] = new KleisliStateMonadReaderState[R, S]
+
+  implicit def toCatsFunctorOps[F[_], A](fa: F[A]): FunctorOps[F, A] = new FunctorOps(fa)
 }
 
 sealed trait StateTInstances1 {
@@ -68,6 +72,9 @@ final class SequenceOps[F[_], G[_], A](val fga: F[G[A]]) extends AnyVal {
   def sequenceUnit(implicit T: Traverse[F], AA: Applicative[G]): G[Unit] = fga.sequence.map(_ => ())
 }
 
+final class FunctorOps[F[_], A](val fa: F[A]) extends AnyVal {
+  def widen[B >: A](implicit FF: Functor[F]): F[B] = fa.asInstanceOf[F[B]]
+}
 
 final class StateTObjectOps(val stateT: StateT.type) extends AnyVal {
 
@@ -157,4 +164,16 @@ final class MonadReaderInvariant[F[_]] extends Invariant[MonadReader[F, ?]] {
       def ask: F[B] = map(fa.ask)(f)
       def local[A](ff: B => B)(faa: F[A]): F[A] = fa.local(a => g(ff(f(a))))(faa)
     }
+}
+
+sealed trait MonadReaderState[F[_], R, S] extends MonadReader[F, R] with MonadState[F, S]
+
+final class KleisliStateMonadReaderState[R, S] extends MonadReaderState[Kleisli[State[S, ?], R, ?], R, S] {
+
+  def pure[A](x: A): Kleisli[State[S, ?], R, A] = Kleisli.pure(x)
+  def flatMap[A, B](fa: Kleisli[State[S, ?], R, A])(f: A => Kleisli[State[S, ?], R, B]): Kleisli[State[S, ?], R, B] = fa.flatMap(f)
+  def ask: Kleisli[State[S, ?], R, R] = Kleisli.ask
+  def local[A](f: R => R)(fa: Kleisli[State[S, ?], R, A]): Kleisli[State[S, ?], R, A] = Kleisli.local(f)(fa)
+  def get: Kleisli[State[S, ?], R, S] = Kleisli.lift(State.get)
+  def set(s: S): Kleisli[State[S, ?], R, Unit] = Kleisli.lift(State.set(s))
 }

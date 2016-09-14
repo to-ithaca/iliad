@@ -14,6 +14,8 @@ import monocle.syntax.all._
 import monocle.std.map._
 import monocle.function.all._
 
+import spire.implicits.IntAlgebra
+
 object Current {
   type DSL[A] = Free[Current, A]
   type Effect[A] = CatsState[State, A]
@@ -38,6 +40,9 @@ object Current {
   def contains(f: BlendFunction): DSL[Boolean] =
     getContains(f)(CurrentBlendFunctionGet)
 
+  def contains(viewport: Rect[Int]): DSL[Boolean] =
+    CurrentViewportGet.free.map(_ === viewport)
+
   def get(c: Capability): DSL[Option[Boolean]] =
     CurrentCapabilityGet(c).free
 
@@ -50,6 +55,7 @@ object Current {
   def setClearColour(c: Vec4f): DSL[Unit] = CurrentClearColourSet(c).free
   def set(m: BlendMode): DSL[Unit] = CurrentBlendModeSet(m).free
   def set(f: BlendFunction): DSL[Unit] = CurrentBlendFunctionSet(f).free
+  def set(viewport: Rect[Int]): DSL[Unit] = CurrentViewportSet(viewport).free
   def enable(c: Capability): DSL[Unit] = CurrentCapabilitySet(c, true).free
   def disable(c: Capability): DSL[Unit] = CurrentCapabilitySet(c, false).free
 
@@ -61,11 +67,13 @@ object Current {
                    clearColour: Option[Vec4f],
                    blendMode: Option[BlendMode],
                    blendFunction: Option[BlendFunction],
-                   capabilities: Map[Capability, Boolean]
-  )
+                   capabilities: Map[Capability, Boolean],
+                   viewport: Rect[Int])
 
   object State {
-    val empty: State = State(None, None, None, None, None, None, None, None, Map.empty)
+    def empty(screenDimensions: Vec2i): State = State(None, None, None, None, None, None, None, None, 
+      Map.empty,
+      Rect(v"0 0", screenDimensions))
   }
 }
 
@@ -81,7 +89,7 @@ case class CurrentCapabilityGet(c: Capability) extends Current[Option[Boolean]]
 case object CurrentClearColourGet extends Current[Option[Vec4f]]
 case object CurrentBlendModeGet extends Current[Option[BlendMode]]
 case object CurrentBlendFunctionGet extends Current[Option[BlendFunction]]
-
+case object CurrentViewportGet extends Current[Rect[Int]]
 
 case class CurrentProgramSet(p: Program.Linked) extends Current[Unit]
 case class CurrentFramebufferSet(f: Framebuffer.Loaded) extends Current[Unit]
@@ -94,7 +102,7 @@ case class CurrentCapabilitySet(c: Capability, value: Boolean)
 case class CurrentClearColourSet(c: Vec4f) extends Current[Unit]
 case class CurrentBlendModeSet(m: BlendMode) extends Current[Unit]
 case class CurrentBlendFunctionSet(f: BlendFunction) extends Current[Unit]
-
+case class CurrentViewportSet(r: Rect[Int]) extends Current[Unit]
 
 object CurrentParser extends (Current ~> Current.Effect) {
 
@@ -125,6 +133,9 @@ object CurrentParser extends (Current ~> Current.Effect) {
   private val _blendFunction: Lens[Current.State, Option[BlendFunction]] =
     GenLens[Current.State](_.blendFunction)
 
+  private val _viewport: Lens[Current.State, Rect[Int]] =
+    GenLens[Current.State](_.viewport)
+
   def apply[A](current: Current[A]): Current.Effect[A] = current match {
     case CurrentProgramGet => CatsState.inspect(_ &|-> _program get)
     case CurrentProgramSet(p) => CatsState.modify(_ &|-> _program set Some(p))
@@ -154,5 +165,8 @@ object CurrentParser extends (Current ~> Current.Effect) {
     case CurrentBlendFunctionGet => CatsState.inspect(_ &|-> _blendFunction get)
     case CurrentBlendFunctionSet(f) =>
       CatsState.modify(_ &|-> _blendFunction set Some(f))
+    case CurrentViewportGet => CatsState.inspect(_ &|-> _viewport get)
+    case CurrentViewportSet(r) => 
+      CatsState.modify(_ &|-> _viewport set r)
   }
 }

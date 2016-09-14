@@ -1,6 +1,7 @@
 package iliad
 
 import iliad.algebra._
+import iliad.algebra.syntax.vector._
 import iliad.gfx._
 
 import spire.{algebra => spa, math => spm}
@@ -13,10 +14,10 @@ import org.scalacheck._
 
 object PointGen {
   def apply(): Gen[InputEvent.Point] = for {
-      x <- Gen.choose(0f, 1f)
-      y <- Gen.choose(0f, 1f)
+      x <- Gen.choose(0.0, 1.0)
+      y <- Gen.choose(0.0, 1.0)
       t <- Gen.choose(0L, 30000L)
-  } yield InputEvent.Point(t, x, y)
+  } yield InputEvent.Point(t, v"$x $y")
 
 }
 
