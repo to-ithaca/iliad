@@ -251,6 +251,16 @@ class CameraFunctionTests extends FunSuite with GeneratorDrivenPropertyChecks wi
     p.y should equal (0f +- 0.0001f)
   }
 
+  test("camera should panAroundZBy to the correct end position") {
+    val dθ = Math.PI.toFloat / 2f
+    val dt = 100L
+    val speed = dθ / dt.toFloat
+    val f = Camera.start(t0, camera, Camera.panAroundZBy(speed, dθ))
+    val p = f(t0 + 2 * dt).position
+    p.x should equal (1f +- 0.0001f)
+    p.y should equal (0f +- 0.0001f)
+  }
+
   test("camera should scroll around z with a constant radius") {
     val f = Camera.start(t0, camera, Camera.scrollAroundZ(speed, Camera.Anticlockwise, λ))
     val expectedR = radius(camera)

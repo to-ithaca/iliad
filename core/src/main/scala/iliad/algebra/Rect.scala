@@ -39,12 +39,23 @@ final class Rect[A](val x0y0: Vec2[A], val dimensions: Vec2[A]) {
     Rect(cx0y0, dxdy)
   }
 
-  def overlaps(that: Rect[A])(implicit F: AdditiveMonoid[A], G: PartialOrder[A], EQ: Eq[A]): Boolean =
+  def overlaps(that: Rect[A])(implicit F: AdditiveMonoid[A], G: Order[A], EQ: Eq[A]): Boolean =
     (this === that) ||
     contains(that.bottomLeft) || contains(that.topLeft) ||
   contains(that.topRight) || contains(that.bottomRight) ||
   that.contains(bottomLeft) || that.contains(topLeft) ||
-  that.contains(bottomRight) || that.contains(topRight)
+  that.contains(bottomRight) || that.contains(topRight) ||
+  (withinX(that.bottomLeft.x) && withinX(that.bottomRight.x) && 
+    that.bottomLeft.y <= bottomLeft.y && that.topLeft.y > bottomLeft.y) ||
+  (withinY(that.bottomLeft.y) && withinY(that.topLeft.y) &&
+    that.bottomLeft.x <= bottomLeft.x && that.topRight.x > bottomLeft.x)
+
+  def withinX(x: A)(implicit F: AdditiveMonoid[A], G: Order[A]): Boolean = 
+    bottomLeft.x <= x && topRight.x >= x
+
+  def withinY(y: A)(implicit F: AdditiveMonoid[A], G: Order[A]): Boolean = 
+    bottomLeft.y <= y && topRight.y >= y
+
 
   def ===(that: Rect[A])(implicit EQ: Eq[A]): Boolean =
     (x0y0 === that.x0y0) && (width === that.width) && (height === that.height)
