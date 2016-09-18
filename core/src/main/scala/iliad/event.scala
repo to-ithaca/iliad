@@ -236,7 +236,7 @@ object EventRecogniser {
       e.`type` match {
         case ButtonRelease =>
           val end = buttonEvent(e, width, height)
-          if (InputEvent.distance(start, end) < 0.1) {
+          if (InputEvent.distance(start, end) < 0.01) {
             logger.info("DragContinuing: detected tap")
             Blank -> Some(InputEvent.Tap(start))
           } else if (end.at - start.at < 1000L) {

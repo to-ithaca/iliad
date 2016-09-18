@@ -14,6 +14,10 @@ trait CatsInstances extends StateTInstances1 {
   implicit def sequenceOps[F[_], G[_], A](
       fga: F[G[A]]): SequenceOps[F, G, A] =
     new SequenceOps(fga)
+  implicit def sequenceMOps[F[_], G[_], A](
+      fgfa: F[G[F[A]]]): SequenceMOps[F, G, A] =
+    new SequenceMOps(fgfa)
+
   implicit def traverseOps[F[_], A](fa: F[A]): TraverseOps[F, A] =
     new TraverseOps(fa)
   implicit def xortOps[F[_], A, B](xort: XorT[F, A, B]): XorTOps[F, A, B] =
@@ -70,6 +74,10 @@ final class TraverseOps[F[_], A](val fa: F[A]) extends AnyVal {
 
 final class SequenceOps[F[_], G[_], A](val fga: F[G[A]]) extends AnyVal {
   def sequenceUnit(implicit T: Traverse[F], AA: Applicative[G]): G[Unit] = fga.sequence.map(_ => ())
+}
+
+final class SequenceMOps[F[_], G[_], A](val fgfa: F[G[F[A]]]) extends AnyVal {
+  def sequenceM(implicit T: Traverse[F], M: Monad[F], AA: Applicative[G]): G[F[A]] = fgfa.sequence.map(_.flatten)
 }
 
 final class FunctorOps[F[_], A](val fa: F[A]) extends AnyVal {

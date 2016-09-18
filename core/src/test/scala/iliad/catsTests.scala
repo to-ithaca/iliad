@@ -75,4 +75,9 @@ class CatsTests extends FunSuite with Discipline with Matchers with CatsInstance
   test("Functor.as is expected") {
     List(1, 2, 3).as("a") should ===(List("a", "a", "a"))
   }
+
+  test("Traverse.sequenceM is expected") {
+    val fga: List[Option[List[Int]]] = List(Some(List(1, 2)), Some(List(3)), Some(List(4, 5)))
+    fga.sequenceM should ===(Some(List(1, 2, 3, 4, 5)))
+  }
 }

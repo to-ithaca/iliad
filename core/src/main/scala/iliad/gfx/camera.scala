@@ -180,6 +180,15 @@ sealed trait CameraFunctions {
       c0 &|-> _position set p
     })
 
+  def panAroundZBy[A: Trig: Fractional](speed: A, θ: A)
+    (implicit MA: MultiplicativeSemigroup[Mat3[A]], N: NormedVectorSpace[Vec3[A], A], MM: MatrixMultiplicativeGroup[Matrix, nat._3, nat._3, A]): CameraFunction[A] =
+    CameraFunction(Some(θ.abs / speed), (t: A, c0: Camera[A]) => {
+      val axis = (c0.radial × Vector.basis[Z, _3D, A]).normalize
+      val dθ = speed * t * θ.sign
+      val p = (dθ, Vector.basis[Z, _3D, A]) * c0.radiusVector + c0.focalPoint
+      c0 &|-> _position set p
+    })
+
   def panVerticallyBy[A: Trig: Fractional](speed: A, θ: A)
     (implicit MA: MultiplicativeSemigroup[Mat3[A]], N: NormedVectorSpace[Vec3[A], A], MM: MatrixMultiplicativeGroup[Matrix, nat._3, nat._3, A]): CameraFunction[A] = 
     CameraFunction(Some(θ.abs / speed), (t: A, c0: Camera[A]) => {
