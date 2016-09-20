@@ -33,10 +33,9 @@ object OpenGL {
   val run: Interpreter[NoEffect] = GLInterpreter
   val log: Interpreter[LogEffect[Id, ?]] = new GLLogInterpreter(run)
 
-  val debugLog: Interpreter[DebugEffect[Logger[Id, ?], ?]] =
-    new GLDebugInterpreter(log)
+  val debugLog: Interpreter[DebugEffect[Logger[Id, ?], ?]] = new GLDebugInterpreter(log)
 
-  def interpret[F[_]: Monad](f: Interpreter[F]): (DSL ~> F) = new (DSL ~> F) {
+  def interpret[F[_]: Monad : RecursiveTailRecM](f: Interpreter[F]): (DSL ~> F) = new (DSL ~> F) {
     def apply[A](gl: DSL[A]): F[A] = gl.foldMap(f)
   }
 

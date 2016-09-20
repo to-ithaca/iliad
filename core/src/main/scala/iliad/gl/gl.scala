@@ -19,9 +19,9 @@ import scodec.bits._
 object GL {
 
   case class State(cache: Cache.State, current: Current.State)
-  type GL[A] =
-    (Load :|: Cache :|: Draw :|: Current :|: OpenGL :|: FXNil)#Cop[A]
-  type DSL[A] = Free[GL, A]
+  type GL = (Load :|: Cache :|: Draw :|: Current :|: OpenGL :|: NilDSL)
+  val GL = freek.DSL.Make[GL]
+  type DSL[A] = Free[GL.Cop, A]
   type PRG[F[_], A] = ReaderT[StateT[F, State, ?], GLES30.type, A]
 
   def empty(screenDimensions: Vec2i): State = State(Cache.State.empty, Current.State.empty(screenDimensions))
@@ -50,8 +50,8 @@ object GL {
         liftS(eff.applyLens[State](_current))
     }
 
-  def runner[F[_]: Monad](
-      f: OpenGL.Interpreter[OpenGL.Effect[F, ?]]): Interpreter[GL, PRG[F, ?]] =
+  def runner[F[_]: Monad : RecursiveTailRecM](
+      f: OpenGL.Interpreter[OpenGL.Effect[F, ?]]): Interpreter[GL.Cop, PRG[F, ?]] =
     Load.parse(f).andThen(liftOpenGL) :&:
       CacheParser.andThen(liftCache[F]) :&:
         Draw.parse(f).andThen(liftOpenGL) :&:
@@ -59,7 +59,7 @@ object GL {
             f.andThen(liftOpenGL)
 
   private def getOrElse[A](f: DSL[Option[A]])(g: => DSL[A]): DSL[A] =
-    f.flatMap(_.map(Free.pure[GL, A]).getOrElse(g))
+    f.flatMap(_.map(Free.pure[GL.Cop, A]).getOrElse(g))
 
   private def load(s: VertexShader.Source): DSL[VertexShader.Compiled] =
     getOrElse(Cache.get(s).expand[GL])(for {

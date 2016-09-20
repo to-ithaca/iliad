@@ -68,8 +68,11 @@ final class LensCartesian[S] extends Cartesian[Lens[S, ?]] {
 final class GetterMonad[S] extends Monad[Getter[S, ?]] {
   def pure[A](x: A): monocle.Getter[S,A] = Getter[S, A](_ => x)
 
-  def flatMap[A, B](fa: Getter[S,A])(f: A => Getter[S,B]): monocle.Getter[S,B] = 
+  def flatMap[A, B](fa: Getter[S,A])(f: A => Getter[S,B]): Getter[S,B] = 
     Getter[S, B](s => f(fa get s) get s)
+
+  def tailRecM[A, B](a: A)(f: A => Getter[S, Either[A, B]]): Getter[S, B] = Getter[S, B](s =>
+    FlatMap[Id].tailRecM(a) { aa => f(aa).get(s) })
 
   override def map[A, B](fa: Getter[S, A])(f: A => B): Getter[S, B] =
    Getter[S, B]((fa get _) andThen f)

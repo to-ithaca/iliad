@@ -9,7 +9,7 @@ import scodec.bits._
 object Load {
   type DSL[A] = Free[Load, A]
 
-  def parse[F[_]: Monad](i: OpenGL.Interpreter[F]): Load ~> F =
+  def parse[F[_]: Monad : RecursiveTailRecM](i: OpenGL.Interpreter[F]): Load ~> F =
     LoadParser.andThen(OpenGL.interpret(i))
 
  def apply(s: VertexShader.Source): DSL[VertexShader.Compiled] =
