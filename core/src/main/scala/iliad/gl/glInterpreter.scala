@@ -246,7 +246,7 @@ final class GLLogInterpreter[F[_]: Monad](
   }
 }
 
-final class GLDebugInterpreter[F[_]: Monad](
+final class GLDebugInterpreter[F[_]: Monad : RecursiveTailRecM](
     interpret: OpenGL.Interpreter[OpenGL.Effect[F, ?]])
     extends (OpenGL.Interpreter[OpenGL.DebugEffect[F, ?]]) {
 

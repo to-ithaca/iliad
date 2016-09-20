@@ -77,14 +77,14 @@ object ValidateNodeInstance {
     (c, o) match {
       case (rc: Renderbuffer.Constructor, ri: Renderbuffer.Instance) =>
         if (ri.constructor == rc) M.pure(())
-        else  M.raiseError(NonEmptyList(RenderbufferMatchError(rc, ri)))
+        else  M.raiseError(NonEmptyList.of(RenderbufferMatchError(rc, ri)))
       case (tc: Texture.Constructor, ti: Texture.Instance) =>
         if (ti.constructor == tc) M.pure(())
-        else M.raiseError(NonEmptyList(TextureMatchError(tc, ti)))
+        else M.raiseError(NonEmptyList.of(TextureMatchError(tc, ti)))
       case (tc: Texture.Constructor, ri: Renderbuffer.Instance) =>
-        M.raiseError(NonEmptyList(TextureRenderbufferMatchError(tc, ri)))
+        M.raiseError(NonEmptyList.of(TextureRenderbufferMatchError(tc, ri)))
       case (rc: Renderbuffer.Constructor, ti: Texture.Instance) =>
-        M.raiseError(NonEmptyList(RenderbufferTextureMatchError(rc, ti)))
+        M.raiseError(NonEmptyList.of(RenderbufferTextureMatchError(rc, ti)))
     }
 
   private def framebuffer[F[_]](
@@ -93,16 +93,16 @@ object ValidateNodeInstance {
       case (Framebuffer.OnScreen, Framebuffer.OnScreen) =>
         M.pure(())
       case (Framebuffer.OnScreen, i: Framebuffer.OffScreenInstance) =>
-        M.raiseError(NonEmptyList(OffScreenOnScreenMatchError(i)))
+        M.raiseError(NonEmptyList.of(OffScreenOnScreenMatchError(i)))
       case (c: Framebuffer.OffScreenConstructor, Framebuffer.OnScreen) =>
-        M.raiseError(NonEmptyList(OnScreenOffScreenMatchError(c)))
+        M.raiseError(NonEmptyList.of(OnScreenOffScreenMatchError(c)))
       case (c: Framebuffer.OffScreenConstructor,
             i: Framebuffer.OffScreenInstance) =>
         c.buffers.toList.traverseUnit {
           case (a, c) =>
             i.instances.toMap.get(a) match {
-              case None => M.raiseError[Unit](NonEmptyList(AttachmentMissingError(a)))
-              case Some(o) => framebufferOutput(c, o)
+              case None => M.raiseError[Unit](NonEmptyList.of(AttachmentMissingError(a)))
+              case Some(o) => framebufferOutput[F](c, o)
             }
         }
     }
@@ -111,9 +111,9 @@ object ValidateNodeInstance {
   private def instanced[F[_]](
       n: Draw.Instance)(implicit M: ME[F]): F[Unit] =
     if (!n.constructor.isInstanced && n.numInstances != 1)
-      M.raiseError(NonEmptyList(NumInstanceError(n.constructor.isInstanced, n.numInstances)))
+      M.raiseError(NonEmptyList.of(NumInstanceError(n.constructor.isInstanced, n.numInstances)))
     else if (n.numInstances == 0)
-      M.raiseError(NonEmptyList(NumInstanceError(n.constructor.isInstanced, n.numInstances)))
+      M.raiseError(NonEmptyList.of(NumInstanceError(n.constructor.isInstanced, n.numInstances)))
     else M.pure(())
 
   private def textures[F[_]](
@@ -121,7 +121,7 @@ object ValidateNodeInstance {
     n.constructor.program.textureNames.traverseUnit { name =>
       n.textureUniforms.get(name) match {
         case Some(_) => M.pure(())
-        case None => M.raiseError[Unit](NonEmptyList(TextureUniformMissingError(name)))
+        case None => M.raiseError[Unit](NonEmptyList.of(TextureUniformMissingError(name)))
       }
     }
 
@@ -129,23 +129,23 @@ object ValidateNodeInstance {
       n: Draw.Instance)(implicit M: ME[F]): F[Unit] =
     n.vertexAttribs.traverseUnit { a =>
       if (n.modelAttribs.contains(a)) M.pure(())
-      else M.raiseError[Unit](NonEmptyList(AttributeMissingError(a, n.modelAttribs)))
+      else M.raiseError[Unit](NonEmptyList.of(AttributeMissingError(a, n.modelAttribs)))
     }
 
   private def pipes[F[_]](n: Draw.Instance, sources: List[Node.Instance], g: Graph.Instance)(implicit E: ME[F]): F[List[Link.Instance]] =
     g.constructed.pipes.toList.filter(_.end == n.constructor).traverse { l =>
         sources.find(_.constructor == l.start) match {
           case Some(start) => E.pure(Link.Instance(start, n))
-          case None => E.raiseError[Link.Instance](NonEmptyList(StartNodeMissingError(l, n)))
+          case None => E.raiseError[Link.Instance](NonEmptyList.of(StartNodeMissingError(l, n)))
         }
       }
 
   def validate[F[_]](d: Draw.Instance, sources: List[Draw.Instance], g: Graph.Instance)(implicit E: ME[F]): F[List[Link.Instance]] = {
-    val v = framebuffer(d) *>
-        instanced(d) *>
-        textures(d) *>
-        attributes(d) *>
-        pipes(d, sources, g)
+    val v = framebuffer[F](d) *>
+        instanced[F](d) *>
+        textures[F](d) *>
+        attributes[F](d) *>
+        pipes[F](d, sources, g)
     v.handleErrorWith(err => 
       E.raiseError(err.map(e => NodeInstantiationError(d, e))))
   }

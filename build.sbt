@@ -31,7 +31,7 @@ lazy val compilerOptions = Seq(
 )
 
 lazy val monocleVersion = "1.2.2"
-lazy val catsVersion = "0.6.0"
+lazy val catsVersion = "0.7.0"
 
 lazy val commonSettings = Seq(
   resolvers ++= Seq(
@@ -47,7 +47,7 @@ lazy val commonSettings = Seq(
     "org.spire-math" %% "imp" % "0.2.0" % "provided",
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4",
     "co.fs2" %% "fs2-core" % "0.9.0-M6",
-    "com.chuusai" %% "shapeless" % "2.2.5",
+    "com.chuusai" %% "shapeless" % "2.3.1",
     "org.spire-math" %% "spire" % "0.11.0",
     "org.typelevel" %% "cats-core" % catsVersion,
     "org.typelevel" %% "cats-macros" % catsVersion,
@@ -56,7 +56,7 @@ lazy val commonSettings = Seq(
     "org.typelevel" %% "cats-laws" % catsVersion % "test",
     "com.github.julien-truffaut" %% "monocle-core" % monocleVersion,
     "com.github.julien-truffaut"  %%  "monocle-macro" % monocleVersion,
-    "com.projectseptember" %% "freek" % "0.3.0",
+    "com.projectseptember" %% "freek" % "0.6.0",
     "oncue.quiver" %% "core" % "5.3.57",
     "org.slf4j" % "slf4j-api" % "1.7.13",
     "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0",

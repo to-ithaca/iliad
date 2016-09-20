@@ -7,7 +7,7 @@ import cats.functor._
 import cats.implicits._
 
 
-trait CatsInstances extends StateTInstances1 {
+trait CatsInstances {
 
   implicit def freeOps[F[_], A](f: Free[F, A]): FreeOps[F, A] = new FreeOps(f)
   implicit def toFreeOps[F[_], A](f: F[A]): ToFreeOps[F, A] = new ToFreeOps(f)
@@ -49,14 +49,9 @@ trait CatsInstances extends StateTInstances1 {
   implicit def kleisliStateMonadReaderState[R, S]: MonadReaderState[Kleisli[State[S, ?], R, ?], R, S] = new KleisliStateMonadReaderState[R, S]
 
   implicit def toCatsFunctorOps[F[_], A](fa: F[A]): FunctorOps[F, A] = new FunctorOps(fa)
-}
 
-sealed trait StateTInstances1 {
-
-  implicit def stateTMonadError[F[_], S, E](implicit M: MonadError[F, E]): MonadError[StateT[F, S, ?], E]
-  = new StateTMonadError[F, S, E] {
-    def FE = M
-  }
+  implicit def catsDataRecursiveTailRecMForWriterTId[L]: RecursiveTailRecM[WriterT[Id, L, ?]] =
+    WriterT.catsDataRecursiveTailRecMForWriterT1[Id, L]
 }
 
 final class FreeOps[F[_], A](val f: Free[F, A]) extends AnyVal {
@@ -133,19 +128,6 @@ final class MonadReaderOps[F[_], R](val M: MonadReader[F, R]) extends AnyVal {
   def reader[A](f: R => A): F[A] = M.map(M.ask)(f)
 }
 
-sealed trait StateTMonadError[F[_], S, E] extends MonadError[StateT[F, S, ?], E] {
-
-  implicit def FE: MonadError[F, E]
-  
-  def pure[A](x: A): StateT[F,S,A] = StateT.pure[F, S, A](x)
-  def handleErrorWith[A](fa: StateT[F,S,A])(f: E => StateT[F,S,A]): StateT[F,S,A] = 
-    StateT( s => FE.handleErrorWith(fa.run(s))(e => f(e).run(s)))
-  
-  def raiseError[A](e: E): StateT[F,S,A] = StateT.lift(FE.raiseError(e))
-  def flatMap[A, B](fa: StateT[F,S,A])(f: A => StateT[F,S,B]): StateT[F,S,B] = 
-    fa.flatMap(f)
-}
-
 sealed trait StateTMonadReader[F[_], S] extends MonadReader[StateT[F, S, ?], S] {
 
   implicit def M: Monad[F]
@@ -153,6 +135,10 @@ sealed trait StateTMonadReader[F[_], S] extends MonadReader[StateT[F, S, ?], S] 
   def pure[A](x: A): StateT[F, S, A] = StateT.pure(x)
   def ask: StateT[F, S, S] = StateT.get
   def flatMap[A, B](fa: StateT[F,S,A])(f: A => StateT[F,S,B]): StateT[F,S,B] = fa.flatMap(f)
+  def tailRecM[A, B](a: A)(f: A => StateT[F, S, Either[A,B]]): StateT[F,S,B] =
+    StateT[F, S, B](s => M.tailRecM[(S, A), (S, B)]((s, a)) {
+      case (s, a) => M.map(f(a).run(s)) { case (s, ab) => ab.bimap((s, _), (s, _)) }
+    })
   def local[A](f: S => S)(fa: StateT[F,S,A]): StateT[F,S,A] = ask.flatMapF(fa.runA)
 }
 
@@ -162,6 +148,7 @@ final class MonadStateInvariant[F[_]] extends Invariant[MonadState[F, ?]] {
     new MonadState[F, B] {
       def pure[A](x: A): F[A] = fa.pure(x)
       def flatMap[A, B](faa: F[A])(f: A => F[B]): F[B] = fa.flatMap(faa)(f) 
+      def tailRecM[A, B](a: A)(f: A => F[Either[A,B]]): F[B] = fa.tailRecM(a)(f)
       def get: F[B] = fa.map(fa.get)(f)
       def set(s: B): F[Unit] = fa.set(g(s))
     }
@@ -173,6 +160,7 @@ final class MonadReaderInvariant[F[_]] extends Invariant[MonadReader[F, ?]] {
     new MonadReader[F, B] {
       def pure[A](x: A): F[A] = fa.pure(x)
       def flatMap[A, B](faa: F[A])(f: A => F[B]): F[B] = fa.flatMap(faa)(f) 
+      def tailRecM[A, B](a: A)(f: A => F[Either[A,B]]): F[B] = fa.tailRecM(a)(f)
       def ask: F[B] = map(fa.ask)(f)
       def local[A](ff: B => B)(faa: F[A]): F[A] = fa.local(a => g(ff(f(a))))(faa)
     }
@@ -184,6 +172,8 @@ final class KleisliStateMonadReaderState[R, S] extends MonadReaderState[Kleisli[
 
   def pure[A](x: A): Kleisli[State[S, ?], R, A] = Kleisli.pure(x)
   def flatMap[A, B](fa: Kleisli[State[S, ?], R, A])(f: A => Kleisli[State[S, ?], R, B]): Kleisli[State[S, ?], R, B] = fa.flatMap(f)
+  def tailRecM[A, B](a: A)(f: A => Kleisli[State[S, ?], R, Either[A,B]]): Kleisli[State[S, ?], R, B] = 
+    FlatMap[Kleisli[State[S, ?], R, ?]].tailRecM(a)(f)
   def ask: Kleisli[State[S, ?], R, R] = Kleisli.ask
   def local[A](f: R => R)(fa: Kleisli[State[S, ?], R, A]): Kleisli[State[S, ?], R, A] = Kleisli.local(f)(fa)
   def get: Kleisli[State[S, ?], R, S] = Kleisli.lift(State.get)

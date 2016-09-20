@@ -39,7 +39,7 @@ trait GLBootstrap extends LazyLogging {
       .validate(config.graph)
       .map(Graphics.Config(Session.pageSize, _, config.graphTraversal, 
         v"$width $height"))
-      .leftMap(_.unwrap.mkString("\n"))
+      .leftMap(_.toList.mkString("\n"))
       .bimap(s => Task.fail(new Error(s)), Task.now).merge[Task[Graphics.Config]]
 
   private val LogEGLInterpreter: EGL ~> ReaderT[Xor[EGLError, ?], EGL14.type, ?] = 
