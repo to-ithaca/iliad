@@ -164,6 +164,15 @@ lazy val x11 = (project in file("modules/x11")).settings(
   )
 ).dependsOn(macros)
 
+lazy val benchmark = project.in(file("benchmark")).settings(
+  buildSettings,
+  name := "iliad-benchmark",
+  paradiseSettings,
+  libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _)
+).enablePlugins(JmhPlugin)
+  .dependsOn(x11)
+
+
 lazy val win32 = (project in file("modules/win32")).settings(
   buildSettings,
   moduleName := "iliad-win32",
