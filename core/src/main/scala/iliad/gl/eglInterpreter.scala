@@ -85,6 +85,8 @@ object EGLInterpreter
       case EGLBindAPI(api) => Reader(_.eglBindAPI(api.value))
       case EGLCreateWindowSurface(disp, cfg, nw, attribs) =>
         Reader(_.eglCreateWindowSurface(disp, cfg, nw, attribs.toArray))
+      case EGLCreatePBufferSurface(disp, cfg, attribs) =>
+        Reader(_.eglCreatePbufferSurface(disp, cfg, attribs.toArray))
       case EGLGetDisplay(nDisp) =>
         Reader(_.eglGetDisplay(nDisp))
       case EGLSwapBuffers(disp, sfc) => Reader(_.eglSwapBuffers(disp, sfc))
@@ -105,5 +107,10 @@ object EGLInterpreter
         }
       case EGLSwapInterval(dpy, interval) =>
         Reader(_.eglSwapInterval(dpy, interval))
+
+      case EGLDestroySurface(dpy, sfc) =>
+        Reader(_.eglDestroySurface(dpy, sfc))
+      case EGLDestroyContext(dpy, ctx) =>
+        Reader(_.eglDestroyContext(dpy, ctx))
     }
 }

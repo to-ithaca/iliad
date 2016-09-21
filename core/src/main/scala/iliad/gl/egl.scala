@@ -121,6 +121,13 @@ object EGL {
                 EGLCreateSurfaceError(attribs))
     ).value
 
+  def pbufferSurface(dpy: EGL14.EGLDisplay, cfg: EGL14.EGLConfig, attribs: Attributes[PBufferAttrib, PBufferAttribValue]): DSL[EGLCreatePBufferSurfaceError Xor EGL14.EGLSurface] =
+    (ensure(EGLCreatePBufferSurface(dpy, cfg, attribs).free)(
+                s => s != null && s != EGL14.EGL_NO_SURFACE,
+                EGLCreatePBufferSurfaceError(attribs))
+    ).value
+
+
   def swapBuffers(dpy: EGL14.EGLDisplay,
                   sfc: EGL14.EGLSurface): DSL[EGLSwapBuffersError.type Xor Boolean] =
     ensure(EGLSwapBuffers(dpy, sfc).free)(identity, EGLSwapBuffersError).value
@@ -146,6 +153,16 @@ object EGL {
     ensure(EGLSwapInterval(dpy, interval).free)(
         identity,
         EGLSwapIntervalError(interval)).value
+
+  def destroySurface(dpy: EGL14.EGLDisplay, sfc: EGL14.EGLSurface): DSL[EGLDestroySurfaceError Xor Boolean] =
+    ensure(EGLDestroySurface(dpy, sfc).free)(
+        identity,
+      EGLDestroySurfaceError(dpy, sfc)).value
+
+  def destroyContext(dpy: EGL14.EGLDisplay, ctx: EGL14.EGLContext): DSL[EGLDestroyContextError Xor Boolean] =
+    ensure(EGLDestroyContext(dpy, ctx).free)(
+        identity,
+      EGLDestroyContextError(dpy, ctx)).value
 }
 
 trait EGL[A]
@@ -172,6 +189,8 @@ case class EGLCreateWindowSurface(
     win: EGL14.EGLNativeWindowType,
     attribs: Attributes[WindowAttrib, WindowAttribValue])
     extends EGL[EGL14.EGLSurface]
+case class EGLCreatePBufferSurface(dpy: EGL14.EGLDisplay, cfg: EGL14.EGLConfig, 
+  attribs: Attributes[PBufferAttrib, PBufferAttribValue]) extends EGL[EGL14.EGLSurface]
 case class EGLSwapBuffers(dpy: EGL14.EGLDisplay, sfc: EGL14.EGLSurface)
     extends EGL[Boolean]
 case class EGLBindAPI(api: EGLAPI) extends EGL[Boolean]
@@ -185,3 +204,5 @@ case class EGLMakeCurrent(dpy: EGL14.EGLDisplay,
                                           ctx: EGL14.EGLContext) extends EGL[Boolean]
 case object EGLGetError extends EGL[Int]
 case class EGLSwapInterval(dpy: EGL14.EGLDisplay, interval: Int) extends EGL[Boolean]
+case class EGLDestroyContext(dpy: EGL14.EGLDisplay, ctx: EGL14.EGLContext) extends EGL[Boolean]
+case class EGLDestroySurface(dpy: EGL14.EGLDisplay, sfc: EGL14.EGLSurface) extends EGL[Boolean]

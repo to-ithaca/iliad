@@ -18,11 +18,14 @@ trait InstantiateFunctions {
   def elementBuffer(name: String): ElementBuffer =
     GL.ElementBuffer.Constructor(name)
 
-  def vertexRef(name: String, data: ByteVector, buffer: VertexBuffer): VertexRef =
+  def vertexRef(name: String, size: Int, buffer: VertexBuffer): VertexRef =
     GL.Model.VertexRef(
       GL.VertexData.Ref(name, buffer),
-      GL.DataRange(0, data.size.toInt)
+      GL.DataRange(0, size)
     )
+
+  def vertexRef(name: String, data: ByteVector, buffer: VertexBuffer): VertexRef =
+    vertexRef(name, data.size.toInt, buffer)
 
   def subVertexRef(ref: VertexRef, range: (Int, Int)): VertexRef = 
     GL.Model.VertexRef(
@@ -30,11 +33,14 @@ trait InstantiateFunctions {
       GL.DataRange(range._1, range._2)
     )
 
-  def elementRef(name: String, data: ByteVector, buffer: ElementBuffer): ElementRef =
+  def elementRef(name: String, size: Int, buffer: ElementBuffer): ElementRef =
     GL.Model.ElementRef(
       GL.ElementData.Ref(name, buffer),
-      GL.DataRange(0, data.size.toInt)
+      GL.DataRange(0, size)
     )
+
+  def elementRef(name: String, data: ByteVector, buffer: ElementBuffer): ElementRef =
+    elementRef(name, data.size.toInt, buffer)
 
   def subElementRef(ref: ElementRef, range: (Int, Int)): ElementRef =
     GL.Model.ElementRef(

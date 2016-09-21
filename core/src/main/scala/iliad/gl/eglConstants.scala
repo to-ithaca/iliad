@@ -44,6 +44,16 @@ object ContextAttrib {
     k -> v.right
 }
 
+object PBufferAttrib {
+  def apply(k: PBufferAttrib,
+            i: Int): (PBufferAttrib, Int Xor PBufferAttribValue) =
+    k -> i.left
+  def apply(
+      k: PBufferAttrib,
+      v: PBufferAttribValue): (PBufferAttrib, Int Xor PBufferAttribValue) =
+    k -> v.right
+}
+
 case object EGL_ALPHA_SIZE extends IntConstant(0x3021) with ConfigAttrib
 case object EGL_BAD_ACCESS extends IntConstant(0x3002) with EGLErrorCode
 case object EGL_BAD_ALLOC extends IntConstant(0x3003) with EGLErrorCode
@@ -69,7 +79,7 @@ case object EGL_EXTENSIONS extends IntConstant(0x3055)
 case object EGL_FALSE extends IntConstant(0) with ConfigAttribValue
 case object EGL_GREEN_SIZE extends IntConstant(0x3023) with IntConfigAttrib
 case object EGL_HEIGHT extends IntConstant(0x3056) with PBufferAttrib
-case object EGL_LARGEST_PBUFFER extends IntConstant(0x3058)
+case object EGL_LARGEST_PBUFFER extends IntConstant(0x3058) with PBufferAttrib
 case object EGL_LEVEL extends IntConstant(0x3029) with IntConfigAttrib
 case object EGL_MAX_PBUFFER_HEIGHT
     extends IntConstant(0x302A)
@@ -135,7 +145,7 @@ case object EGL_MIN_SWAP_INTERVAL
 case object EGL_MAX_SWAP_INTERVAL
     extends IntConstant(0x303C)
     with IntConfigAttrib
-case object EGL_MIPMAP_TEXTURE extends IntConstant(0x3082)
+case object EGL_MIPMAP_TEXTURE extends IntConstant(0x3082) with PBufferAttrib
 case object EGL_MIPMAP_LEVEL extends IntConstant(0x3083)
 case object EGL_NO_TEXTURE extends IntConstant(0x305C)
 case object EGL_TEXTURE_2D extends IntConstant(0x305F) with PBufferAttribValue
@@ -195,14 +205,14 @@ case object EGL_MATCH_NATIVE_PIXMAP
     extends IntConstant(0x3041)
     with ConfigAttrib //CHECK
 case object EGL_OPENGL_ES2_BIT extends IntConstant(0x0004)
-case object EGL_VG_ALPHA_FORMAT extends IntConstant(0x3088)
-case object EGL_VG_ALPHA_FORMAT_NONPRE extends IntConstant(0x308B)
-case object EGL_VG_ALPHA_FORMAT_PRE extends IntConstant(0x308C)
+case object EGL_VG_ALPHA_FORMAT extends IntConstant(0x3088) with PBufferAttrib
+case object EGL_VG_ALPHA_FORMAT_NONPRE extends IntConstant(0x308B) with PBufferAttribValue
+case object EGL_VG_ALPHA_FORMAT_PRE extends IntConstant(0x308C) with PBufferAttribValue
 case object EGL_VG_ALPHA_FORMAT_PRE_BIT extends IntConstant(0x0040)
-case object EGL_VG_COLORSPACE extends IntConstant(0x3087)
-case object EGL_VG_COLORSPACE_sRGB extends IntConstant(0x3089)
-case object EGL_VG_COLORSPACE_LINEAR extends IntConstant(0x308A)
-case object EGL_VG_COLORSPACE_LINEAR_BIT extends IntConstant(0x0020)
+case object EGL_VG_COLORSPACE extends IntConstant(0x3087) with PBufferAttrib
+case object EGL_VG_COLORSPACE_sRGB extends IntConstant(0x3089) with PBufferAttribValue
+case object EGL_VG_COLORSPACE_LINEAR extends IntConstant(0x308A) with PBufferAttribValue
+case object EGL_VG_COLORSPACE_LINEAR_BIT extends IntConstant(0x0020) with PBufferAttribValue
 
 /** EGL 14 */
 case object EGL_MULTISAMPLE_RESOLVE_BOX_BIT extends IntConstant(0x0200)

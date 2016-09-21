@@ -112,6 +112,13 @@ case class EGLCreateSurfaceError(
     extends EGLError {
   override def toString: String = s"Failed to create EGL surface from attributes: $as"
 }
+
+case class EGLCreatePBufferSurfaceError(
+    as: Attributes[PBufferAttrib, PBufferAttribValue])
+    extends EGLError {
+  override def toString: String = s"Failed to create EGL PBuffer surface from attributes: $as"
+}
+
 case class EGLSwapIntervalError(interval: Int) extends EGLError {
   override def toString: String = s"Failed to set EGL swap interval to $interval"
 }
@@ -119,4 +126,14 @@ case class EGLConfigError(as: Attributes[ConfigAttrib, ConfigAttribValue])
     extends EGLError {
   override def toString: String =
     s"Failed to choose EGL config using context attributes $as"
+}
+
+case class EGLDestroySurfaceError(dpy: EGL14.EGLDisplay, sfc: EGL14.EGLSurface) extends EGLError {
+  override def toString: String = 
+    s"Failed to destroy surface for display [ $dpy ] surface [ $sfc ]"
+}
+
+case class EGLDestroyContextError(dpy: EGL14.EGLDisplay, ctx: EGL14.EGLContext) extends EGLError {
+  override def toString: String = 
+    s"Failed to destroy context for display [ $dpy ] context [ $ctx ]"
 }
