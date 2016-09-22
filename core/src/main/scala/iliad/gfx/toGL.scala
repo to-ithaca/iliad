@@ -74,6 +74,13 @@ object ToGL {
       v <- apply(c.viewport)
     } yield GL.ClearOp(c.constructor.mask, c.constructor.colour, f, v)
 
+  def apply(n: Node.Drawable): DSL[XorT[GL.GL.DSL, GL.GLError, Unit]] = n match {
+    case d: Draw.Drawable =>
+      apply(d).map(o => XorT(GL.GL.draw(o)))
+    case c: Clear.Instance =>
+      apply(c).map(o => XorT(GL.GL.clear(o)))
+  }
+
   def apply(
       ns: List[Node.Drawable]): DSL[List[XorT[GL.GL.DSL, GL.GLError, Unit]]] =
     ns.traverse {

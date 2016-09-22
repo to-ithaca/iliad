@@ -7,6 +7,8 @@ import java.nio.ByteBuffer
 import cats.data.Xor
 import cats.implicits._
 
+import scala.math._
+
 trait ScodecInstances {
   implicit def toBitVectorOps(bitVector: BitVector): BitVectorOps = new BitVectorOps(bitVector)
   implicit def toByteVectorOps(byteVector: ByteVector): ByteVectorOps = new ByteVectorOps(byteVector)
@@ -22,6 +24,7 @@ final class BitVectorOps(val bitVector: BitVector) extends AnyVal {
 
   def swizzleZYX: BitVector = bitVector.toByteVector.swizzleZYX.toBitVector
   def swizzleZYXW: BitVector = bitVector.toByteVector.swizzleZYXW.toBitVector
+  def dropWFromXYZW: BitVector = bitVector.toByteVector.dropWFromXYZW.toBitVector
   def reverseColumns(nrows: Int, ncols: Int): BitVector = 
     bitVector.toByteVector.reverseColumns(nrows, ncols).toBitVector
 }
@@ -50,6 +53,13 @@ final class ByteVectorOps(val byteVector: ByteVector) extends AnyVal {
       val j = if(m == 3) i else i + 2 - 2 * m
       byteVector.apply(j)
     }, byteVector.size)
+
+
+  def dropWFromXYZW: ByteVector = 
+    ByteVector.viewAt({(i: Long) => 
+      val j = i + floor(i.toDouble / 3.0).toInt
+      byteVector.apply(j)
+    }, (3.0 * byteVector.size.toDouble / 4.0).toInt)
 
   def reverseColumns(nrows: Int, ncols: Int): ByteVector =
     ByteVector.viewAt({(i: Long) => 
