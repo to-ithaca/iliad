@@ -20,7 +20,7 @@ import shapeless.nat
 
 trait EventStream extends LazyLogging {
 
-  private implicit val S: Strategy = Strategy.fromFixedDaemonPool(1, "worker")
+  private implicit val S: Strategy = Strategy.fromFixedDaemonPool(1, "event")
 
   private def baseStream[A](register: (A => Unit) => Unit): Stream[Task, A] =
     Stream.eval(async.boundedQueue[Task, A](10)).flatMap { q =>
@@ -134,7 +134,7 @@ sealed trait EventRecogniser {
 
 object EventRecogniser {
 
-  val minDt = ((1 / 30) seconds).toMillis
+   val minDt = ((1.0 / 30.0) seconds).toMillis
 
   private def buttonEvent(e: XEvent,
                           width: Int,
@@ -311,13 +311,24 @@ object EventHandler {
   def handleEvent(e: InputEvent): Unit = eventCallback(e)
 }
 
-import android.view.{GestureDetector, MotionEvent}
+import android.view.{GestureDetector, MotionEvent, View, DragEvent}
+//TODO: do we really care about compat, or can we use a basic gesture detector
+import android.support.v4.view.GestureDetectorCompat
 trait AndroidEventHandler extends GestureDetector.OnGestureListener
     with GestureDetector.OnDoubleTapListener
     with LazyLogging {
 
   def width: Int
   def height: Int
+
+  private def point(e: MotionEvent): InputEvent.Point = { 
+    val x = e.getX.toDouble / width.toDouble
+    val y = e.getY.toDouble / height.toDouble
+    InputEvent.Point(System.currentTimeMillis, v"$x $y")
+  }
+
+  var isScrolling: Boolean = false
+  var _dragHistory: List[Point] = Nil
 
   override def onDown(event: MotionEvent): Boolean =  {
     logger.debug("onDown: " + event.toString());
@@ -333,9 +344,33 @@ trait AndroidEventHandler extends GestureDetector.OnGestureListener
     logger.debug("onLongPress: " + event.toString());
   }
 
+  private val minDt = ((1.0 / 30.0) seconds).toMillis
+
   override def onScroll(e1: MotionEvent, e2: MotionEvent, distanceX: Float, distanceY: Float): Boolean = {
     logger.debug("onScroll: " + e1.toString()+e2.toString());
-    return true;
+    if(!isScrolling) {
+      val p1 = point(e1)
+      val p2 = point(e2)
+      EventHandler.handleEvent(InputEvent.DragStarted(p1, p2))
+      _dragHistory = List(p2, p1)
+      isScrolling = true
+    } else {
+      val p2 = point(e2)
+      if((p2.at - _dragHistory.head.at) > minDt) {
+        EventHandler.handleEvent(InputEvent.DragContinued(p2 :: _dragHistory))
+        _dragHistory = p2 :: _dragHistory
+      }
+    }
+    true
+  }
+
+  def onScrollStop(e: MotionEvent): Boolean = {
+    logger.info(s"onScrollStop: $e")
+    val p = point(e)
+    EventHandler.handleEvent(InputEvent.DragFinished(p :: _dragHistory))
+    _dragHistory = Nil
+    isScrolling = false
+    true
   }
 
   override def onShowPress(event: MotionEvent): Unit = {
@@ -364,5 +399,13 @@ trait AndroidEventHandler extends GestureDetector.OnGestureListener
     EventHandler.handleEvent(InputEvent.Tap(InputEvent.Point(event.getEventTime, v"$x $y")))
     return true;
   }
+}
+
+final class AndroidViewEventHandler(d: GestureDetectorCompat, h: AndroidEventHandler) extends View.OnTouchListener {
+  override def onTouch(v: View, e: MotionEvent): Boolean = 
+    if(d.onTouchEvent(e)) true
+    else if(e.getAction == MotionEvent.ACTION_UP && h.isScrolling)
+      h.onScrollStop(e)
+    else false
 }
 #-android

@@ -82,14 +82,8 @@ trait LoadFunctions {
   def load(f: Framebuffer.Instance): GFX =
     lift(PutFramebuffer(f))
 
-
-  def loadFile(name: String): Xor[GraphicsError, BitVector] =
-    try {
-      val stream: InputStream = new FileInputStream(name)
-      BitVector.fromInputStream(stream).right
-    } catch {
-      case e: java.io.FileNotFoundException => FileNotFoundError(name).left
-    }
+  def loadFile(name: String): Xor[GraphicsError, BitVector] = 
+    ResourceLoader.loadFile(name).leftMap(_ => FileNotFoundError(name))
 
   def decodePNG[A](bitVector: BitVector)(implicit decoder: PNGDecoder[A]): Xor[GraphicsError, Bitmap[A]] =
     decoder.decode(bitVector).toXor.map(_.value)

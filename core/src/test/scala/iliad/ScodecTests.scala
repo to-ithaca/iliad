@@ -54,4 +54,13 @@ class ScodecTests extends FunSuite with Matchers {
                                                                     4, 5, 6, 
                                                                     1, 2, 3)))
   }
+
+  test("dropWFromXYZW should drop every 4th value") {
+    val bitVector = BitVector(Array[Byte](1, 2,  3,  4,
+                                          5, 6,  7,  8,
+                                          9, 10, 11, 12))
+    bitVector.dropWFromXYZW should ===(BitVector(Array[Byte](1, 2,  3,
+                                                             5, 6,  7,
+                                                             9, 10, 11)))
+  }
 }

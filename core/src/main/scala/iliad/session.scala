@@ -374,12 +374,14 @@ trait AndroidBootstrap extends Activity with AndroidEventHandler
     _width = size.x
     _height = size.y
 
+    ResourceLoader.resources = getResources()
+
     detector = new GestureDetectorCompat(this, this)
     detector.setOnDoubleTapListener(this)
 
     if (savedInstanceState == null) {
       val transaction = getFragmentManager.beginTransaction()
-      val fragment = new AndroidFragment(subView, fragmentXML)
+      val fragment = new AndroidFragment(subView, fragmentXML, detector, this)
       transaction.replace(subFragment, fragment)
       transaction.commit()
     }
@@ -395,7 +397,7 @@ trait AndroidBootstrap extends Activity with AndroidEventHandler
   override def onOptionsItemSelected(item: MenuItem): Boolean = true
 }
 
-final class AndroidFragment(subView: Int, fragmentXML: Int) 
+final class AndroidFragment(subView: Int, fragmentXML: Int, d: GestureDetectorCompat, eh: AndroidEventHandler)
     extends Fragment with LazyLogging {
 
   override def onCreateView(inflater: LayoutInflater ,container: ViewGroup, savedInstanceState: Bundle) = {
@@ -406,7 +408,19 @@ final class AndroidFragment(subView: Int, fragmentXML: Int)
   override def onViewCreated(v: View, savedInstanceState: Bundle): Unit = {
     logger.info("AndroidFragment.onViewCreated: created view. Running app")
     val view = v.findViewById(subView).asInstanceOf[SurfaceView]
-    Session.session.set((view.getHolder(), EGL14.EGL_DEFAULT_DISPLAY))
+    view.setOnTouchListener(new AndroidViewEventHandler(d, eh))
+    view.getHolder().addCallback(AndroidSurfaceHolderCallback)
   }
+}
+
+object AndroidSurfaceHolderCallback extends SurfaceHolder.Callback with LazyLogging {
+  def surfaceCreated(h: SurfaceHolder) =  {
+    logger.info("AndroidSurfaceHolderCallback.surfaceCreated")
+    Session.session.set((h, EGL14.EGL_DEFAULT_DISPLAY)) 
+  }
+
+  def surfaceChanged(x1: SurfaceHolder,x$2: Int,x$3: Int,x$4: Int): Unit = {}
+  def surfaceDestroyed(x1: SurfaceHolder): Unit = {}
+
 }
 #-android

@@ -164,40 +164,54 @@ import breeze.linalg.DenseMatrix
   def product[N1 <: Nat](x: Mat4f, y: Matrix[N1, nat._4, Float])(implicit toInt: ToInt[N1]): Matrix[N1, nat._4, Float] = {
     val N1 = toInt()
     require(N1 < 5, s"not implemented multiplication greater than 4, found $N1")
-    val r = if(N1 < 1) {
+    val r: Array[Float] = if(N1 == 1) {
+      //y is a vector
       val m0 = x.toArray
-      val m1 = if(N1 != 4) {
+      val m1 = y.toArray
+      val t = new Array[Float](16)
+      val r = new Array[Float](4)
+      Native.transposeM(t, 0, x.toArray, 0)
+      Native.multiplyMV(r, 0, t, 0, y.toArray, 0)
+      r
+    } else if(N1 == 4) {
+      //y is a 4x4 matrix
+      val r0 = new Array[Float](16)
+      val t = new Array[Float](32)
+      val rt = new Array[Float](16)
+      Native.transposeM(t, 0, x.toArray, 0)
+      Native.transposeM(t, 16, y.toArray, 0)
+      Native.multiplyMM(r0, 0, t, 0, t, 16)
+      Native.transposeM(rt, 0, r0, 0)
+      rt
+    } else {
+      //y is a 2x4 or 3x4 matrix
+      val m1 = {
         val mtmp = Array.fill(16)(0f)
         val m1 = y.toArray
         (0 until N1).foreach { i =>
           Array.copy(m1, i * N1, mtmp, i * 4, N1)
         }
         //fill with 1 for each of the extra dimensions
+        //FIXME: pretty sure this doesn't work
         (N1 until 4).foreach { i =>
           mtmp(i * 5) = 1f
         }
         mtmp
-      } else y.toArray
+      }
+
       val r0 = new Array[Float](16)
       val t = new Array[Float](32)
-      Native.transposeM(t, 0, m0, 0)
+      Native.transposeM(t, 0, x.toArray, 0)
       Native.transposeM(t, 16, m1, 0)
       Native.multiplyMM(r0, 0, t, 0, t, 16)
+
       val r = new Array[Float](N1 * 4)
       (0 until N1).foreach { i =>
-        Array.copy(r, i * 4, r, i * N1, N1)
+        Array.copy(r0, i * 4, r, i * N1, N1)
       }
       r
-    } else {
-      val m0 = x.toArray
-      val m1 = y.toArray
-      val t = new Array[Float](16)
-      val r = new Array[Float](4)
-      Native.transposeM(t, 0, m0, 0)
-      Native.multiplyMV(r, 0, t, 0, m1, 0)
-      r
     }
-    new Matrix(r.toSVector)
+    new Matrix(r.toVector)
   }
 
   def inverse(x: Mat4f): Mat4f = {
@@ -205,7 +219,7 @@ import breeze.linalg.DenseMatrix
     val t = new Array[Float](16)
     Native.transposeM(t, 0, x.toArray, 0)
     Native.invertM(r, 0, t, 0)
-    new Matrix(r.toSVector)
+    new Matrix(r.toVector)
   }
 #-android
 
